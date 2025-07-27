@@ -246,3 +246,4 @@ claude-output.json
 .claude/commands/feature.md
 .mcp.json
 specs/
+multi-agent-observability-system.code-workspace

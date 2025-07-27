@@ -1,7 +1,7 @@
 <template>
-  <div class="h-screen flex flex-col bg-[var(--theme-bg-secondary)]">
+  <div class="h-screen flex flex-col bg-gray-900">
     <!-- Header with Primary Theme Colors -->
-    <header class="bg-gradient-to-r from-[var(--theme-primary)] to-[var(--theme-primary-light)] shadow-lg border-b-2 border-[var(--theme-primary-dark)]">
+    <header class="bg-gradient-to-r from-blue-700 to-blue-600 shadow-xl border-b-2 border-blue-800">
       <div class="px-3 py-4 mobile:py-2 mobile:flex-col mobile:space-y-2 flex items-center justify-between">
         <!-- Title Section -->
         <div class="mobile:w-full mobile:text-center">
@@ -10,69 +10,258 @@
           </h1>
         </div>
         
-        <!-- Connection Status -->
-        <div class="mobile:w-full mobile:justify-center flex items-center space-x-1.5">
-          <div v-if="isConnected" class="flex items-center space-x-1.5">
-            <span class="relative flex h-3 w-3">
-              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-              <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-            </span>
-            <span class="text-base mobile:text-sm text-white font-semibold drop-shadow-md">Connected</span>
-          </div>
-          <div v-else class="flex items-center space-x-1.5">
-            <span class="relative flex h-3 w-3">
-              <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-            </span>
-            <span class="text-base mobile:text-sm text-white font-semibold drop-shadow-md">Disconnected</span>
+        <!-- View Mode Selector -->
+        <div class="mobile:w-full mobile:justify-center flex items-center space-x-2">
+          <div class="flex items-center bg-white/20 backdrop-blur-sm rounded-lg p-1 border border-white/30">
+            <button
+              v-for="mode in viewModes"
+              :key="mode.id"
+              @click="currentViewMode = mode.id as typeof currentViewMode"
+              class="px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200"
+              :class="currentViewMode === mode.id 
+                ? 'bg-white text-blue-700 shadow-md font-semibold' 
+                : 'text-white/90 hover:text-white hover:bg-white/20'"
+            >
+              <span class="mr-1">{{ mode.icon }}</span>
+              <span class="hidden sm:inline">{{ mode.label }}</span>
+            </button>
           </div>
         </div>
         
-        <!-- Event Count and Theme Toggle -->
+        <!-- Right Section -->
         <div class="mobile:w-full mobile:justify-center flex items-center space-x-2">
-          <span class="text-base mobile:text-sm text-white font-semibold drop-shadow-md bg-[var(--theme-primary-dark)] px-3 py-1.5 rounded-full border border-white/30">
-            {{ events.length }} events
+          <!-- Connection Status -->
+          <div class="flex items-center space-x-1.5">
+            <div v-if="isConnected" class="flex items-center space-x-1.5">
+              <span class="relative flex h-3 w-3">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+              </span>
+              <span class="text-sm text-white font-semibold drop-shadow-md hidden sm:inline">Connected</span>
+            </div>
+            <div v-else class="flex items-center space-x-1.5">
+              <span class="relative flex h-3 w-3">
+                <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+              </span>
+              <span class="text-sm text-white font-semibold drop-shadow-md hidden sm:inline">Disconnected</span>
+            </div>
+          </div>
+          
+          <span class="text-sm text-white font-semibold drop-shadow-md bg-blue-800 px-3 py-1.5 rounded-full border border-blue-600">
+            {{ events.length }}
           </span>
           
           <!-- Filters Toggle Button -->
           <button
             @click="showFilters = !showFilters"
-            class="p-3 mobile:p-1.5 rounded-lg bg-white/20 hover:bg-white/30 transition-all duration-200 border border-white/30 hover:border-white/50 backdrop-blur-sm shadow-lg hover:shadow-xl"
+            class="p-2 rounded-lg bg-white/20 hover:bg-white/30 transition-all duration-200 border border-white/30 hover:border-white/50 backdrop-blur-sm shadow-lg hover:shadow-xl"
             :title="showFilters ? 'Hide filters' : 'Show filters'"
           >
-            <span class="text-2xl mobile:text-lg">📊</span>
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
           </button>
           
           <!-- Theme Manager Button -->
           <button
             @click="handleThemeManagerClick"
-            class="p-3 mobile:p-1.5 rounded-lg bg-white/20 hover:bg-white/30 transition-all duration-200 border border-white/30 hover:border-white/50 backdrop-blur-sm shadow-lg hover:shadow-xl"
+            class="p-2 rounded-lg bg-white/20 hover:bg-white/30 transition-all duration-200 border border-white/30 hover:border-white/50 backdrop-blur-sm shadow-lg hover:shadow-xl"
             title="Open theme manager"
           >
-            <span class="text-2xl mobile:text-lg">🎨</span>
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+            </svg>
           </button>
         </div>
       </div>
     </header>
     
     <!-- Filters -->
-    <FilterPanel
-      v-if="showFilters"
-      :filters="filters"
-      @update:filters="filters = $event"
+    <Transition name="slide-down">
+      <SmartFilterBar
+        v-if="showFilters"
+        :events="events"
+        :filters="{ sourceApps: filters.sourceApps, sessionIds: filters.sessionIds, eventTypes: filters.eventTypes, toolNames: filters.toolNames, search: filters.search }"
+        :sort-by="sortBy"
+        :sort-order="sortOrder"
+        @update:filters="handleSmartFilterUpdate"
+        @update:sortBy="sortBy = $event as typeof sortBy"
+        @update:sortOrder="sortOrder = $event as typeof sortOrder"
+      />
+    </Transition>
+    
+    <!-- Breadcrumb Navigation (shown when filters are active) -->
+    <Transition name="slide-down">
+      <div v-if="hasActiveFilters" class="bg-blue-900/30 border-b border-blue-700/50 px-4 py-2">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-2 text-sm">
+            <button
+              @click="clearFiltersAndReturnToApplications"
+              class="flex items-center space-x-1 text-blue-300 hover:text-blue-200 transition-colors"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+              </svg>
+              <span>📱 Applications</span>
+            </button>
+            
+            <div class="flex items-center space-x-2">
+              <span class="text-gray-400">›</span>
+              <div class="flex items-center space-x-2">
+                <span v-if="filters.sourceApp" class="text-white font-medium">{{ filters.sourceApp }}</span>
+                <span v-if="filters.toolName" class="text-gray-400">›</span>
+                <span v-if="filters.toolName" class="inline-flex items-center space-x-1 bg-blue-800/50 px-2 py-1 rounded-full text-xs">
+                  <span>{{ getToolIcon(filters.toolName) }}</span>
+                  <span class="text-blue-200">{{ filters.toolName }}</span>
+                </span>
+                <span v-if="filters.sessionId" class="text-gray-400">›</span>
+                <span v-if="filters.sessionId" class="inline-flex items-center space-x-1 bg-purple-800/50 px-2 py-1 rounded-full text-xs">
+                  <span>🔗</span>
+                  <span class="text-purple-200">{{ formatSessionId(filters.sessionId) }}</span>
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="flex items-center space-x-2">
+            <span class="text-xs text-gray-400">{{ finalFilteredEvents.length }} events</span>
+            <button
+              @click="clearAllFilters"
+              class="text-xs text-gray-400 hover:text-white transition-colors px-2 py-1 rounded border border-gray-600 hover:border-gray-500"
+            >
+              Clear all
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+    
+    <!-- Filter Notification Bar -->
+    <FilterNotificationBar
+      :notification="filterNotification"
+      :filter-impact-percentage="filterImpactPercentage"
+      :filter-summary-text="filterSummaryText"
+      :show-notifications="showNotifications"
+      @remove-filter="removeFilter"
+      @clear-all-filters="clearAllFilters"
+      @toggle-notifications="toggleNotifications"
     />
     
-    <!-- Live Pulse Chart -->
-    <LivePulseChart
+    <!-- Activity Dashboard -->
+    <ActivityDashboard
       :events="events"
-      :filters="filters"
+      :get-session-color="getHexColorForSession"
+      :get-app-color="getHexColorForApp"
+      @select-session="handleSessionSelect"
+      @view-all-sessions="currentViewMode = 'swimlane'"
     />
     
-    <!-- Timeline -->
-    <EventTimeline
-      :events="events"
-      :filters="filters"
-      v-model:stick-to-bottom="stickToBottom"
-    />
+    <!-- Main Content Area -->
+    <div class="flex-1 overflow-hidden">
+      <Transition name="fade" mode="out-in">
+        <!-- Timeline View (New Visual Timeline) -->
+        <TimelineView
+          v-if="currentViewMode === 'timeline'"
+          key="timeline"
+          :events="finalFilteredEvents"
+          :get-session-color="getHexColorForSession"
+          :get-app-color="getHexColorForApp"
+          @event-click="openEventDetail"
+          @copy-event="handleEventCopy"
+        />
+        
+        <!-- Applications View (Application-centric monitoring) -->
+        <ApplicationsOverview
+          v-else-if="currentViewMode === 'applications'"
+          key="applications"
+          :events="finalFilteredEvents"
+          :all-events="events"
+          :active-filters="filters"
+          :get-app-color="getHexColorForApp"
+          :get-session-color="getHexColorForSession"
+          @select-session="handleSessionSelect"
+          @filter-by-app="handleFilterByApp"
+          @view-all-sessions="handleViewAllSessions"
+          @filter-by-tool="handleFilterByTool"
+          @clear-filter="handleClearFilter"
+          @clear-all-filters="clearAllFilters"
+        />
+        
+        <!-- Cards View (Original card-based layout) -->
+        <div v-else-if="currentViewMode === 'cards'" key="cards" class="h-full overflow-y-auto p-4 bg-gray-950">
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <TransitionGroup name="event-card">
+              <EventCard
+                v-for="event in finalFilteredEvents"
+                :key="`${event.id}-${event.timestamp}`"
+                :event="event"
+                :session-color-class="getColorForSession(event.session_id)"
+                :session-border-class="getBorderColorForSession(event.session_id)"
+                :app-color-class="getColorForApp(event.source_app)"
+                :app-hex-color="getHexColorForApp(event.source_app)"
+                @open-modal="openEventDetail(event)"
+                @copy="handleEventCopy(event)"
+              />
+            </TransitionGroup>
+          </div>
+          
+          <div v-if="finalFilteredEvents.length === 0" class="text-center py-8 text-[var(--theme-text-tertiary)]">
+            <div class="text-6xl mb-4">🔍</div>
+            <p class="text-lg font-semibold text-[var(--theme-primary)] mb-2">No events found</p>
+            <p class="text-base">Try adjusting your filters or wait for new events</p>
+          </div>
+        </div>
+        
+        <!-- Swimlane View -->
+        <div v-else-if="currentViewMode === 'swimlane'" key="swimlane" class="h-full overflow-y-auto p-4 space-y-4">
+          <TransitionGroup name="swimlane">
+            <SessionSwimLane
+              v-for="[sessionId, sessionEvents] in groupedBySessions"
+              :key="sessionId"
+              :session-id="sessionId"
+              :events="sessionEvents"
+              :session-color-class="getColorForSession(sessionId)"
+              :get-app-color="getHexColorForApp"
+              @event-click="openEventDetail"
+            />
+          </TransitionGroup>
+          
+          <div v-if="groupedBySessions.size === 0" class="text-center py-8 text-[var(--theme-text-tertiary)]">
+            <div class="text-6xl mb-4">🏊</div>
+            <p class="text-lg font-semibold text-[var(--theme-primary)] mb-2">No sessions found</p>
+            <p class="text-base">Sessions will appear here as events are received</p>
+          </div>
+        </div>
+        
+        <!-- Grid View -->
+        <div v-else-if="currentViewMode === 'grid'" key="grid" class="h-full overflow-y-auto p-4">
+          <div class="grid gap-4" style="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); grid-auto-rows: min-content;">
+            <TransitionGroup name="event-card">
+              <EventCard
+                v-for="event in finalFilteredEvents"
+                :key="`${event.id}-${event.timestamp}`"
+                :event="event"
+                :session-color-class="getColorForSession(event.session_id)"
+                :session-border-class="getBorderColorForSession(event.session_id)"
+                :app-color-class="getColorForApp(event.source_app)"
+                :app-hex-color="getHexColorForApp(event.source_app)"
+                @open-modal="openEventDetail(event)"
+                @copy="handleEventCopy(event)"
+              />
+            </TransitionGroup>
+          </div>
+        </div>
+        
+        <!-- Legacy Timeline View (Original) -->
+        <div v-else key="legacy" class="h-full">
+          <EventTimeline
+            :events="events"
+            :filters="filters"
+            v-model:stick-to-bottom="stickToBottom"
+          />
+        </div>
+      </Transition>
+    </div>
     
     <!-- Stick to bottom button -->
     <StickScrollButton
@@ -93,18 +282,38 @@
       :is-open="showThemeManager"
       @close="showThemeManager = false"
     />
+    
+    <!-- Event Detail Modal -->
+    <EventDetailModal
+      :is-open="showEventDetail"
+      :event="selectedEvent"
+      :all-events="finalFilteredEvents"
+      :session-color-class="selectedEvent ? getColorForSession(selectedEvent.session_id) : ''"
+      :app-hex-color="selectedEvent ? getHexColorForApp(selectedEvent.source_app) : ''"
+      @close="showEventDetail = false"
+      @navigate="navigateEvent"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import type { HookEvent, FilterState } from './types';
 import { useWebSocket } from './composables/useWebSocket';
 import { useThemes } from './composables/useThemes';
+import { useEventColors } from './composables/useEventColors';
+import { useFilterNotifications } from './composables/useFilterNotifications';
 import EventTimeline from './components/EventTimeline.vue';
-import FilterPanel from './components/FilterPanel.vue';
 import StickScrollButton from './components/StickScrollButton.vue';
-import LivePulseChart from './components/LivePulseChart.vue';
 import ThemeManager from './components/ThemeManager.vue';
+import EventCard from './components/EventCard.vue';
+import SessionSwimLane from './components/SessionSwimLane.vue';
+import SmartFilterBar from './components/SmartFilterBar.vue';
+import ActivityDashboard from './components/ActivityDashboard.vue';
+import EventDetailModal from './components/EventDetailModal.vue';
+import TimelineView from './components/TimelineView.vue';
+import ApplicationsOverview from './components/ApplicationsOverview.vue';
+import FilterNotificationBar from './components/FilterNotificationBar.vue';
 
 // WebSocket connection
 const { events, isConnected, error } = useWebSocket('ws://localhost:4000/stream');
@@ -112,28 +321,299 @@ const { events, isConnected, error } = useWebSocket('ws://localhost:4000/stream'
 // Theme management
 const { state: themeState } = useThemes();
 
+// Event colors
+const { getColorForSession, getColorForApp, getHexColorForSession, getHexColorForApp } = useEventColors();
+
+// View modes
+const viewModes = [
+  { id: 'timeline', label: 'Timeline', icon: '⏰' },
+  { id: 'applications', label: 'Applications', icon: '📱' },
+  { id: 'cards', label: 'Cards', icon: '📋' },
+  { id: 'swimlane', label: 'Swimlane', icon: '🏊' },
+  { id: 'grid', label: 'Grid', icon: '🔲' },
+  { id: 'legacy', label: 'Classic', icon: '📜' }
+];
+
+const currentViewMode = ref<'timeline' | 'applications' | 'cards' | 'swimlane' | 'grid' | 'legacy'>('timeline');
+
 // Filters
-const filters = ref({
-  sourceApp: '',
-  sessionId: '',
-  eventType: ''
+const filters = ref<FilterState>({
+  sourceApps: [],
+  sessionIds: [],
+  eventTypes: [],
+  toolNames: [],
+  search: ''
 });
+
+// Filter notifications
+const {
+  hasActiveFilters,
+  filteredEvents,
+  filterNotification,
+  removeFilter,
+  clearAllFilters: clearAllFiltersFromComposable,
+  toggleNotifications,
+  showNotifications,
+  filterImpactPercentage,
+  filterSummaryText
+} = useFilterNotifications(events, filters);
+
+// Sorting state
+const sortBy = ref<'timestamp' | 'name' | 'source_app' | 'event_type'>('timestamp');
+const sortOrder = ref<'asc' | 'desc'>('desc'); // Default to latest first
 
 // UI state
 const stickToBottom = ref(true);
 const showThemeManager = ref(false);
 const showFilters = ref(false);
+const selectedSessionId = ref<string | null>(null);
+const selectedEvent = ref<HookEvent | null>(null);
+const showEventDetail = ref(false);
 
 // Computed properties
-const isDark = computed(() => {
-  return themeState.value.currentTheme === 'dark' || 
-         (themeState.value.isCustomTheme && 
-          themeState.value.customThemes.find(t => t.id === themeState.value.currentTheme)?.name.includes('dark'));
+
+// Apply selected session filter and sorting to filtered events
+const finalFilteredEvents = computed(() => {
+  let filtered = [...filteredEvents.value];
+  
+  // Also filter by selected session from ActivityMonitor
+  if (selectedSessionId.value) {
+    filtered = filtered.filter(e => e.session_id === selectedSessionId.value);
+  }
+  
+  // Apply sorting
+  filtered.sort((a, b) => {
+    let compareValue = 0;
+    
+    switch (sortBy.value) {
+      case 'timestamp':
+        compareValue = (a.timestamp || 0) - (b.timestamp || 0);
+        break;
+      case 'source_app':
+        compareValue = a.source_app.localeCompare(b.source_app);
+        break;
+      case 'event_type':
+        compareValue = a.hook_event_type.localeCompare(b.hook_event_type);
+        break;
+      case 'name':
+        // Sort by a combination of source_app and event type
+        const aName = `${a.source_app}_${a.hook_event_type}`;
+        const bName = `${b.source_app}_${b.hook_event_type}`;
+        compareValue = aName.localeCompare(bName);
+        break;
+    }
+    
+    // Apply sort order
+    return sortOrder.value === 'asc' ? compareValue : -compareValue;
+  });
+  
+  return filtered;
 });
 
-// Debug handler for theme manager
+const groupedBySessions = computed(() => {
+  const groups = new Map<string, HookEvent[]>();
+  
+  finalFilteredEvents.value.forEach(event => {
+    if (!groups.has(event.session_id)) {
+      groups.set(event.session_id, []);
+    }
+    groups.get(event.session_id)!.push(event);
+  });
+  
+  // Sort events within each session by timestamp
+  groups.forEach(events => {
+    events.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+  });
+  
+  return groups;
+});
+
+// Helper functions for color management
+const getBorderColorForSession = (sessionId: string) => {
+  const colorClass = getColorForSession(sessionId);
+  return colorClass.replace('bg-', 'border-');
+};
+
+// Helper functions for breadcrumb navigation
+const getToolIcon = (toolName: string): string => {
+  const toolIcons: Record<string, string> = {
+    'Read': '📖',
+    'Write': '✏️',
+    'Edit': '📝',
+    'MultiEdit': '📄',
+    'Bash': '💻',
+    'Grep': '🔍',
+    'Glob': '🌐',
+    'Task': '🎯',
+    'WebFetch': '🌐',
+    'TodoWrite': '📋',
+    'LS': '📁',
+    'User Input': '💬',
+    'System Notification': '🔔',
+    'Session End': '🛑',
+    'Sub-agent Complete': '✅',
+    'NotebookRead': '📓',
+    'NotebookEdit': '📝',
+    'WebSearch': '🔍'
+  };
+  return toolIcons[toolName] || '🔧';
+};
+
+const formatSessionId = (sessionId: string): string => {
+  const parts = sessionId.split('_');
+  if (parts.length >= 3) {
+    return `${parts[0].slice(0, 4)}:${parts[1]}`;
+  }
+  return sessionId.slice(0, 8) + '...';
+};
+
+// Event handlers
 const handleThemeManagerClick = () => {
-  console.log('Theme manager button clicked!');
   showThemeManager.value = true;
 };
+
+const handleEventCopy = (event: HookEvent) => {
+  console.log('Event payload copied:', event);
+};
+
+const openEventDetail = (event: HookEvent) => {
+  selectedEvent.value = event;
+  showEventDetail.value = true;
+};
+
+const navigateEvent = (direction: 'prev' | 'next') => {
+  if (!selectedEvent.value) return;
+  
+  const currentIndex = finalFilteredEvents.value.findIndex(e => e.id === selectedEvent.value!.id);
+  if (currentIndex === -1) return;
+  
+  if (direction === 'prev' && currentIndex > 0) {
+    selectedEvent.value = finalFilteredEvents.value[currentIndex - 1];
+  } else if (direction === 'next' && currentIndex < finalFilteredEvents.value.length - 1) {
+    selectedEvent.value = finalFilteredEvents.value[currentIndex + 1];
+  }
+};
+
+const handleSessionSelect = (sessionId: string) => {
+  selectedSessionId.value = sessionId;
+  // Optionally switch to a view that shows the session
+  if (currentViewMode.value === 'timeline' || currentViewMode.value === 'cards') {
+    // Stay in current view but filter by session
+  } else {
+    // Switch to swimlane view which shows sessions nicely
+    currentViewMode.value = 'swimlane';
+  }
+};
+
+const handleFilterByApp = (appName: string) => {
+  filters.value.sourceApps = [appName];
+  currentViewMode.value = 'timeline'; // Switch to timeline to show filtered events
+};
+
+const handleViewAllSessions = (appName: string) => {
+  filters.value.sourceApps = [appName];
+  currentViewMode.value = 'swimlane'; // Switch to swimlane to show all sessions for this app
+};
+
+const handleFilterByTool = (appName: string, toolName: string) => {
+  filters.value.sourceApps = [appName];
+  filters.value.toolNames = [toolName];
+  currentViewMode.value = 'timeline'; // Switch to timeline to show filtered events
+};
+
+const clearAllFilters = () => {
+  clearAllFiltersFromComposable();
+  selectedSessionId.value = null;
+};
+
+const clearFiltersAndReturnToApplications = () => {
+  clearAllFilters();
+  currentViewMode.value = 'applications';
+};
+
+const handleClearFilter = (filterType: 'sourceApp' | 'sessionId' | 'eventType' | 'toolName') => {
+  switch (filterType) {
+    case 'sourceApp':
+      filters.value.sourceApps = [];
+      break;
+    case 'sessionId':
+      filters.value.sessionIds = [];
+      selectedSessionId.value = null;
+      break;
+    case 'eventType':
+      filters.value.eventTypes = [];
+      break;
+    case 'toolName':
+      filters.value.toolNames = [];
+      break;
+  }
+};
+
+const handleSmartFilterUpdate = (newFilters: { sourceApps: string[]; sessionIds: string[]; eventTypes: string[]; toolNames: string[]; search?: string }) => {
+  filters.value.sourceApps = newFilters.sourceApps;
+  filters.value.sessionIds = newFilters.sessionIds;
+  filters.value.eventTypes = newFilters.eventTypes;
+  filters.value.toolNames = newFilters.toolNames;
+  if (newFilters.search !== undefined) {
+    filters.value.search = newFilters.search;
+  }
+};
 </script>
+
+<style>
+/* Transition animations */
+.slide-down-enter-active,
+.slide-down-leave-active {
+  transition: all 0.3s ease;
+}
+
+.slide-down-enter-from {
+  transform: translateY(-100%);
+  opacity: 0;
+}
+
+.slide-down-leave-to {
+  transform: translateY(-100%);
+  opacity: 0;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.event-card-enter-active,
+.event-card-leave-active {
+  transition: all 0.3s ease;
+}
+
+.event-card-enter-from {
+  opacity: 0;
+  transform: scale(0.9) translateY(20px);
+}
+
+.event-card-leave-to {
+  opacity: 0;
+  transform: scale(0.9);
+}
+
+.swimlane-enter-active,
+.swimlane-leave-active {
+  transition: all 0.3s ease;
+}
+
+.swimlane-enter-from {
+  opacity: 0;
+  transform: translateX(-20px);
+}
+
+.swimlane-leave-to {
+  opacity: 0;
+  transform: translateX(20px);
+}
+</style>

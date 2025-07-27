@@ -48,9 +48,11 @@ import { useEventColors } from '../composables/useEventColors';
 const props = defineProps<{
   events: HookEvent[];
   filters: {
-    sourceApp: string;
-    sessionId: string;
-    eventType: string;
+    sourceApps: string[];
+    sessionIds: string[];
+    eventTypes: string[];
+    toolNames: string[];
+    search?: string;
   };
   stickToBottom: boolean;
 }>();
@@ -64,14 +66,22 @@ const { getGradientForSession, getColorForSession, getGradientForApp, getColorFo
 
 const filteredEvents = computed(() => {
   return props.events.filter(event => {
-    if (props.filters.sourceApp && event.source_app !== props.filters.sourceApp) {
+    if (props.filters.sourceApps.length > 0 && !props.filters.sourceApps.includes(event.source_app)) {
       return false;
     }
-    if (props.filters.sessionId && event.session_id !== props.filters.sessionId) {
+    if (props.filters.sessionIds.length > 0 && !props.filters.sessionIds.includes(event.session_id)) {
       return false;
     }
-    if (props.filters.eventType && event.hook_event_type !== props.filters.eventType) {
+    if (props.filters.eventTypes.length > 0 && !props.filters.eventTypes.includes(event.hook_event_type)) {
       return false;
+    }
+    // TODO: Add tool name filtering once we extract tool names from events
+    if (props.filters.search) {
+      const searchLower = props.filters.search.toLowerCase();
+      const eventStr = JSON.stringify(event).toLowerCase();
+      if (!eventStr.includes(searchLower)) {
+        return false;
+      }
     }
     return true;
   });

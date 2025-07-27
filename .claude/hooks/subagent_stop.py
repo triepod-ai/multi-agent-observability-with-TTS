@@ -11,8 +11,10 @@ import json
 import os
 import sys
 import subprocess
+import re
 from pathlib import Path
 from datetime import datetime
+from typing import Dict, Any, Optional
 from utils.constants import ensure_session_log_dir
 
 try:
@@ -21,60 +23,223 @@ try:
 except ImportError:
     pass  # dotenv is optional
 
+# Import coordinated TTS for queue-based notifications
+try:
+    from utils.tts.coordinated_speak import notify_tts_coordinated
+    COORDINATED_TTS_AVAILABLE = True
+except ImportError:
+    COORDINATED_TTS_AVAILABLE = False
 
-def get_tts_script_path():
-    """
-    Determine which TTS script to use based on available API keys.
-    Priority order: ElevenLabs > OpenAI > pyttsx3
-    """
-    # Get current script directory and construct utils/tts path
-    script_dir = Path(__file__).parent
-    tts_dir = script_dir / "utils" / "tts"
-    
-    # Check for ElevenLabs API key (highest priority)
-    if os.getenv('ELEVENLABS_API_KEY'):
-        elevenlabs_script = tts_dir / "elevenlabs_tts.py"
-        if elevenlabs_script.exists():
-            return str(elevenlabs_script)
-    
-    # Check for OpenAI API key (second priority)
-    if os.getenv('OPENAI_API_KEY'):
-        openai_script = tts_dir / "openai_tts.py"
-        if openai_script.exists():
-            return str(openai_script)
-    
-    # Fall back to pyttsx3 (no API key required)
-    pyttsx3_script = tts_dir / "pyttsx3_tts.py"
-    if pyttsx3_script.exists():
-        return str(pyttsx3_script)
-    
-    return None
+# Import observability system for event logging
+try:
+    from utils.tts.observability import should_speak_event_coordinated
+    OBSERVABILITY_AVAILABLE = True
+except ImportError:
+    OBSERVABILITY_AVAILABLE = False
 
 
-def announce_subagent_completion():
-    """Announce subagent completion using the best available TTS service."""
+def extract_subagent_info(input_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Extract meaningful information about the subagent execution."""
+    info = {
+        "agent_name": "unknown agent",
+        "task_description": "",
+        "duration": None,
+        "result_summary": "",
+        "error_occurred": False,
+        "files_affected": 0,
+        "tests_run": 0,
+        "code_reviewed": False
+    }
+    
+    # Try to get agent name from various fields
+    agent_fields = ['agent_name', 'subagent_name', 'agent', 'name', 'type']
+    for field in agent_fields:
+        if field in input_data and input_data[field]:
+            info['agent_name'] = input_data[field]
+            break
+    
+    # Get task description
+    desc_fields = ['task_description', 'description', 'task', 'prompt']
+    for field in desc_fields:
+        if field in input_data and input_data[field]:
+            info['task_description'] = str(input_data[field])[:100]  # Limit length
+            break
+    
+    # Get duration if available
+    if 'duration' in input_data:
+        info['duration'] = input_data['duration']
+    elif 'start_time' in input_data and 'end_time' in input_data:
+        try:
+            start = datetime.fromisoformat(input_data['start_time'])
+            end = datetime.fromisoformat(input_data['end_time'])
+            info['duration'] = (end - start).total_seconds()
+        except:
+            pass
+    
+    # Analyze result/output for summary information
+    result_fields = ['result', 'output', 'response', 'stdout']
+    for field in result_fields:
+        if field in input_data and input_data[field]:
+            result = str(input_data[field]).lower()
+            
+            # Check for errors
+            if any(error in result for error in ['error', 'failed', 'exception', 'traceback']):
+                info['error_occurred'] = True
+            
+            # Extract test information
+            test_match = re.search(r'(\d+)\s*test[s]?\s*(pass|ran|executed)', result)
+            if test_match:
+                info['tests_run'] = int(test_match.group(1))
+            
+            # Check for file operations
+            file_match = re.search(r'(\d+)\s*file[s]?\s*(modified|changed|updated|created)', result)
+            if file_match:
+                info['files_affected'] = int(file_match.group(1))
+            
+            # Check for code review
+            if 'review' in result and ('complete' in result or 'finished' in result):
+                info['code_reviewed'] = True
+            
+            # Get a brief summary
+            if len(result) > 50:
+                # Try to find a summary line
+                summary_patterns = [
+                    r'summary:\s*(.{1,100})',
+                    r'result:\s*(.{1,100})',
+                    r'completed:\s*(.{1,100})',
+                    r'finished:\s*(.{1,100})'
+                ]
+                for pattern in summary_patterns:
+                    match = re.search(pattern, result, re.IGNORECASE)
+                    if match:
+                        info['result_summary'] = match.group(1).strip()
+                        break
+    
+    return info
+
+def generate_context_rich_message(info: Dict[str, Any]) -> str:
+    """Generate a context-rich announcement based on subagent information."""
+    
+    # Determine agent type for specific messaging
+    agent_name = info['agent_name'].lower()
+    
+    # Base message
+    if 'code review' in agent_name or 'reviewer' in agent_name:
+        if info['error_occurred']:
+            message = "Code review found issues that need attention"
+        elif info['files_affected'] > 0:
+            message = f"Code review completed for {info['files_affected']} files"
+        else:
+            message = "Code review completed successfully"
+    
+    elif 'test' in agent_name or 'qa' in agent_name:
+        if info['tests_run'] > 0:
+            if info['error_occurred']:
+                message = f"Test run completed with failures: {info['tests_run']} tests"
+            else:
+                message = f"All {info['tests_run']} tests passed"
+        else:
+            message = "Test agent completed"
+    
+    elif 'debug' in agent_name:
+        if info['error_occurred']:
+            message = "Debugger found and fixed issues"
+        else:
+            message = "Debugging completed, no issues found"
+    
+    elif 'data' in agent_name or 'analyst' in agent_name:
+        message = "Data analysis completed"
+        if info['result_summary']:
+            message += f": {info['result_summary'][:50]}"
+    
+    else:
+        # Generic completion message
+        if info['task_description']:
+            task = info['task_description'][:50]
+            message = f"Agent completed: {task}"
+        else:
+            message = f"{info['agent_name'].title()} completed successfully"
+    
+    # Add duration if available
+    if info['duration']:
+        if info['duration'] < 60:
+            duration_str = f"{int(info['duration'])} seconds"
+        else:
+            duration_str = f"{info['duration']/60:.1f} minutes"
+        message += f" in {duration_str}"
+    
+    return message
+
+def notify_tts(message: str, priority: str = "normal") -> bool:
+    """Send TTS notification using coordinated system or fallback."""
+    
+    # Use coordinated TTS if available
+    if COORDINATED_TTS_AVAILABLE:
+        return notify_tts_coordinated(
+            message=message,
+            priority=priority,
+            hook_type="subagent_stop",
+            tool_name="subagent"
+        )
+    
+    # Fallback to direct speak command
     try:
-        tts_script = get_tts_script_path()
-        if not tts_script:
-            return  # No TTS scripts available
+        # Skip TTS if disabled
+        if os.getenv('TTS_ENABLED', 'true').lower() != 'true':
+            return False
         
-        # Use fixed message for subagent completion
-        completion_message = "Subagent Complete"
+        # Get engineer name for personalization
+        engineer_name = os.getenv('ENGINEER_NAME', 'Developer')
+        personalized_message = f"{engineer_name}, {message}"
         
-        # Call the TTS script with the completion message
-        subprocess.run([
-            "uv", "run", tts_script, completion_message
-        ], 
-        capture_output=True,  # Suppress output
-        timeout=10  # 10-second timeout
+        # Use speak command (non-blocking)
+        subprocess.Popen(
+            ['speak', personalized_message],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
         )
         
-    except (subprocess.TimeoutExpired, subprocess.SubprocessError, FileNotFoundError):
-        # Fail silently if TTS encounters issues
-        pass
+        return True
+        
     except Exception:
-        # Fail silently for any other errors
-        pass
+        # Silently fail - don't disrupt the hook
+        return False
+
+def announce_subagent_completion(input_data: Dict[str, Any]):
+    """Announce subagent completion with context-rich information."""
+    try:
+        # Extract subagent information
+        info = extract_subagent_info(input_data)
+        
+        # Generate context-rich message
+        message = generate_context_rich_message(info)
+        
+        # Determine priority based on content
+        if info['error_occurred']:
+            priority = "important"
+        else:
+            priority = "normal"
+        
+        # Use observability system if available
+        if OBSERVABILITY_AVAILABLE:
+            should_speak = should_speak_event_coordinated(
+                message=message,
+                priority=2 if priority == "important" else 3,  # HIGH or MEDIUM
+                category="completion",
+                hook_type="subagent_stop",
+                tool_name="subagent",
+                metadata={"subagent_info": info}
+            )
+            
+            if should_speak:
+                notify_tts(message, priority)
+        else:
+            # Direct TTS notification
+            notify_tts(message, priority)
+        
+    except Exception:
+        # Fall back to simple notification on any error
+        notify_tts("Subagent completed", "normal")
 
 
 def main():
@@ -135,8 +300,8 @@ def main():
                 except Exception:
                     pass  # Fail silently
 
-        # Announce subagent completion via TTS
-        announce_subagent_completion()
+        # Announce subagent completion via TTS with context
+        announce_subagent_completion(input_data)
 
         sys.exit(0)
 

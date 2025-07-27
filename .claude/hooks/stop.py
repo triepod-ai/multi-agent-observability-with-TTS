@@ -6,210 +6,366 @@
 # ]
 # ///
 
-import argparse
+"""
+Enhanced stop hook for Claude Code with insightful summaries.
+Provides personalized TTS announcement when tasks are completed.
+"""
+
 import json
 import os
 import sys
-import random
 import subprocess
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+from typing import Dict, Any, List, Optional
+
+# Import utilities
 from utils.constants import ensure_session_log_dir
+from utils.http_client import send_event_to_server, create_hook_event
+
+# Import coordinated TTS for queue-based notifications
+try:
+    from utils.tts.coordinated_speak import notify_tts_coordinated
+    COORDINATED_TTS_AVAILABLE = True
+except ImportError:
+    COORDINATED_TTS_AVAILABLE = False
 
 try:
     from dotenv import load_dotenv
-
     load_dotenv()
 except ImportError:
     pass  # dotenv is optional
 
 
-def get_completion_messages():
-    """Return list of friendly completion messages."""
-    return [
-        "Work complete!",
-        "All done!",
-        "Task finished!",
-        "Job complete!",
-        "Ready for next task!",
-    ]
-
-
-def get_tts_script_path():
+def analyze_session_activity(session_id: str) -> Dict[str, Any]:
     """
-    Determine which TTS script to use based on available API keys.
-    Priority order: ElevenLabs > OpenAI > pyttsx3
-    """
-    # Get current script directory and construct utils/tts path
-    script_dir = Path(__file__).parent
-    tts_dir = script_dir / "utils" / "tts"
-
-    # Check for ElevenLabs API key (highest priority)
-    if os.getenv("ELEVENLABS_API_KEY"):
-        elevenlabs_script = tts_dir / "elevenlabs_tts.py"
-        if elevenlabs_script.exists():
-            return str(elevenlabs_script)
-
-    # Check for OpenAI API key (second priority)
-    if os.getenv("OPENAI_API_KEY"):
-        openai_script = tts_dir / "openai_tts.py"
-        if openai_script.exists():
-            return str(openai_script)
-
-    # Fall back to pyttsx3 (no API key required)
-    pyttsx3_script = tts_dir / "pyttsx3_tts.py"
-    if pyttsx3_script.exists():
-        return str(pyttsx3_script)
-
-    return None
-
-
-def get_llm_completion_message():
-    """
-    Generate completion message using available LLM services.
-    Priority order: OpenAI > Anthropic > fallback to random message
-
+    Analyze recent session activity to generate a summary.
+    
+    Args:
+        session_id: The Claude session ID
+        
     Returns:
-        str: Generated or fallback completion message
+        Dictionary with analysis results
     """
-    # Get current script directory and construct utils/llm path
-    script_dir = Path(__file__).parent
-    llm_dir = script_dir / "utils" / "llm"
-
-    # Try Anthropic second
-    if os.getenv("ANTHROPIC_API_KEY"):
-        anth_script = llm_dir / "anth.py"
-        if anth_script.exists():
-            try:
-                result = subprocess.run(
-                    ["uv", "run", str(anth_script), "--completion"],
-                    capture_output=True,
-                    text=True,
-                    timeout=10,
-                )
-                if result.returncode == 0 and result.stdout.strip():
-                    return result.stdout.strip()
-            except (subprocess.TimeoutExpired, subprocess.SubprocessError):
-                pass
-
-    # Try OpenAI first (highest priority)
-    if os.getenv("OPENAI_API_KEY"):
-        oai_script = llm_dir / "oai.py"
-        if oai_script.exists():
-            try:
-                result = subprocess.run(
-                    ["uv", "run", str(oai_script), "--completion"],
-                    capture_output=True,
-                    text=True,
-                    timeout=10,
-                )
-                if result.returncode == 0 and result.stdout.strip():
-                    return result.stdout.strip()
-            except (subprocess.TimeoutExpired, subprocess.SubprocessError):
-                pass
-
-    # Fallback to random predefined message
-    messages = get_completion_messages()
-    return random.choice(messages)
-
-
-def announce_completion():
-    """Announce completion using the best available TTS service."""
+    analysis = {
+        "tools_used": set(),
+        "files_modified": set(),
+        "commands_run": [],
+        "last_prompt": None,
+        "key_actions": [],
+        "test_results": None,
+        "errors_encountered": False
+    }
+    
     try:
-        tts_script = get_tts_script_path()
-        if not tts_script:
-            return  # No TTS scripts available
+        # Get session log directory
+        log_dir = Path.home() / ".claude" / "sessions" / session_id
+        if not log_dir.exists():
+            return analysis
+        
+        # Read pre_tool_use log for tool usage
+        pre_tool_log = log_dir / "pre_tool_use.json"
+        if pre_tool_log.exists():
+            with open(pre_tool_log, 'r') as f:
+                try:
+                    events = json.load(f)
+                    # Get last 10 events for analysis
+                    recent_events = events[-10:] if len(events) > 10 else events
+                    
+                    for event in recent_events:
+                        tool_name = event.get("tool_name", "")
+                        tool_input = event.get("tool_input", {})
+                        
+                        analysis["tools_used"].add(tool_name)
+                        
+                        # Track file modifications
+                        if tool_name in ["Write", "Edit", "MultiEdit"]:
+                            file_path = tool_input.get("file_path")
+                            if file_path:
+                                # Store relative path to preserve directory info
+                                path_obj = Path(file_path)
+                                if "hooks" in path_obj.parts:
+                                    # Keep hook directory info
+                                    analysis["files_modified"].add(f"hooks/{path_obj.name}")
+                                else:
+                                    analysis["files_modified"].add(path_obj.name)
+                        
+                        # Track commands
+                        elif tool_name == "Bash":
+                            command = tool_input.get("command", "")
+                            if command:
+                                analysis["commands_run"].append(command[:50])
+                                # Check for test commands
+                                if any(test_cmd in command.lower() for test_cmd in ["npm test", "pytest", "jest", "test"]):
+                                    analysis["test_results"] = "tests run"
+                        
+                        # Track key actions
+                        elif tool_name == "TodoWrite":
+                            analysis["key_actions"].append("managed tasks")
+                        elif tool_name == "WebSearch":
+                            analysis["key_actions"].append("searched web")
+                        elif tool_name == "Task":
+                            analysis["key_actions"].append("delegated to sub-agent")
+                
+                except (json.JSONDecodeError, ValueError):
+                    pass
+        
+        # Read user_prompt_submit log for last prompt
+        prompt_log = log_dir / "user_prompt_submit.json"
+        if prompt_log.exists():
+            with open(prompt_log, 'r') as f:
+                try:
+                    prompts = json.load(f)
+                    if prompts:
+                        last_prompt_data = prompts[-1]
+                        analysis["last_prompt"] = last_prompt_data.get("prompt", "")[:100]
+                except (json.JSONDecodeError, ValueError):
+                    pass
+        
+        # Read post_tool_use log for errors
+        post_tool_log = log_dir / "post_tool_use.json"
+        if post_tool_log.exists():
+            with open(post_tool_log, 'r') as f:
+                try:
+                    events = json.load(f)
+                    for event in events[-5:]:  # Check last 5 results
+                        result = event.get("tool_result", {})
+                        if isinstance(result, dict) and result.get("error"):
+                            analysis["errors_encountered"] = True
+                            break
+                except (json.JSONDecodeError, ValueError):
+                    pass
+        
+    except Exception as e:
+        print(f"Error analyzing session: {e}", file=sys.stderr)
+    
+    return analysis
 
-        # Get completion message (LLM-generated or fallback)
-        completion_message = get_llm_completion_message()
 
-        # Call the TTS script with the completion message
-        subprocess.run(
-            ["uv", "run", tts_script, completion_message],
-            capture_output=True,  # Suppress output
-            timeout=10,  # 10-second timeout
+def generate_summary(analysis: Dict[str, Any]) -> str:
+    """
+    Generate a brief, insightful summary from session analysis.
+    
+    Args:
+        analysis: The session analysis results
+        
+    Returns:
+        A brief summary string
+    """
+    # Start with the main action based on tools used
+    tools = analysis["tools_used"]
+    files = analysis["files_modified"]
+    
+    # Determine primary action
+    if not tools:
+        return "working on your request"
+    
+    # UI/Component work
+    if "Magic" in tools or any("component" in str(f).lower() or ".vue" in str(f) or ".tsx" in str(f) for f in files):
+        component_count = len([f for f in files if any(ext in str(f) for ext in [".vue", ".tsx", ".jsx"])])
+        if component_count > 1:
+            return f"building {component_count} UI components"
+        elif component_count == 1:
+            return "creating a UI component"
+        else:
+            return "working on the UI"
+    
+    # Documentation work
+    if any(".md" in str(f) for f in files) or "updating documentation" in str(analysis.get("last_prompt", "")).lower():
+        doc_count = len([f for f in files if ".md" in str(f)])
+        if doc_count > 1:
+            return f"updating {doc_count} docs"
+        else:
+            return "updating documentation"
+    
+    # Testing work
+    if analysis["test_results"]:
+        return "running tests"
+    
+    # Hook/Script work
+    if any((".py" in str(f) and "hook" in str(f).lower()) or "hooks/" in str(f) for f in files):
+        hook_count = len([f for f in files if (".py" in str(f) and "hook" in str(f).lower()) or "hooks/" in str(f)])
+        if hook_count > 1:
+            return f"updating {hook_count} hooks"
+        else:
+            return "updating hooks"
+    
+    # Configuration work
+    if any(config_file in str(f) for f in files for config_file in [".json", ".yml", ".yaml", ".env"]):
+        return "updating configuration"
+    
+    # Analysis work
+    if "Read" in tools and "Grep" in tools and not files:
+        return "analyzing your code"
+    
+    # File editing work
+    if files:
+        # Check if this is related to a specific request
+        if analysis.get("last_prompt"):
+            prompt_lower = analysis["last_prompt"].lower()
+            if "fix" in prompt_lower or "error" in prompt_lower:
+                return "fixing issues"
+        
+        if len(files) > 3:
+            return f"updating {len(files)} files"
+        elif len(files) == 1:
+            file_name = str(list(files)[0])
+            # Shorten long file names
+            if len(file_name) > 20:
+                file_name = f"...{file_name[-17:]}"
+            return f"editing {file_name}"
+        else:
+            return "making changes"
+    
+    # Command execution
+    if analysis["commands_run"]:
+        if any("install" in cmd for cmd in analysis["commands_run"]):
+            return "installing packages"
+        elif any("build" in cmd for cmd in analysis["commands_run"]):
+            return "building your project"
+        else:
+            return "running commands"
+    
+    # Web/Research work
+    if "WebSearch" in tools or "WebFetch" in tools:
+        return "researching information"
+    
+    # Task delegation
+    if "Task" in tools:
+        return "delegating tasks"
+    
+    # Planning work
+    if "TodoWrite" in tools:
+        return "organizing tasks"
+    
+    # Fallback based on last prompt
+    if analysis.get("last_prompt"):
+        prompt_lower = analysis["last_prompt"].lower()
+        # Extract key action words for more natural summaries
+        if "design" in prompt_lower:
+            return "designing your solution"
+        elif "implement" in prompt_lower:
+            return "implementing features"
+        elif "fix" in prompt_lower or "error" in prompt_lower:
+            return "fixing issues"
+        elif "analyze" in prompt_lower:
+            return "analyzing requirements"
+        elif "create" in prompt_lower or "build" in prompt_lower:
+            return "building your solution"
+        elif "update" in prompt_lower or "modify" in prompt_lower:
+            return "making updates"
+        elif "test" in prompt_lower:
+            return "testing functionality"
+        elif "document" in prompt_lower:
+            return "writing documentation"
+    
+    # Generic fallback
+    return "completing your request"
+
+
+def notify_tts(message: str, priority: str = "normal") -> bool:
+    """
+    Send TTS notification using coordinated speak or fallback to direct speak.
+    
+    Args:
+        message: The message to speak
+        priority: Priority level for the message
+        
+    Returns:
+        True if successful, False otherwise
+    """
+    # Format the completion message before checking coordination
+    engineer_name = os.getenv('ENGINEER_NAME', 'Developer')
+    formatted_message = f"I have finished {message}"
+    
+    # Use coordinated TTS if available
+    if COORDINATED_TTS_AVAILABLE:
+        # The coordinated function handles personalization internally
+        return notify_tts_coordinated(
+            message=formatted_message,
+            priority=priority,
+            hook_type="stop"
         )
-
-    except (subprocess.TimeoutExpired, subprocess.SubprocessError, FileNotFoundError):
-        # Fail silently if TTS encounters issues
-        pass
+    
+    # Fallback to direct speak command
+    try:
+        # Skip TTS if disabled
+        if os.getenv('TTS_ENABLED', 'true').lower() != 'true':
+            return False
+        
+        # Format the completion message with personalization
+        personalized_message = f"{engineer_name}, {formatted_message}"
+        
+        # Use speak command (non-blocking)
+        subprocess.Popen(
+            ['speak', personalized_message],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        
+        return True
+        
     except Exception:
-        # Fail silently for any other errors
-        pass
+        # Silently fail - don't disrupt the hook
+        return False
 
 
 def main():
+    """Main entry point for stop hook."""
     try:
-        # Parse command line arguments
-        parser = argparse.ArgumentParser()
-        parser.add_argument(
-            "--chat", action="store_true", help="Copy transcript to chat.json"
-        )
-        args = parser.parse_args()
-
         # Read JSON input from stdin
-        input_data = json.load(sys.stdin)
-
-        # Extract required fields
-        session_id = input_data.get("session_id", "")
-        stop_hook_active = input_data.get("stop_hook_active", False)
-
-        # Ensure session log directory exists
-        log_dir = ensure_session_log_dir(session_id)
-        log_path = log_dir / "stop.json"
-
-        # Read existing log data or initialize empty list
-        if log_path.exists():
-            with open(log_path, "r") as f:
-                try:
-                    log_data = json.load(f)
-                except (json.JSONDecodeError, ValueError):
-                    log_data = []
+        input_data = json.loads(sys.stdin.read())
+        
+        # Extract session information
+        session_id = input_data.get('session_id', 'unknown')
+        
+        # Analyze session activity
+        analysis = analyze_session_activity(session_id)
+        
+        # Generate summary
+        summary = generate_summary(analysis)
+        
+        # Send TTS notification
+        tts_sent = notify_tts(summary)
+        
+        # Prepare event data
+        event_data = {
+            "summary": summary,
+            "tools_used": list(analysis["tools_used"]),
+            "files_modified": list(analysis["files_modified"]),
+            "errors_encountered": analysis["errors_encountered"],
+            "tts_sent": tts_sent
+        }
+        
+        # Create hook event for observability server
+        event = create_hook_event(
+            source_app="multi-agent-observability-system",
+            session_id=session_id,
+            hook_event_type="Stop",
+            payload=event_data,
+            summary=f"Session completed: {summary}"
+        )
+        
+        # Send to observability server
+        server_sent = send_event_to_server(event)
+        
+        # Log status
+        if server_sent:
+            print(f"Stop event sent to server: {summary}", file=sys.stderr)
         else:
-            log_data = []
-
-        # Append new data
-        log_data.append(input_data)
-
-        # Write back to file with formatting
-        with open(log_path, "w") as f:
-            json.dump(log_data, f, indent=2)
-
-        # Handle --chat switch
-        if args.chat and "transcript_path" in input_data:
-            transcript_path = input_data["transcript_path"]
-            if os.path.exists(transcript_path):
-                # Read .jsonl file and convert to JSON array
-                chat_data = []
-                try:
-                    with open(transcript_path, "r") as f:
-                        for line in f:
-                            line = line.strip()
-                            if line:
-                                try:
-                                    chat_data.append(json.loads(line))
-                                except json.JSONDecodeError:
-                                    pass  # Skip invalid lines
-
-                    # Write to logs/chat.json
-                    chat_file = os.path.join(log_dir, "chat.json")
-                    with open(chat_file, "w") as f:
-                        json.dump(chat_data, f, indent=2)
-                except Exception:
-                    pass  # Fail silently
-
-        # Announce completion via TTS
-        announce_completion()
-
+            print(f"Stop event (server unavailable): {summary}", file=sys.stderr)
+        
+        # Always exit successfully
         sys.exit(0)
-
+        
     except json.JSONDecodeError:
         # Handle JSON decode errors gracefully
         sys.exit(0)
-    except Exception:
-        # Handle any other errors gracefully
+    except Exception as e:
+        # Log error but don't fail
+        print(f"Error in stop hook: {e}", file=sys.stderr)
         sys.exit(0)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

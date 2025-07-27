@@ -28,7 +28,7 @@
         >
           <option value="">All Sessions</option>
           <option v-for="session in filterOptions.session_ids" :key="session" :value="session">
-            {{ session.slice(0, 8) }}...
+            {{ formatSessionDisplay(session) }}
           </option>
         </select>
       </div>
@@ -99,6 +99,22 @@ const clearFilters = () => {
     eventType: ''
   };
   updateFilters();
+};
+
+const formatSessionDisplay = (sessionId: string) => {
+  // Enhanced session ID format: originalId_processId_timestamp
+  const parts = sessionId.split('_');
+  if (parts.length >= 3) {
+    // Show original session ID (first 6 chars) + process ID + time
+    const originalId = parts[0].slice(0, 6);
+    const processId = parts[1];
+    const timestamp = parseInt(parts[2]);
+    const date = new Date(timestamp * 1000);
+    const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return `${originalId}:${processId} (${timeStr})`;
+  }
+  // Fallback for legacy format
+  return sessionId.slice(0, 8) + '...';
 };
 
 const fetchFilterOptions = async () => {

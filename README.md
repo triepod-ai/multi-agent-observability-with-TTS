@@ -2,11 +2,64 @@
 
 Real-time monitoring and visualization for Claude Code agents through comprehensive hook event tracking. You can watch the [full breakdown here](https://youtu.be/9ijnN985O_c).
 
-## 🎯 Overview
+## 🎯 Core Purpose: Creating Observable AI Agents
+
+This system fundamentally transforms how AI agents are created and monitored. **Every subagent created through our framework includes built-in observability**, automatic TTS notifications, and performance tracking.
+
+### 🚀 Key Features:
+- **Observable Agent Creation** - Use `/agent create` to build agents with monitoring built-in
+- **Automatic TTS Integration** - Voice notifications powered by enterprise Speak System ([details](docs/SPEAK_SYSTEM_OVERVIEW.md))
+- **Real-time Dashboard** - Watch agent activities as they happen
+- **Performance Metrics** - Track token usage, execution time, and costs
+- **Agent Chaining** - Structured data returns enable agent-to-agent communication
+- **Slash-to-Agent Conversion** - Transform complex commands into efficient, observable agents
+
+## 📊 Overview
 
 This system provides complete observability into Claude Code agent behavior by capturing, storing, and visualizing Claude Code [Hook events](https://docs.anthropic.com/en/docs/claude-code/hooks) in real-time. It enables monitoring of multiple concurrent agents with session tracking, event filtering, and live updates. 
 
 <img src="images/app.png" alt="Multi-Agent Observability Dashboard" style="max-width: 800px; width: 100%;">
+
+## 🤖 Creating Observable Agents
+
+### Quick Start: Create Your First Observable Agent
+
+```bash
+# Create a simple agent with built-in monitoring
+/agent create data-analyzer "Analyzes data and returns insights. Returns analysis results with metrics."
+
+# Use the agent - automatically tracked and monitored
+/spawn @.claude/agents/data-analyzer.md "analyze sales data"
+# → TTS: "Starting data-analyzer agent"
+# → Dashboard: Shows real-time execution
+# → Returns: {"insights": [...], "metrics": {...}}
+# → TTS: "Agent completed successfully"
+```
+
+### Converting Slash Commands to Observable Agents
+
+Transform complex slash commands into efficient, monitored agents:
+
+```bash
+# Use the conversion helper
+/convert-to-agent memory-simple-store
+
+# Or use the slash command creator with subagent detection
+/slash-create-unified-command-creator-v3
+# → Automatically detects when a subagent would be better
+```
+
+**Benefits of Agent Conversion**:
+- **97% Token Reduction** - Example: 15k → 500 tokens
+- **Automatic Monitoring** - All operations tracked
+- **TTS Notifications** - Voice updates on progress
+- **Structured Returns** - Enable agent chaining
+- **Performance Metrics** - Track resource usage
+
+### Key Documentation
+- **[Agent Monitoring Guide](docs/AGENT_MONITORING_GUIDE.md)** - Comprehensive guide to observable agents
+- **[Slash-to-Agent Conversion](docs/SLASH_TO_AGENT_CONVERSION.md)** - Convert commands to agents
+- **[Subagent Creation Guide](docs/SUBAGENT_CREATION_GUIDE.md)** - KISS-compliant agent templates
 
 ## 🏗️ Architecture
 
@@ -24,8 +77,8 @@ Before getting started, ensure you have the following installed:
 - **[Astral uv](https://docs.astral.sh/uv/)** - Fast Python package manager (required for hook scripts)
 - **[Bun](https://bun.sh/)**, **npm**, or **yarn** - For running the server and client
 - **Anthropic API Key** - Set as `ANTHROPIC_API_KEY` environment variable
-- **OpenAI API Key** (optional) - For multi-model support with just-prompt MCP tool
-- **ElevenLabs API Key** (optional) - For audio features
+- **OpenAI API Key** (recommended) - For TTS notifications (95% cost savings) and multi-model support
+- **Speak Command** - Enterprise TTS system for agent voice notifications ([overview](docs/SPEAK_SYSTEM_OVERVIEW.md))
 
 ### Configure .claude Directory
 
@@ -221,12 +274,21 @@ Vue 3 application with real-time visualization:
 
 - **Features**:
   - Real-time WebSocket updates
-  - Multi-criteria filtering (app, session, event type)
+  - **Advanced Filter Notification System** with persistent status bar and intelligent impact display
+  - Multi-criteria filtering (app, session, event type, tool name, search)
   - Live pulse chart with session-colored bars and event type indicators
   - Time range selection (1m, 3m, 5m) with appropriate data aggregation
   - Chat transcript viewer with syntax highlighting
   - Auto-scroll with manual override
   - Event limiting (configurable via `VITE_MAX_EVENTS_TO_DISPLAY`)
+
+- **Filter Notification System (v2.0.0+)**:
+  - **Persistent notification bar** showing active filters and their impact
+  - **Real-time filter impact display** with percentage of data visible
+  - **Visual filter chips** with individual removal capabilities and count badges
+  - **Cross-view consistency** maintained across all view modes (Timeline, Applications, Cards, etc.)
+  - **Mobile-responsive design** with condensed layout for smaller screens
+  - **Smart filter management** with quick clear-all and toggle functionality
 
 - **Live Pulse Chart**:
   - Canvas-based real-time visualization
@@ -254,10 +316,26 @@ Vue 3 application with real-time visualization:
 | PreToolUse   | 🔧     | Before tool execution | Session-based | Tool name & details |
 | PostToolUse  | ✅     | After tool completion | Session-based | Tool name & results |
 | Notification | 🔔     | User interactions     | Session-based | Notification message |
-| Stop         | 🛑     | Response completion   | Session-based | Summary & chat transcript |
+| Stop         | 🛑     | Response completion   | Session-based | Insightful summary & TTS announcement |
 | SubagentStop | 👥     | Subagent finished     | Session-based | Subagent details |
 | PreCompact   | 📦     | Context compaction    | Session-based | Compaction details |
 | UserPromptSubmit | 💬 | User prompt submission | Session-based | Prompt: _"user message"_ (italic) |
+
+### Stop Event Enhancement (v1.1.0+)
+
+The enhanced `Stop` hook provides insightful summaries when Claude Code finishes tasks:
+- **Session Analysis**: Analyzes tools used, files modified, and commands run
+- **Smart Summaries**: Generates context-aware summaries like "implementing UI redesign with 6 new components"
+- **Personalized TTS**: Announces "Bryan, I have finished [summary]" via speak command
+
+### Notification Improvements (v1.2.0+)
+
+Fixed false positive timeout errors in the notification system:
+- **Accurate Error Detection**: Only real timeout errors trigger notifications
+- **Content Safety**: Files or data containing "timeout" no longer cause false alerts
+- **Unknown Tool Handling**: Gracefully handles tools that can't be identified
+- **Production Tested**: Verified to eliminate spurious "operation timed out" messages
+- **Error Tracking**: Detects if errors occurred during the session
 
 ### UserPromptSubmit Event (v1.0.54+)
 
@@ -333,7 +411,10 @@ Copy `.env.sample` to `.env` in the project root and fill in your API keys:
 - `ENGINEER_NAME` – Your name (for logging/identification)
 - `GEMINI_API_KEY` – Google Gemini API key (optional)
 - `OPENAI_API_KEY` – OpenAI API key (optional)
-- `ELEVEN_API_KEY` – ElevenLabs API key (optional)
+- `TTS_ENABLED` – Enable enterprise TTS system (true/false)
+- `TTS_PROVIDER` – TTS provider selection (openai/elevenlabs/auto)
+- `ENGINEER_NAME` – Your name for personalized notifications
+- `NOTIFICATION_VOICE_*` – Voice assignments for different notification types
 
 **Client** (`.env` file in `apps/client/.env`):
 - `VITE_MAX_EVENTS_TO_DISPLAY=100` – Maximum events to show (removes oldest when exceeded)
@@ -354,8 +435,54 @@ Copy `.env.sample` to `.env` in the project root and fill in your API keys:
 
 - **Server**: Bun, TypeScript, SQLite
 - **Client**: Vue 3, TypeScript, Vite, Tailwind CSS
-- **Hooks**: Python 3.8+, Astral uv, TTS (ElevenLabs or OpenAI), LLMs (Claude or OpenAI)
+- **Hooks**: Python 3.8+, Astral uv, Enterprise TTS System (speak command), LLMs (Claude or OpenAI)
 - **Communication**: HTTP REST, WebSocket
+
+## 🎙️ Enterprise TTS System
+
+The observability system features an advanced enterprise-grade TTS system with:
+
+### Core Features
+- **Intelligent Voice Selection**: Context-aware voice assignment based on tool type and priority
+- **Smart Tool Recognition**: Advanced MCP tool name parsing ("mcp__chroma__list_collections" → "Chroma List Collections")
+- **Cost Optimization**: 95% cost reduction using OpenAI as default provider via `speak` command
+- **AI-Enhanced Messages**: Smart message processing for better clarity
+- **Frequency Throttling**: Prevents audio spam with intelligent caching
+- **Phase 2/3 Features**: Observability integration, advanced queue management
+
+### Voice Context System
+- **Permission Requests**: `onyx` (authoritative voice)
+- **High-Risk Tools**: `onyx` (security-focused)
+- **File Operations**: `shimmer` (neutral voice)
+- **MCP/Database Tools**: `alloy` (technical voice)
+- **Web Operations**: `fable` (distinctive voice)
+- **Sub-agent Completion**: `echo` (task-focused)
+- **Memory Operations**: `alloy` (data-focused)
+- **Error Notifications**: `fable` (alert voice)
+
+### Configuration
+The system uses your global `speak` command and respects these environment variables:
+
+```bash
+# Core TTS Configuration
+export TTS_ENABLED=true
+export TTS_PROVIDER=openai  # 95% cost savings vs ElevenLabs
+export ENGINEER_NAME="Your Name"
+
+# Voice Assignments (optional customization)
+export NOTIFICATION_VOICE_PERMISSION=onyx
+export NOTIFICATION_VOICE_HIGH_RISK=onyx
+export NOTIFICATION_VOICE_MCP=alloy
+export NOTIFICATION_VOICE_FILE=shimmer
+export NOTIFICATION_VOICE_WEB=fable
+export NOTIFICATION_VOICE_SUBAGENT=echo
+export NOTIFICATION_VOICE_ERROR=fable
+export NOTIFICATION_VOICE_DEFAULT=nova
+```
+
+The system automatically selects the most appropriate voice and handles all provider fallback logic through your existing `speak` command infrastructure.
+
+**📚 Detailed Documentation**: See [Enterprise TTS Integration Guide](docs/ENTERPRISE_TTS_INTEGRATION.md) for comprehensive feature documentation, performance metrics, and implementation details.
 
 ## 🔧 Troubleshooting
 
@@ -377,6 +504,35 @@ This command will:
 - Show you exactly what changes were made
 
 This ensures your hooks work correctly regardless of where Claude Code is executed from.
+
+### "Tool used: unknown" in UI
+
+If you see "Tool used: unknown" displayed in the observability interface instead of the actual tool name:
+
+**Root Cause**: Claude Code may be sending tool data in a different format than expected by the hook system.
+
+**Solution**: Enable debug logging to investigate the data structure:
+
+```bash
+# Enable debug mode in your project directory
+source .claude/hooks/enable_debug.sh
+
+# Run any Claude Code command that triggers the issue
+# Check stderr output for detailed debug information
+
+# Example debug output:
+# DEBUG: Unknown tool detected.
+# DEBUG: Available top-level fields: ['session_id', 'payload', 'timestamp']
+# DEBUG: Field 'name' = 'Read'
+```
+
+The hook system now supports multiple field name formats:
+- `tool_name` (current Claude Code)
+- `tool`, `name` (legacy formats)  
+- `toolName`, `tool_type`, `function_name` (variants)
+- Nested structures in `payload` and `request` fields
+
+**Note**: This issue was resolved in the latest version with enhanced tool name extraction logic that handles multiple Claude Code data formats.
 
 ## Master AI Coding
 > And prepare for Agentic Engineering

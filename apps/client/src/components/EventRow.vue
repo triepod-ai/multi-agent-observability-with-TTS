@@ -34,10 +34,20 @@
         
         <!-- Mobile: Session + Event Type on second row -->
         <div class="flex items-center space-x-2">
-          <span class="text-xs text-[var(--theme-text-secondary)] px-1.5 py-0.5 rounded-full border bg-[var(--theme-bg-tertiary)]/50" :class="borderColorClass">
+          <span 
+            class="text-xs text-[var(--theme-text-secondary)] px-1.5 py-0.5 rounded-full border bg-[var(--theme-bg-tertiary)]/50 relative group/session" 
+            :class="borderColorClass"
+            :title="sessionTooltip"
+          >
             {{ sessionIdShort }}
+            <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover/session:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+              {{ sessionTooltip }}
+            </span>
           </span>
-          <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-bold bg-[var(--theme-primary)] text-white shadow-md">
+          <span 
+            class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-bold shadow-md"
+            :class="eventBadgeClasses.gradient + ' text-white'"
+          >
             <span class="mr-1 text-sm">{{ hookEmoji }}</span>
             {{ event.hook_event_type }}
           </span>
@@ -53,10 +63,20 @@
           >
             {{ event.source_app }}
           </span>
-          <span class="text-sm text-[var(--theme-text-secondary)] px-2 py-0.5 rounded-full border bg-[var(--theme-bg-tertiary)]/50 shadow-md" :class="borderColorClass">
+          <span 
+            class="text-sm text-[var(--theme-text-secondary)] px-2 py-0.5 rounded-full border bg-[var(--theme-bg-tertiary)]/50 shadow-md relative group/session" 
+            :class="borderColorClass"
+            :title="sessionTooltip"
+          >
             {{ sessionIdShort }}
+            <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover/session:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">
+              {{ sessionTooltip }}
+            </span>
           </span>
-          <span class="inline-flex items-center px-3 py-0.5 rounded-full text-sm font-bold bg-[var(--theme-primary)] text-white shadow-lg">
+          <span 
+            class="inline-flex items-center px-3 py-0.5 rounded-full text-sm font-bold shadow-lg"
+            :class="eventBadgeClasses.gradient + ' text-white'"
+          >
             <span class="mr-1.5 text-base">{{ hookEmoji }}</span>
             {{ event.hook_event_type }}
           </span>
@@ -150,6 +170,7 @@
 import { ref, computed } from 'vue';
 import type { HookEvent } from '../types';
 import { useMediaQuery } from '../composables/useMediaQuery';
+import { useEventTypeColors } from '../composables/useEventTypeColors';
 import ChatTranscriptModal from './ChatTranscriptModal.vue';
 
 const props = defineProps<{
@@ -168,12 +189,43 @@ const copyButtonText = ref('📋 Copy');
 // Media query for responsive design
 const { isMobile } = useMediaQuery();
 
+// Event type colors
+const { getEventBadgeClasses } = useEventTypeColors();
+
 const toggleExpanded = () => {
   isExpanded.value = !isExpanded.value;
 };
 
 const sessionIdShort = computed(() => {
+  // Enhanced session ID format: originalId_processId_timestamp
+  const parts = props.event.session_id.split('_');
+  if (parts.length >= 3) {
+    // Show original session ID (first 6 chars) + process ID
+    const originalId = parts[0].slice(0, 6);
+    const processId = parts[1];
+    return `${originalId}:${processId}`;
+  }
+  // Fallback for legacy format
   return props.event.session_id.slice(0, 8);
+});
+
+const sessionTooltip = computed(() => {
+  const parts = props.event.session_id.split('_');
+  if (parts.length >= 3) {
+    const timestamp = parseInt(parts[2]);
+    const date = new Date(timestamp * 1000);
+    const metadata = props.event.payload?.metadata;
+    
+    let tooltip = `Session: ${parts[0]}\nProcess: ${parts[1]}\nStarted: ${date.toLocaleTimeString()}`;
+    
+    if (metadata) {
+      if (metadata.hostname) tooltip += `\nHost: ${metadata.hostname}`;
+      if (metadata.user) tooltip += `\nUser: ${metadata.user}`;
+    }
+    
+    return tooltip;
+  }
+  return `Session: ${props.event.session_id}`;
 });
 
 const hookEmoji = computed(() => {
@@ -187,6 +239,10 @@ const hookEmoji = computed(() => {
     'UserPromptSubmit': '💬'
   };
   return emojiMap[props.event.hook_event_type] || '❓';
+});
+
+const eventBadgeClasses = computed(() => {
+  return getEventBadgeClasses(props.event.hook_event_type);
 });
 
 const borderColorClass = computed(() => {

@@ -1,4 +1,5 @@
 const eventTypeToEmoji: Record<string, string> = {
+  // Claude Code hook events
   'PreToolUse': '🔧',
   'PostToolUse': '✅',
   'Notification': '🔔',
@@ -6,6 +7,30 @@ const eventTypeToEmoji: Record<string, string> = {
   'SubagentStop': '👥',
   'PreCompact': '📦',
   'UserPromptSubmit': '💬',
+  
+  // Custom event types
+  'custom_event': '📌',
+  'post_tool_use': '✅',
+  'pre_tool_use': '🔧',
+  'user_prompt_submit': '💬',
+  'notification': '🔔',
+  'stop': '🛑',
+  'subagent_stop': '👥',
+  'pre_compact': '📦',
+  
+  // Tool-specific events
+  'Write': '✏️',
+  'Read': '📖',
+  'Edit': '📝',
+  'MultiEdit': '📝',
+  'Bash': '🖥️',
+  'Grep': '🔍',
+  'Glob': '🗂️',
+  'WebFetch': '🌐',
+  'WebSearch': '🔎',
+  'Task': '🚀',
+  'TodoWrite': '📋',
+  
   // Default
   'default': '❓'
 };

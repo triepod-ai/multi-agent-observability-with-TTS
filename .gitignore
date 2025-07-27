@@ -244,5 +244,5 @@ results/
 CVS/
 claude-output.json
 .claude/commands/feature.md
-
+.mcp.json
 specs/

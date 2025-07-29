@@ -30,6 +30,10 @@
             </span>
           </div>
           <div class="flex items-center space-x-1">
+            <span>🤖</span>
+            <span>{{ totalAgentExecutions }} agents</span>
+          </div>
+          <div class="flex items-center space-x-1">
             <span>🔄</span>
             <span>{{ uniqueSessions.length }} sessions</span>
           </div>
@@ -89,7 +93,11 @@
           </div>
 
           <!-- Application Metrics -->
-          <div class="grid grid-cols-3 gap-3 mb-4">
+          <div class="grid grid-cols-4 gap-3 mb-4">
+            <div class="text-center p-2 bg-gray-900/50 rounded">
+              <div class="text-lg font-bold text-purple-400">{{ getAppAgentCount(appEvents) }}</div>
+              <div class="text-xs text-gray-400">Agents</div>
+            </div>
             <div class="text-center p-2 bg-gray-900/50 rounded">
               <div class="text-lg font-bold text-white">{{ getAppSessions(appEvents).length }}</div>
               <div class="text-xs text-gray-400">Sessions</div>
@@ -104,39 +112,71 @@
             </div>
           </div>
 
-          <!-- Recent Tool Usage -->
-          <div class="flex-grow flex flex-col min-h-0 mb-4">
-            <div class="flex items-center justify-between mb-2">
-              <h4 class="text-sm font-medium text-gray-300">Recent Tool Usage</h4>
-              <button
-                @click="viewAllSessions(appName)"
-                class="text-xs text-blue-400 hover:text-blue-300 transition-colors"
-              >
-                View All →
-              </button>
-            </div>
-            <div class="flex-grow overflow-y-auto custom-scrollbar space-y-1">
-              <div
-                v-for="tool in getRecentToolUsage(appEvents).slice(0, 5)"
-                :key="tool.name"
-                class="flex items-center justify-between p-2 bg-gray-900/30 rounded text-xs cursor-pointer hover:bg-gray-900/50 transition-colors"
-                @click="filterByTool(appName, tool.name)"
-                :title="`${tool.name}: ${tool.count} uses, last used ${tool.timeAgo}`"
-              >
-                <div class="flex items-center space-x-2">
-                  <div class="flex items-center space-x-1">
-                    <span class="text-sm">{{ tool.icon }}</span>
-                    <div 
-                      class="w-2 h-2 rounded-full flex-shrink-0"
-                      :class="tool.isActive ? 'bg-green-500 animate-pulse' : 
-                             tool.isRecent ? 'bg-yellow-500' : 'bg-gray-500'"
-                    ></div>
+          <!-- Agent Activity & Tools -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <!-- Active Agents -->
+            <div class="flex flex-col min-h-0">
+              <div class="flex items-center justify-between mb-2">
+                <h4 class="text-sm font-medium text-gray-300">Active Agents</h4>
+                <span class="text-xs text-purple-400">{{ getAppAgents(appEvents).length }} total</span>
+              </div>
+              <div class="flex-grow overflow-y-auto custom-scrollbar space-y-1">
+                <div
+                  v-for="agent in getAppAgents(appEvents).slice(0, 3)"
+                  :key="agent.name"
+                  class="flex items-center justify-between p-2 bg-purple-900/20 border border-purple-700/30 rounded text-xs cursor-pointer hover:bg-purple-900/30 transition-colors"
+                  @click="filterByAgent(appName, agent.name)"
+                  :title="`${agent.name}: ${agent.executions} executions, ${agent.successRate}% success rate`"
+                >
+                  <div class="flex items-center space-x-2">
+                    <span class="text-sm">{{ agent.icon }}</span>
+                    <span class="text-purple-300 font-medium">{{ agent.name }}</span>
                   </div>
-                  <span class="text-gray-300 font-medium">{{ tool.name }}</span>
+                  <div class="flex items-center space-x-2">
+                    <span class="text-purple-400">{{ agent.executions }}x</span>
+                    <span class="text-green-400">{{ agent.successRate }}%</span>
+                  </div>
                 </div>
-                <div class="flex items-center space-x-2">
-                  <span class="text-gray-500">{{ tool.count }} uses</span>
-                  <span class="text-gray-600">{{ tool.timeAgo }}</span>
+                <div v-if="getAppAgents(appEvents).length === 0" class="text-xs text-gray-500 italic p-2">
+                  No agent activity
+                </div>
+              </div>
+            </div>
+            
+            <!-- Recent Tool Usage -->
+            <div class="flex flex-col min-h-0">
+              <div class="flex items-center justify-between mb-2">
+                <h4 class="text-sm font-medium text-gray-300">Recent Tools</h4>
+                <button
+                  @click="viewAllSessions(appName)"
+                  class="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                >
+                  View All →
+                </button>
+              </div>
+              <div class="flex-grow overflow-y-auto custom-scrollbar space-y-1">
+                <div
+                  v-for="tool in getRecentToolUsage(appEvents).slice(0, 3)"
+                  :key="tool.name"
+                  class="flex items-center justify-between p-2 bg-gray-900/30 rounded text-xs cursor-pointer hover:bg-gray-900/50 transition-colors"
+                  @click="filterByTool(appName, tool.name)"
+                  :title="`${tool.name}: ${tool.count} uses, last used ${tool.timeAgo}`"
+                >
+                  <div class="flex items-center space-x-2">
+                    <div class="flex items-center space-x-1">
+                      <span class="text-sm">{{ tool.icon }}</span>
+                      <div 
+                        class="w-2 h-2 rounded-full flex-shrink-0"
+                        :class="tool.isActive ? 'bg-green-500 animate-pulse' : 
+                               tool.isRecent ? 'bg-yellow-500' : 'bg-gray-500'"
+                      ></div>
+                    </div>
+                    <span class="text-gray-300 font-medium">{{ tool.name }}</span>
+                  </div>
+                  <div class="flex items-center space-x-2">
+                    <span class="text-gray-500">{{ tool.count }}</span>
+                    <span class="text-gray-600">{{ tool.timeAgo }}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -509,6 +549,169 @@ const viewAllSessions = (appName: string) => {
   emit('viewAllSessions', appName);
 };
 
+// Agent-specific computed properties and functions
+const totalAgentExecutions = computed(() => {
+  let agentCount = 0;
+  Object.values(groupedByApplication.value).forEach(appEvents => {
+    agentCount += getAppAgentCount(appEvents);
+  });
+  return agentCount;
+});
+
+// Agent detection logic (same as AgentDashboard)
+const detectAgentSession = (events: HookEvent[]): boolean => {
+  const hasTaskTool = events.some(event => 
+    event.hook_event_type === 'PreToolUse' && 
+    event.payload.tool_name === 'Task'
+  );
+  
+  const hasMultipleTools = new Set(
+    events
+      .filter(event => event.hook_event_type === 'PreToolUse')
+      .map(event => event.payload.tool_name)
+  ).size >= 2;
+  
+  const hasAgentKeywords = events.some(event => {
+    const content = JSON.stringify(event.payload).toLowerCase();
+    return content.includes('agent') || 
+           content.includes('subagent') || 
+           content.includes('spawn') ||
+           content.includes('claude/agents') ||
+           event.payload.metadata?.agent_type;
+  });
+  
+  return hasTaskTool || (hasMultipleTools && hasAgentKeywords);
+};
+
+const extractAgentName = (description: string): string => {
+  const patterns = [
+    /agent[:\s]+([a-zA-Z0-9-_]+)/i,
+    /subagent[:\s]+([a-zA-Z0-9-_]+)/i,
+    /([a-zA-Z0-9-_]+)\.md/i,
+    /([a-zA-Z0-9-_]+)\s+agent/i
+  ];
+  
+  for (const pattern of patterns) {
+    const match = description.match(pattern);
+    if (match) {
+      return match[1].replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    }
+  }
+  
+  return 'Agent Task';
+};
+
+const getAgentIcon = (agentType?: string): string => {
+  const agentIcons: Record<string, string> = {
+    'general-purpose': '🤖',
+    'project-file-reader': '📁',
+    'lesson-generator': '📚',
+    'redis-context-loader': '💾',
+    'codex-session-analyzer': '🔍',
+    'screenshot-analyzer': '📸',
+    'redis-cache-manager': '⚡',
+    'session-archive-manager': '📦',
+    'file-size-optimizer': '📏',
+    'mcp-parallel-store': '🔄',
+    'context-aggregator': '🧩',
+    'export-file-writer': '📄',
+    'redis-session-store': '💿',
+    'handoff-doc-finder': '🔗',
+    'redis-conversation-store': '💬',
+    'lesson-complexity-analyzer': '📊',
+    'base64-data-decoder': '🔓',
+    'git-context-collector': '🌿'
+  };
+  return agentIcons[agentType || 'generic'] || '🤖';
+};
+
+// Helper functions for agent metrics per application
+const getAppAgentCount = (events: HookEvent[]): number => {
+  const sessionGroups = new Map<string, HookEvent[]>();
+  
+  events.forEach(event => {
+    if (!sessionGroups.has(event.session_id)) {
+      sessionGroups.set(event.session_id, []);
+    }
+    sessionGroups.get(event.session_id)!.push(event);
+  });
+  
+  let agentCount = 0;
+  sessionGroups.forEach((sessionEvents) => {
+    if (detectAgentSession(sessionEvents)) {
+      agentCount++;
+    }
+  });
+  
+  return agentCount;
+};
+
+const getAppAgents = (events: HookEvent[]): Array<{
+  name: string;
+  type: string;
+  icon: string;
+  executions: number;
+  successRate: number;
+}> => {
+  const sessionGroups = new Map<string, HookEvent[]>();
+  
+  events.forEach(event => {
+    if (!sessionGroups.has(event.session_id)) {
+      sessionGroups.set(event.session_id, []);
+    }
+    sessionGroups.get(event.session_id)!.push(event);
+  });
+  
+  const agentMap = new Map<string, {
+    type: string;
+    executions: number;
+    successes: number;
+  }>();
+  
+  sessionGroups.forEach((sessionEvents) => {
+    if (detectAgentSession(sessionEvents)) {
+      let agentName = 'Unknown Agent';
+      let agentType = 'generic';
+      
+      const taskEvents = sessionEvents.filter(event => 
+        event.hook_event_type === 'PreToolUse' && event.payload.tool_name === 'Task'
+      );
+      
+      if (taskEvents.length > 0) {
+        const taskData = taskEvents[0].payload.tool_input;
+        if (taskData?.description) {
+          agentName = extractAgentName(taskData.description);
+        }
+        if (taskData?.subagent_type) {
+          agentType = taskData.subagent_type;
+        }
+      }
+      
+      const hasError = sessionEvents.some(event => 
+        event.hook_event_type === 'PostToolUse' && 
+        event.payload.tool_output?.error
+      );
+      
+      const existing = agentMap.get(agentName) || { type: agentType, executions: 0, successes: 0 };
+      agentMap.set(agentName, {
+        type: agentType,
+        executions: existing.executions + 1,
+        successes: existing.successes + (hasError ? 0 : 1)
+      });
+    }
+  });
+  
+  return Array.from(agentMap.entries())
+    .map(([name, data]) => ({
+      name,
+      type: data.type,
+      icon: getAgentIcon(data.type),
+      executions: data.executions,
+      successRate: data.executions > 0 ? Math.round((data.successes / data.executions) * 100) : 0
+    }))
+    .sort((a, b) => b.executions - a.executions);
+};
+
 const analyzeApplication = (appName: string) => {
   console.log('Analyzing application:', appName);
   // Future: implement application analysis
@@ -516,6 +719,13 @@ const analyzeApplication = (appName: string) => {
 
 const filterByTool = (appName: string, toolName: string) => {
   emit('filterByTool', appName, toolName);
+};
+
+const filterByAgent = (appName: string, agentName: string) => {
+  // For now, filter by session to show agent-related events
+  // In a future enhancement, we could add a specific agent filter
+  console.log('Filter by agent:', appName, agentName);
+  emit('filterByApp', appName);
 };
 
 // Filter management event handlers

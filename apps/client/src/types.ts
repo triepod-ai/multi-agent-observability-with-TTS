@@ -3,7 +3,23 @@ export interface HookEvent {
   source_app: string;
   session_id: string;
   hook_event_type: string;
-  payload: Record<string, any>;
+  payload: Record<string, any> & {
+    tool_name?: string;
+    tool_input?: Record<string, any>;
+    tool_output?: Record<string, any>;
+    metadata?: {
+      user?: string;
+      environment?: string;
+      hostname?: string;
+      agent_type?: string;
+      [key: string]: any;
+    };
+    token_count?: number;
+    tokens?: number;
+    memory_usage?: number;
+    agent_type?: string;
+    [key: string]: any;
+  };
   chat?: any[];
   summary?: string;
   timestamp?: number;

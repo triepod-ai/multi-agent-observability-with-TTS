@@ -108,16 +108,16 @@
             <div class="flex items-center space-x-2">
               <span class="text-gray-400">›</span>
               <div class="flex items-center space-x-2">
-                <span v-if="filters.sourceApp" class="text-white font-medium">{{ filters.sourceApp }}</span>
-                <span v-if="filters.toolName" class="text-gray-400">›</span>
-                <span v-if="filters.toolName" class="inline-flex items-center space-x-1 bg-blue-800/50 px-2 py-1 rounded-full text-xs">
-                  <span>{{ getToolIcon(filters.toolName) }}</span>
-                  <span class="text-blue-200">{{ filters.toolName }}</span>
+                <span v-if="filters.sourceApps.length > 0" class="text-white font-medium">{{ filters.sourceApps[0] }}</span>
+                <span v-if="filters.toolNames.length > 0" class="text-gray-400">›</span>
+                <span v-if="filters.toolNames.length > 0" class="inline-flex items-center space-x-1 bg-blue-800/50 px-2 py-1 rounded-full text-xs">
+                  <span>{{ getToolIcon(filters.toolNames[0]) }}</span>
+                  <span class="text-blue-200">{{ filters.toolNames[0] }}</span>
                 </span>
-                <span v-if="filters.sessionId" class="text-gray-400">›</span>
-                <span v-if="filters.sessionId" class="inline-flex items-center space-x-1 bg-purple-800/50 px-2 py-1 rounded-full text-xs">
+                <span v-if="filters.sessionIds.length > 0" class="text-gray-400">›</span>
+                <span v-if="filters.sessionIds.length > 0" class="inline-flex items-center space-x-1 bg-purple-800/50 px-2 py-1 rounded-full text-xs">
                   <span>🔗</span>
-                  <span class="text-purple-200">{{ formatSessionId(filters.sessionId) }}</span>
+                  <span class="text-purple-200">{{ formatSessionId(filters.sessionIds[0]) }}</span>
                 </span>
               </div>
             </div>
@@ -153,7 +153,7 @@
       :get-session-color="getHexColorForSession"
       :get-app-color="getHexColorForApp"
       @select-session="handleSessionSelect"
-      @view-all-sessions="currentViewMode = 'swimlane'"
+      @view-all-sessions="currentViewMode = 'timeline'"
     />
     
     <!-- Main Content Area -->
@@ -187,70 +187,16 @@
           @clear-all-filters="clearAllFilters"
         />
         
-        <!-- Cards View (Original card-based layout) -->
-        <div v-else-if="currentViewMode === 'cards'" key="cards" class="h-full overflow-y-auto p-4 bg-gray-950">
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            <TransitionGroup name="event-card">
-              <EventCard
-                v-for="event in finalFilteredEvents"
-                :key="`${event.id}-${event.timestamp}`"
-                :event="event"
-                :session-color-class="getColorForSession(event.session_id)"
-                :session-border-class="getBorderColorForSession(event.session_id)"
-                :app-color-class="getColorForApp(event.source_app)"
-                :app-hex-color="getHexColorForApp(event.source_app)"
-                @open-modal="openEventDetail(event)"
-                @copy="handleEventCopy(event)"
-              />
-            </TransitionGroup>
-          </div>
-          
-          <div v-if="finalFilteredEvents.length === 0" class="text-center py-8 text-[var(--theme-text-tertiary)]">
-            <div class="text-6xl mb-4">🔍</div>
-            <p class="text-lg font-semibold text-[var(--theme-primary)] mb-2">No events found</p>
-            <p class="text-base">Try adjusting your filters or wait for new events</p>
-          </div>
-        </div>
-        
-        <!-- Swimlane View -->
-        <div v-else-if="currentViewMode === 'swimlane'" key="swimlane" class="h-full overflow-y-auto p-4 space-y-4">
-          <TransitionGroup name="swimlane">
-            <SessionSwimLane
-              v-for="[sessionId, sessionEvents] in groupedBySessions"
-              :key="sessionId"
-              :session-id="sessionId"
-              :events="sessionEvents"
-              :session-color-class="getColorForSession(sessionId)"
-              :get-app-color="getHexColorForApp"
-              @event-click="openEventDetail"
-            />
-          </TransitionGroup>
-          
-          <div v-if="groupedBySessions.size === 0" class="text-center py-8 text-[var(--theme-text-tertiary)]">
-            <div class="text-6xl mb-4">🏊</div>
-            <p class="text-lg font-semibold text-[var(--theme-primary)] mb-2">No sessions found</p>
-            <p class="text-base">Sessions will appear here as events are received</p>
-          </div>
-        </div>
-        
-        <!-- Grid View -->
-        <div v-else-if="currentViewMode === 'grid'" key="grid" class="h-full overflow-y-auto p-4">
-          <div class="grid gap-4" style="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); grid-auto-rows: min-content;">
-            <TransitionGroup name="event-card">
-              <EventCard
-                v-for="event in finalFilteredEvents"
-                :key="`${event.id}-${event.timestamp}`"
-                :event="event"
-                :session-color-class="getColorForSession(event.session_id)"
-                :session-border-class="getBorderColorForSession(event.session_id)"
-                :app-color-class="getColorForApp(event.source_app)"
-                :app-hex-color="getHexColorForApp(event.source_app)"
-                @open-modal="openEventDetail(event)"
-                @copy="handleEventCopy(event)"
-              />
-            </TransitionGroup>
-          </div>
-        </div>
+        <!-- Agents View (Agent-centric monitoring) -->
+        <AgentDashboard
+          v-else-if="currentViewMode === 'agents'"
+          key="agents"
+          :events="finalFilteredEvents"
+          :get-session-color="getHexColorForSession"
+          :get-app-color="getHexColorForApp"
+          @session-select="handleSessionSelect"
+          @event-click="openEventDetail"
+        />
         
         <!-- Legacy Timeline View (Original) -->
         <div v-else key="legacy" class="h-full">
@@ -306,35 +252,32 @@ import { useFilterNotifications } from './composables/useFilterNotifications';
 import EventTimeline from './components/EventTimeline.vue';
 import StickScrollButton from './components/StickScrollButton.vue';
 import ThemeManager from './components/ThemeManager.vue';
-import EventCard from './components/EventCard.vue';
-import SessionSwimLane from './components/SessionSwimLane.vue';
 import SmartFilterBar from './components/SmartFilterBar.vue';
 import ActivityDashboard from './components/ActivityDashboard.vue';
 import EventDetailModal from './components/EventDetailModal.vue';
 import TimelineView from './components/TimelineView.vue';
 import ApplicationsOverview from './components/ApplicationsOverview.vue';
+import AgentDashboard from './components/AgentDashboard.vue';
 import FilterNotificationBar from './components/FilterNotificationBar.vue';
 
 // WebSocket connection
 const { events, isConnected, error } = useWebSocket('ws://localhost:4000/stream');
 
 // Theme management
-const { state: themeState } = useThemes();
+const { } = useThemes();
 
 // Event colors
-const { getColorForSession, getColorForApp, getHexColorForSession, getHexColorForApp } = useEventColors();
+const { getColorForSession, getHexColorForSession, getHexColorForApp } = useEventColors();
 
 // View modes
 const viewModes = [
   { id: 'timeline', label: 'Timeline', icon: '⏰' },
   { id: 'applications', label: 'Applications', icon: '📱' },
-  { id: 'cards', label: 'Cards', icon: '📋' },
-  { id: 'swimlane', label: 'Swimlane', icon: '🏊' },
-  { id: 'grid', label: 'Grid', icon: '🔲' },
+  { id: 'agents', label: 'Agents', icon: '🤖' },
   { id: 'legacy', label: 'Classic', icon: '📜' }
 ];
 
-const currentViewMode = ref<'timeline' | 'applications' | 'cards' | 'swimlane' | 'grid' | 'legacy'>('timeline');
+const currentViewMode = ref<'timeline' | 'applications' | 'agents' | 'legacy'>('timeline');
 
 // Filters
 const filters = ref<FilterState>({
@@ -410,29 +353,7 @@ const finalFilteredEvents = computed(() => {
   return filtered;
 });
 
-const groupedBySessions = computed(() => {
-  const groups = new Map<string, HookEvent[]>();
-  
-  finalFilteredEvents.value.forEach(event => {
-    if (!groups.has(event.session_id)) {
-      groups.set(event.session_id, []);
-    }
-    groups.get(event.session_id)!.push(event);
-  });
-  
-  // Sort events within each session by timestamp
-  groups.forEach(events => {
-    events.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
-  });
-  
-  return groups;
-});
 
-// Helper functions for color management
-const getBorderColorForSession = (sessionId: string) => {
-  const colorClass = getColorForSession(sessionId);
-  return colorClass.replace('bg-', 'border-');
-};
 
 // Helper functions for breadcrumb navigation
 const getToolIcon = (toolName: string): string => {
@@ -496,13 +417,8 @@ const navigateEvent = (direction: 'prev' | 'next') => {
 
 const handleSessionSelect = (sessionId: string) => {
   selectedSessionId.value = sessionId;
-  // Optionally switch to a view that shows the session
-  if (currentViewMode.value === 'timeline' || currentViewMode.value === 'cards') {
-    // Stay in current view but filter by session
-  } else {
-    // Switch to swimlane view which shows sessions nicely
-    currentViewMode.value = 'swimlane';
-  }
+  // Switch to timeline view to show the filtered session
+  currentViewMode.value = 'timeline';
 };
 
 const handleFilterByApp = (appName: string) => {
@@ -512,7 +428,7 @@ const handleFilterByApp = (appName: string) => {
 
 const handleViewAllSessions = (appName: string) => {
   filters.value.sourceApps = [appName];
-  currentViewMode.value = 'swimlane'; // Switch to swimlane to show all sessions for this app
+  currentViewMode.value = 'timeline'; // Switch to timeline to show all sessions for this app
 };
 
 const handleFilterByTool = (appName: string, toolName: string) => {
@@ -587,33 +503,4 @@ const handleSmartFilterUpdate = (newFilters: { sourceApps: string[]; sessionIds:
   opacity: 0;
 }
 
-.event-card-enter-active,
-.event-card-leave-active {
-  transition: all 0.3s ease;
-}
-
-.event-card-enter-from {
-  opacity: 0;
-  transform: scale(0.9) translateY(20px);
-}
-
-.event-card-leave-to {
-  opacity: 0;
-  transform: scale(0.9);
-}
-
-.swimlane-enter-active,
-.swimlane-leave-active {
-  transition: all 0.3s ease;
-}
-
-.swimlane-enter-from {
-  opacity: 0;
-  transform: translateX(-20px);
-}
-
-.swimlane-leave-to {
-  opacity: 0;
-  transform: translateX(20px);
-}
 </style>

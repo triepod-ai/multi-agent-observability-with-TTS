@@ -48,7 +48,23 @@ This project is fundamentally about **creating and monitoring AI agents** with c
 - [docs/HOOK_MIGRATION_PHASES_DOCUMENTATION.md](./docs/HOOK_MIGRATION_PHASES_DOCUMENTATION.md) - Complete technical documentation of all 3 migration phases (Added: 2025-07-24)
 - [docs/INSTALL_HOOKS_GUIDE.md](./docs/INSTALL_HOOKS_GUIDE.md) - Comprehensive install-hooks.sh documentation with path conversion and project-specific source-app naming (Updated: 2025-07-25)
 - [docs/NOTIFICATION_IMPROVEMENTS.md](./docs/NOTIFICATION_IMPROVEMENTS.md) - Notification system improvements addressing false positive timeout errors and summary generation (Updated: 2025-01-25, Tested: 2025-01-25)
-- [docs/PRECOMPACT_HOOK_INTEGRATION.md](./docs/PRECOMPACT_HOOK_INTEGRATION.md) - PreCompact hook with intelligent conversation summarization via Codex CLI (Added: 2025-07-24)
+- **[docs/PRECOMPACT_HOOK_INTEGRATION.md](./docs/PRECOMPACT_HOOK_INTEGRATION.md)** - **PreCompact hook with direct agent execution and intelligent conversation summarization** ⭐ (Added: 2025-07-24, Updated: 2025-07-28)
+- **[docs/PRECOMPACT_AGENT_INTEGRATION.md](./docs/PRECOMPACT_AGENT_INTEGRATION.md)** - **Complete technical documentation of codex-session-analyzer agent integration with PreCompact hook** ⭐ (Added: 2025-07-28)
+- [docs/PRECOMPACT_AGENT_QUICK_REFERENCE.md](./docs/PRECOMPACT_AGENT_QUICK_REFERENCE.md) - Developer quick reference for agent integration architecture and behavior (Added: 2025-07-28)
+- **[docs/PRECOMPACT_HOOK_ENHANCEMENTS.md](./docs/PRECOMPACT_HOOK_ENHANCEMENTS.md)** - **Enhanced PreCompact hook V2 with multiple summary types and context-aware TTS** ⭐ (Added: 2025-07-27)
+- **[docs/DIRECT_AGENT_EXECUTION.md](./docs/DIRECT_AGENT_EXECUTION.md)** - **KISS-compliant direct agent execution system eliminating Task tool dependencies** ⭐⭐⭐ (Added: 2025-07-28)
+
+### SessionStart Hook Feature Updates
+- **[docs/HOOKS_DOCUMENTATION.md](./docs/HOOKS_DOCUMENTATION.md)** - **Updated with new SessionStart hook feature from Claude Code** ⭐ (Updated: 2025-07-29)
+  - Added comprehensive SessionStart hook documentation with matchers (startup, resume, clear)
+  - Included input/output schemas and configuration examples
+  - Added use cases for session initialization and context loading
+- **[.claude/hooks/session_start.py](./.claude/hooks/session_start.py)** - **SessionStart hook implementation with intelligent context loading** ⭐ (Added: 2025-07-29)
+  - Loads project status, recent git changes, and modified files at session start
+  - Provides personalized TTS welcome messages based on session source type
+  - Injects context into Claude sessions for improved awareness
+  - Supports all matchers: startup, resume, clear
+  - Integrated with observability system for session tracking
 
 ### Command Documentation
 - [.claude/commands/convert_paths_absolute.md](./.claude/commands/convert_paths_absolute.md) - Path conversion utility documentation (Added: 2025-07-24)

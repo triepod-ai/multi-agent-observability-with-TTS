@@ -99,6 +99,47 @@
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/session_start.py"
+          },
+          {
+            "type": "command",
+            "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/send_event.py --source-app multi-agent-observability-system --event-type SessionStart"
+          }
+        ]
+      },
+      {
+        "matcher": "resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/session_start.py"
+          },
+          {
+            "type": "command",
+            "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/send_event.py --source-app multi-agent-observability-system --event-type SessionStart"
+          }
+        ]
+      },
+      {
+        "matcher": "clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/session_start.py"
+          },
+          {
+            "type": "command",
+            "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/send_event.py --source-app multi-agent-observability-system --event-type SessionStart"
+          }
+        ]
+      }
     ]
   }
 }

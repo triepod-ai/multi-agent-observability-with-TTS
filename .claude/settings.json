@@ -51,7 +51,7 @@
           },
           {
             "type": "command",
-            "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/send_event.py --source-app multi-agent-observability-system --event-type Stop --add-chat"
+            "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/send_event_async.py --source-app multi-agent-observability-system --event-type Stop --summarize"
           }
         ]
       }
@@ -66,7 +66,7 @@
           },
           {
             "type": "command",
-            "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/send_event.py --source-app multi-agent-observability-system --event-type SubagentStop"
+            "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/send_event_async.py --source-app multi-agent-observability-system --event-type SubagentStop --summarize"
           }
         ]
       }
@@ -81,7 +81,7 @@
           },
           {
             "type": "command",
-            "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/send_event.py --source-app multi-agent-observability-system --event-type PreCompact"
+            "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/send_event_async.py --source-app multi-agent-observability-system --event-type PreCompact --summarize"
           }
         ]
       }
@@ -110,7 +110,7 @@
           },
           {
             "type": "command",
-            "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/send_event.py --source-app multi-agent-observability-system --event-type SessionStart"
+            "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/send_event_async.py --source-app multi-agent-observability-system --event-type SessionStart --summarize"
           }
         ]
       },
@@ -123,7 +123,7 @@
           },
           {
             "type": "command",
-            "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/send_event.py --source-app multi-agent-observability-system --event-type SessionStart"
+            "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/send_event_async.py --source-app multi-agent-observability-system --event-type SessionStart --summarize"
           }
         ]
       },
@@ -136,7 +136,7 @@
           },
           {
             "type": "command",
-            "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/send_event.py --source-app multi-agent-observability-system --event-type SessionStart"
+            "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/send_event_async.py --source-app multi-agent-observability-system --event-type SessionStart --summarize"
           }
         ]
       }

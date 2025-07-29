@@ -125,7 +125,78 @@ If you see "Tool used: unknown" in the UI:
 - Compaction trigger monitoring
 - Performance impact analysis
 
-### 8. Send Event Hook (`send_event.py`)
+### 8. SessionStart Hook (`session_start.py`) - **New Feature**
+
+**Purpose**: Runs when Claude Code starts a new session or resumes an existing session
+
+**Features**:
+- **Session Initialization**: Automatically triggered on startup, resume, or clear
+- **Context Loading**: Can inject project-specific context at session start
+- **Development Context**: Load existing issues, recent changes, or project status
+- **Multiple Triggers**: Handles different session start scenarios
+
+**Hook Matchers**:
+- `startup` - Invoked from startup
+- `resume` - Invoked from `--resume`, `--continue`, or `/resume`
+- `clear` - Invoked from `/clear`
+
+**Input Schema**:
+```json
+{
+  "session_id": "abc123",
+  "transcript_path": "~/.claude/projects/.../session.jsonl",
+  "hook_event_name": "SessionStart",
+  "source": "startup"
+}
+```
+
+**Output Control**:
+- **Exit code 0**: Success. `stdout` is added to the context (special behavior for SessionStart)
+- **Exit code 2**: N/A, shows stderr to user only
+- **Other exit codes**: Non-blocking error, stderr shown to user
+
+**Advanced JSON Output**:
+```json
+{
+  "hookSpecificOutput": {
+    "hookEventName": "SessionStart",
+    "additionalContext": "Current project status and recent changes..."
+  }
+}
+```
+
+**Configuration Example**:
+```json
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session_start.py"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**Use Cases**:
+- Loading development context at session start
+- Initializing project-specific settings
+- Adding current project status to context
+- Loading recent changes or issues
+- Setting up environment variables or configurations
+
+**Example Notifications**:
+- "Bryan, Session started - loading project context"
+- "Bryan, Resuming previous session with latest changes"
+- "Bryan, New session initialized with current project status"
+
+### 9. Send Event Hook (`send_event.py`)
 
 **Purpose**: Generic event sender for custom events
 

@@ -40,7 +40,8 @@ This project is fundamentally about **creating and monitoring AI agents** with c
 - [ai_docs/claude-code-hooks.md](./ai_docs/claude-code-hooks.md) - Claude Code hooks documentation (Added: 2025-07-24)
 
 ### Enterprise Features & TTS System
-- **[docs/SPEAK_SYSTEM_OVERVIEW.md](./docs/SPEAK_SYSTEM_OVERVIEW.md)** - **Comprehensive overview of the enterprise TTS system powering agent voice notifications** ⭐⭐⭐ (Added: 2025-07-27)
+- **[docs/SPEAK_SYSTEM_OVERVIEW.md](./docs/SPEAK_SYSTEM_OVERVIEW.md)** - **Comprehensive overview of the enterprise TTS system powering agent voice notifications** ⭐⭐⭐ (Added: 2025-07-27, Updated: 2025-07-29)
+- **[docs/HOOK_TTS_INTEGRATION_REFERENCE.md](./docs/HOOK_TTS_INTEGRATION_REFERENCE.md)** - **Complete technical reference for Claude Code hook integration with enterprise TTS system** ⭐⭐⭐ (Added: 2025-07-29)
 - [docs/HOOKS_DOCUMENTATION.md](./docs/HOOKS_DOCUMENTATION.md) - Complete documentation for all Claude Code hooks with enhanced Stop hook (Added: 2025-01-24)
 - [docs/TROUBLESHOOTING_TOOL_UNKNOWN.md](./docs/TROUBLESHOOTING_TOOL_UNKNOWN.md) - Troubleshooting guide for "Tool used: unknown" regression fix (Added: 2025-07-26)
 - [docs/ENTERPRISE_TTS_INTEGRATION.md](./docs/ENTERPRISE_TTS_INTEGRATION.md) - Enterprise text-to-speech integration guide (Added: 2025-07-24)
@@ -94,6 +95,7 @@ This project is fundamentally about **creating and monitoring AI agents** with c
 - [apps/client/docs/TESTING_QUICK_REFERENCE.md](./apps/client/docs/TESTING_QUICK_REFERENCE.md) - Developer testing quick reference and commands (Added: 2025-07-25)
 
 ### Agent Creation & Monitoring Documentation (CORE FUNCTIONALITY)
+- **[docs/AGENT_CREATION_WORKFLOW.md](./docs/AGENT_CREATION_WORKFLOW.md)** - **Step-by-step workflow guide for creating effective Claude Code subagents with token optimization patterns** ⭐⭐⭐ (Added: 2025-07-29)
 - **[docs/AGENT_MONITORING_GUIDE.md](./docs/AGENT_MONITORING_GUIDE.md)** - **Comprehensive guide to agent creation with built-in observability** ⭐⭐⭐ (Added: 2025-07-27)
 - **[docs/AGENT_TTS_HOOK_INTEGRATION.md](./docs/AGENT_TTS_HOOK_INTEGRATION.md)** - **How agents, TTS, and hooks work together for full observability** ⭐⭐ (Added: 2025-07-27)
 - **[docs/SUBAGENT_CREATION_GUIDE.md](./docs/SUBAGENT_CREATION_GUIDE.md)** - **Simple KISS-compliant guide for creating focused subagents** ⭐ (Added: 2025-07-27)
@@ -102,3 +104,18 @@ This project is fundamentally about **creating and monitoring AI agents** with c
 - [docs/MEMORY_STORE_CONVERSION_EXAMPLE.md](./docs/MEMORY_STORE_CONVERSION_EXAMPLE.md) - Detailed example of converting memory-simple-store (Added: 2025-07-27)
 - [.claude/commands/create-agent.md](./.claude/commands/create-agent.md) - Quick reference formula for agent creation (Added: 2025-07-27)
 - [.claude/commands/convert-to-agent.md](./.claude/commands/convert-to-agent.md) - Helper command for analyzing and converting slash commands (Added: 2025-07-27)
+
+### Agent Optimization Results (PERFORMANCE METRICS)
+- **Agent Portfolio Optimization**: Comprehensive optimization of 12 Claude Code subagents achieving 80-90% token reduction
+  - **Project Agent Optimization** (2025-07-29): status-updater.md optimized from 384 words to 25 words (96% reduction)
+  - **User Agent Optimization Phase 1** (2025-07-29): 7 major agents optimized with 73-85% token reduction
+    - mcp-parallel-store.md: 2005→355 bytes (82%), file-size-optimizer.md: 1912→295 bytes (85%)
+    - lesson-generator.md: 1766→307 bytes (83%), redis-cache-manager.md: 1797→340 bytes (81%)
+    - lesson-complexity-analyzer.md: 1543→342 bytes (78%), session-archive-manager.md: 1446→394 bytes (73%)
+    - codex-session-analyzer.md: 1348→317 bytes (76%)
+  - **User Agent Optimization Phase 2** (2025-07-29): 5 additional agents optimized with 83-84% reduction
+    - screenshot-analyzer.md: 1350→227 bytes (83%), redis-session-store.md: 1269→209 bytes (84%)
+    - redis-conversation-store.md: 1224→206 bytes (83%), export-file-writer.md: 1194→201 bytes (83%)
+    - git-context-collector.md: 1182→199 bytes (83%)
+  - **Total Portfolio Impact**: ~/.claude/agents reduced to 28,610 bytes (~30% overall reduction from 40K+ baseline)
+  - **Methodology**: Applied ultra-minimal prompt engineering with workflow arrow notation (→) while preserving full functionality

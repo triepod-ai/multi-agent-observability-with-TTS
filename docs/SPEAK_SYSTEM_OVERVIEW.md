@@ -133,15 +133,130 @@ notify_tts() {
 
 ### 2. Claude Code Hook Integration
 
+**Comprehensive Hook System Integration**:
+
+Our Multi-Agent Observability System provides **7 specialized hooks** with sophisticated TTS integration:
+
+#### **Hook-by-Hook TTS Integration Inventory**
+
+**1. SessionStart Hook** (`session_start.py`):
+- **Purpose**: Welcome messages and project context loading
+- **TTS Integration**: `notify_tts_coordinated()` from coordinated speak system
+- **Message Examples**:
+  - "Welcome back to [project], Bryan! Found [N] recent changes"
+  - "Session resumed with [context] available"
+- **Features**: Personalized greetings, git status integration, project awareness
+
+**2. PreToolUse Hook** (`pre_tool_use.py`):
+- **Purpose**: Context-aware notifications before tool execution
+- **TTS Integration**: Full coordinated system with observability filtering
+- **Intelligence**: `should_speak_event_coordinated()` prevents spam
+- **Message Examples**: "Running analysis..." or "Starting build..."
+- **Features**: Tool-specific notifications, MCP tool parsing, smart filtering
+
+**3. PostToolUse Hook** (`post_tool_use.py`):
+- **Purpose**: Error detection and success notifications after tool execution
+- **TTS Integration**: Coordinated system with error-specific priorities
+- **Message Examples**: "Build completed successfully" or "Error detected in analysis"
+- **Features**: Error pattern detection, success confirmations, context-aware filtering
+
+**4. PreCompact Hook** (`pre_compact.py`):
+- **Purpose**: Intelligent conversation summarization before context compaction
+- **TTS Integration**: Agent-based analysis with structured TTS notifications
+- **Agent Integration**: Uses codex-session-analyzer for structured analysis
+- **Message Examples**: "Context analysis complete - [key findings]"
+- **Features**: Zero-token local processing, three-tier fallback system
+
+**5. SubagentStop Hook** (`subagent_stop.py`):
+- **Purpose**: Announces subagent completion with detailed task summaries
+- **TTS Integration**: Full coordinated system with task analysis
+- **Message Examples**: "Code review agent completed - found 3 issues in 45 seconds"
+- **Features**: Duration tracking, result summarization, performance metrics
+
+**6. Stop Hook** (`stop.py`):
+- **Purpose**: End-of-session announcements with comprehensive activity analysis
+- **TTS Integration**: Session analysis with intelligent summarization
+- **Message Examples**: "Session complete - 5 files modified, 3 tests run"
+- **Features**: Activity analysis, session insights, performance tracking
+
+**7. Notification Hook** (`notification.py`):
+- **Purpose**: User interaction tracking with optional audio feedback
+- **TTS Integration**: Permission and interaction notifications
+- **Features**: Random positive affirmations, permission confirmations, observability
+
+#### **Core TTS Architecture**
+
+**Coordinated Speaking System** (`coordinated_speak.py`):
+- **Queue Management**: Unix socket coordination prevents audio overlap
+- **Priority Levels**: low, medium, high, critical, interrupt
+- **Message Types**: info, warning, error, success, interrupt
+- **Fallback Strategy**: Direct `speak` command when coordinator unavailable
+
+**Observability Integration** (`observability.py`):
+- **Smart Filtering**: `should_speak_event_coordinated()` prevents audio spam
+- **Event Categories**: Analyzes different event types for appropriate TTS
+- **Context Awareness**: Considers hook type, tool, and message content
+- **Anti-Spam Controls**: Intelligent filtering to avoid overwhelming users
+
+#### **Message Flow Architecture**
+
+```
+Hook Event → should_speak_event_coordinated() → notify_tts_coordinated() → Queue Coordinator → speak command
+                    ↓                                        ↓                         ↓
+            Observability Check              Priority/Type Assignment      Audio Overlap Prevention
+```
+
 **Hook Configuration** (`.claude/settings.json`):
 ```json
 {
   "hooks": {
+    "SessionStart": [{
+      "matcher": "startup|resume|clear",
+      "hooks": [{
+        "type": "command",
+        "command": "uv run /absolute/path/.claude/hooks/session_start.py"
+      }]
+    }],
+    "PreToolUse": [{
+      "matcher": "",
+      "hooks": [{
+        "type": "command", 
+        "command": "uv run /absolute/path/.claude/hooks/pre_tool_use.py"
+      }]
+    }],
     "PostToolUse": [{
       "matcher": "",
       "hooks": [{
         "type": "command",
-        "command": "uv run .claude/hooks/send_event_async.py --summarize"
+        "command": "uv run /absolute/path/.claude/hooks/post_tool_use.py"
+      }]
+    }],
+    "PreCompact": [{
+      "matcher": "",
+      "hooks": [{
+        "type": "command",
+        "command": "uv run /absolute/path/.claude/hooks/pre_compact.py"
+      }]
+    }],
+    "SubagentStop": [{
+      "matcher": "",
+      "hooks": [{
+        "type": "command",
+        "command": "uv run /absolute/path/.claude/hooks/subagent_stop.py"
+      }]
+    }],
+    "Stop": [{
+      "matcher": "",
+      "hooks": [{
+        "type": "command",
+        "command": "uv run /absolute/path/.claude/hooks/stop.py"
+      }]
+    }],
+    "Notification": [{
+      "matcher": "",
+      "hooks": [{
+        "type": "command",
+        "command": "uv run /absolute/path/.claude/hooks/notification.py"
       }]
     }]
   }
@@ -153,6 +268,7 @@ notify_tts() {
 - Context-aware voice assignment based on tool type and severity
 - Rate limiting with category-based anti-spam (0-15 second intervals)
 - Priority-based message formatting and delivery
+- Cross-hook coordination for seamless audio experience
 
 ### 3. Anti-Spam & Rate Limiting
 

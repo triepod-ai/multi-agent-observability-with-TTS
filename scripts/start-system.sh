@@ -30,8 +30,8 @@ if check_port 4000; then
     exit 1
 fi
 
-if check_port 5173; then
-    echo -e "${YELLOW}⚠️  Port 5173 is already in use. Run ./scripts/reset-system.sh first.${NC}"
+if check_port 8543; then
+    echo -e "${YELLOW}⚠️  Port 8543 is already in use. Run ./scripts/reset-system.sh first.${NC}"
     exit 1
 fi
 
@@ -52,7 +52,7 @@ for i in {1..10}; do
 done
 
 # Start client
-echo -e "\n${GREEN}Starting client on port 5173...${NC}"
+echo -e "\n${GREEN}Starting client on port 8543...${NC}"
 cd "$PROJECT_ROOT/apps/client"
 bun run dev &
 CLIENT_PID=$!
@@ -60,7 +60,7 @@ CLIENT_PID=$!
 # Wait for client to be ready
 echo -e "${YELLOW}Waiting for client to start...${NC}"
 for i in {1..10}; do
-    if curl -s http://localhost:5173 >/dev/null 2>&1; then
+    if curl -s http://localhost:8543 >/dev/null 2>&1; then
         echo -e "${GREEN}✅ Client is ready!${NC}"
         break
     fi
@@ -72,7 +72,7 @@ echo -e "\n${BLUE}============================================${NC}"
 echo -e "${GREEN}✅ Multi-Agent Observability System Started${NC}"
 echo -e "${BLUE}============================================${NC}"
 echo
-echo -e "🖥️  Client URL: ${GREEN}http://localhost:5173${NC}"
+echo -e "🖥️  Client URL: ${GREEN}http://localhost:8543${NC}"
 echo -e "🔌 Server API: ${GREEN}http://localhost:4000${NC}"
 echo -e "📡 WebSocket: ${GREEN}ws://localhost:4000/stream${NC}"
 echo

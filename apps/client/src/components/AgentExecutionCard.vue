@@ -1,20 +1,20 @@
 <template>
   <div class="bg-gray-800 rounded-lg border border-gray-700 hover:border-gray-600 transition-all duration-200 overflow-hidden">
     <!-- Agent Header -->
-    <div class="p-4 border-b border-gray-700">
-      <div class="flex items-center justify-between mb-2">
+    <div class="p-3 border-b border-gray-700">
+      <div class="flex items-center justify-between mb-1.5">
         <div class="flex items-center space-x-3">
           <!-- Agent Status Indicator -->
           <div class="relative">
             <div 
-              class="w-10 h-10 rounded-lg flex items-center justify-center"
+              class="w-8 h-8 rounded-lg flex items-center justify-center"
               :style="{ backgroundColor: agentColor + '20', borderColor: agentColor }"
               :class="[
                 'border-2',
                 agentSession.status === 'running' ? 'animate-pulse' : ''
               ]"
             >
-              <span class="text-lg">{{ getAgentIcon(agentSession.agentType) }}</span>
+              <span class="text-base">{{ getAgentIcon(agentSession.agentType) }}</span>
             </div>
             <!-- Status Dot -->
             <div 
@@ -26,8 +26,8 @@
           </div>
           
           <div class="flex-1 min-w-0">
-            <h3 class="font-semibold text-white truncate">{{ agentSession.agentName }}</h3>
-            <div class="flex items-center space-x-2 text-sm text-gray-400">
+            <h3 class="text-sm font-semibold text-white truncate">{{ agentSession.agentName }}</h3>
+            <div class="flex items-center space-x-2 text-xs text-gray-400">
               <span>{{ agentSession.sourceApp }}</span>
               <span>•</span>
               <span class="capitalize">{{ agentSession.agentType }}</span>
@@ -37,7 +37,7 @@
         
         <!-- Execution Time -->
         <div class="text-right">
-          <div class="text-sm font-medium text-white">
+          <div class="text-xs font-medium text-white">
             {{ formatDuration(agentSession.duration) }}
           </div>
           <div class="text-xs text-gray-400">
@@ -86,22 +86,22 @@
     </div>
     
     <!-- Agent Body -->
-    <div class="p-4">
+    <div class="p-3">
       <!-- Tools Used -->
-      <div class="mb-4">
-        <div class="text-xs font-medium text-gray-400 mb-2">Tools Used</div>
+      <div class="mb-3">
+        <div class="text-xs font-medium text-gray-400 mb-1.5">Tools Used</div>
         <div class="flex flex-wrap gap-1">
           <span
             v-for="tool in agentSession.toolsUsed.slice(0, 6)"
             :key="tool"
-            class="inline-flex items-center space-x-1 px-2 py-1 bg-gray-700 text-xs rounded-full"
+            class="inline-flex items-center space-x-1 px-1.5 py-0.5 bg-gray-700 text-xs rounded-full"
           >
-            <span>{{ getToolIcon(tool) }}</span>
+            <span class="text-xs">{{ getToolIcon(tool) }}</span>
             <span class="text-gray-300">{{ tool }}</span>
           </span>
           <span
             v-if="agentSession.toolsUsed.length > 6"
-            class="inline-flex items-center px-2 py-1 bg-gray-600 text-xs rounded-full text-gray-300"
+            class="inline-flex items-center px-1.5 py-0.5 bg-gray-600 text-xs rounded-full text-gray-300"
           >
             +{{ agentSession.toolsUsed.length - 6 }} more
           </span>
@@ -109,34 +109,34 @@
       </div>
       
       <!-- Return Data Preview -->
-      <div v-if="agentSession.returnData" class="mb-4">
-        <div class="text-xs font-medium text-gray-400 mb-2">Return Data</div>
-        <div class="bg-gray-900 rounded p-3 text-sm">
+      <div v-if="agentSession.returnData" class="mb-3">
+        <div class="text-xs font-medium text-gray-400 mb-1.5">Return Data</div>
+        <div class="bg-gray-900 rounded p-2 text-sm">
           <pre class="text-gray-300 text-xs overflow-hidden">{{ formatReturnData(agentSession.returnData) }}</pre>
         </div>
       </div>
       
       <!-- Error Message -->
-      <div v-if="agentSession.errorMessage" class="mb-4">
-        <div class="text-xs font-medium text-red-400 mb-2">Error</div>
-        <div class="bg-red-900/20 border border-red-700 rounded p-3 text-sm text-red-300">
+      <div v-if="agentSession.errorMessage" class="mb-3">
+        <div class="text-xs font-medium text-red-400 mb-1.5">Error</div>
+        <div class="bg-red-900/20 border border-red-700 rounded p-2 text-sm text-red-300">
           {{ agentSession.errorMessage }}
         </div>
       </div>
       
       <!-- Agent Metrics -->
-      <div class="grid grid-cols-3 gap-4 text-center">
+      <div class="grid grid-cols-3 gap-3 text-center">
         <div>
-          <div class="text-lg font-semibold text-white">{{ agentSession.events.length }}</div>
+          <div class="text-base font-semibold text-white">{{ agentSession.events.length }}</div>
           <div class="text-xs text-gray-400">Events</div>
         </div>
         <div>
-          <div class="text-lg font-semibold text-white">{{ agentSession.toolsUsed.length }}</div>
+          <div class="text-base font-semibold text-white">{{ agentSession.toolsUsed.length }}</div>
           <div class="text-xs text-gray-400">Tools</div>
         </div>
         <div>
           <div 
-            class="text-lg font-semibold"
+            class="text-base font-semibold"
             :class="agentSession.status === 'completed' ? 'text-green-400' : 
                    agentSession.status === 'failed' ? 'text-red-400' : 'text-yellow-400'"
           >

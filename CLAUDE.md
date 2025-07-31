@@ -16,6 +16,7 @@ This project is fundamentally about **creating and monitoring AI agents** with c
 2. **Hook System**: Auto-installed via `bin/install-hooks.sh` for TTS and event tracking
 3. **Observability Dashboard**: Real-time visualization of all agent activities
 4. **Slash-to-Agent Conversion**: Transform complex commands into observable agents
+5. **Session Context Integration**: Enhanced session-start-hook automatically loads previous session handoff context from Redis for seamless continuity
 
 ## Documentation Guidelines
 - When creating **documentation**, always create a reference to it in CLAUDE.MD so the AI can find the context of the changes if needed.
@@ -55,17 +56,57 @@ This project is fundamentally about **creating and monitoring AI agents** with c
 - **[docs/PRECOMPACT_HOOK_ENHANCEMENTS.md](./docs/PRECOMPACT_HOOK_ENHANCEMENTS.md)** - **Enhanced PreCompact hook V2 with multiple summary types and context-aware TTS** ⭐ (Added: 2025-07-27)
 - **[docs/DIRECT_AGENT_EXECUTION.md](./docs/DIRECT_AGENT_EXECUTION.md)** - **KISS-compliant direct agent execution system eliminating Task tool dependencies** ⭐⭐⭐ (Added: 2025-07-28)
 
-### SessionStart Hook Feature Updates
-- **[docs/HOOKS_DOCUMENTATION.md](./docs/HOOKS_DOCUMENTATION.md)** - **Updated with new SessionStart hook feature from Claude Code** ⭐ (Updated: 2025-07-29)
-  - Added comprehensive SessionStart hook documentation with matchers (startup, resume, clear)
-  - Included input/output schemas and configuration examples
-  - Added use cases for session initialization and context loading
-- **[.claude/hooks/session_start.py](./.claude/hooks/session_start.py)** - **SessionStart hook implementation with intelligent context loading** ⭐ (Added: 2025-07-29)
-  - Loads project status, recent git changes, and modified files at session start
-  - Provides personalized TTS welcome messages based on session source type
-  - Injects context into Claude sessions for improved awareness
-  - Supports all matchers: startup, resume, clear
-  - Integrated with observability system for session tracking
+### Session Continuity System (NEW INTEGRATION)
+- **[docs/PRECOMPACT_SESSION_CONTINUITY.md](./docs/PRECOMPACT_SESSION_CONTINUITY.md)** - **PreCompact to SessionStart integration for continuous learning** ⭐⭐⭐ (Added: 2025-01-31)
+  - **Automatic Summary Loading**: SessionStart now loads previous session summaries from PreCompact
+  - **Continuous Learning**: Each session builds on insights from previous sessions
+  - **Smart Filtering**: Loads last 3 sessions with intelligent deduplication
+  - **Structured Injection**: Blockers → Actions → Achievements → Insights hierarchy
+  - **Zero Configuration**: Works automatically with existing hooks
+  - **Benefits**: No more "write-only" summaries - full session continuity achieved
+
+### SessionStart Hook KISS Refactoring (ARCHITECTURE IMPROVEMENT)
+- **[docs/HOOKS_DOCUMENTATION.md](./docs/HOOKS_DOCUMENTATION.md)** - **Updated with KISS-compliant SessionStart hook architecture** ⭐⭐⭐ (Updated: 2025-07-30)
+  - **KISS Architecture**: Refactored monolithic hook into 4 focused scripts following single responsibility principle
+  - **Individual Hook Scripts**: session_context_loader.py, session_startup_notifier.py, session_resume_detector.py, session_event_tracker.py
+  - **Rate Limiting**: 30-second cooldown system prevents TTS notification spam
+  - **Smart Logic**: Resume detector only notifies for meaningful work (modified files, commits, project status)
+  - **Execution Flow**: Different script combinations for startup/resume/clear sessions
+  - **Benefits**: Easy debugging, selective disabling, independent failure handling, clear purpose per script
+
+#### KISS Hook Implementation Files
+- **[.claude/hooks/session_context_loader.py](./.claude/hooks/session_context_loader.py)** - **Project context injection with Redis handoff integration** ⭐ (Created: 2025-07-30, Enhanced: 2025-01-30)
+  - Single purpose: Load PROJECT_STATUS.md, git status, recent commits, and previous session handoff context from Redis
+  - **Enhanced Feature**: Automatically retrieves latest handoff context from Redis exports created by `/get-up-to-speed-export`
+  - **Seamless Continuity**: Previous session context loads first for maximum relevance in new sessions
+  - **Fallback Support**: Falls back to file-based handoffs if Redis unavailable
+  - Used for: startup, resume (not clear - fresh sessions don't need old context)
+  - No TTS, no events, no complex decisions (~150 lines)
+
+- **[.claude/hooks/session_startup_notifier.py](./.claude/hooks/session_startup_notifier.py)** - **New session TTS with rate limiting** (Created: 2025-07-30)  
+  - Single purpose: Send TTS notification for genuine new sessions only
+  - Features: 30-second rate limiting prevents spam
+  - Used for: startup only (50 lines)
+
+- **[.claude/hooks/session_resume_detector.py](./.claude/hooks/session_resume_detector.py)** - **Smart resume notifications** (Created: 2025-07-30)
+  - Single purpose: Send TTS for meaningful resume sessions only
+  - Logic: Only notifies if significant work context exists
+  - Used for: resume only (75 lines)
+
+- **[.claude/hooks/session_event_tracker.py](./.claude/hooks/session_event_tracker.py)** - **Observability events only** (Created: 2025-07-30)
+  - Single purpose: Send session tracking events to observability server
+  - Logic: Always sends event (observability needs all data)
+  - Used for: All session types (45 lines)
+
+- **[.claude/hooks/utils/session_helpers.py](./.claude/hooks/utils/session_helpers.py)** - **Shared utilities** (Created: 2025-07-30)
+  - Common functionality: get_project_name(), get_git_status(), rate limiting system
+  - 30-second cooldown system with timestamp files
+  - Consistent git status formatting (95 lines)
+
+#### Legacy & Migration
+- **[.claude/hooks/session_start.py.backup](./.claude/hooks/session_start.py.backup)** - Original monolithic implementation (260+ lines, archived)
+- **Migration**: Updated .claude/settings.json to use 4 focused hooks instead of single SessionStart hook
+- **Testing**: All individual hooks tested independently and validated for focused functionality
 
 ### Command Documentation
 - [.claude/commands/convert_paths_absolute.md](./.claude/commands/convert_paths_absolute.md) - Path conversion utility documentation (Added: 2025-07-24)
@@ -119,3 +160,20 @@ This project is fundamentally about **creating and monitoring AI agents** with c
     - git-context-collector.md: 1182→199 bytes (83%)
   - **Total Portfolio Impact**: ~/.claude/agents reduced to 28,610 bytes (~30% overall reduction from 40K+ baseline)
   - **Methodology**: Applied ultra-minimal prompt engineering with workflow arrow notation (→) while preserving full functionality
+
+### Session Handoff Integration System (SEAMLESS CONTINUITY)
+- **[Enhanced Session Context Integration](# "Session handoff integration system")** - **Complete Redis-based session continuity system** ⭐⭐⭐ (Implemented: 2025-01-30)
+  - **Fast Export**: `/get-up-to-speed-export` creates Redis handoffs with session context in <0.2 seconds
+  - **Automatic Loading**: Enhanced `session_context_loader.py` retrieves latest handoff context on session start
+  - **Magic Context Pipeline**: Export → Redis Storage → Session Start Hook → Claude Context injection
+  - **Key Benefits**: Previous session context loads first, seamless project continuity, eliminates context loss between sessions
+  - **Storage Format**: `handoff:project:{project-name}:{YYYYMMDD_HHMMSS}` keys with 30-day TTL
+  - **Smart Retrieval**: Timestamp-based latest handoff detection with fallback to file-based exports
+  - **Performance**: Direct Redis access bypasses MCP complexity for fast context loading
+  - **Integration**: Works with all existing KISS hook architecture without modification
+
+## Quick Navigation
+- **Session Handoff System**: Enhanced session-start-hook with Redis handoff integration for seamless project continuity
+- **Agent Creation & Monitoring**: Core functionality for creating observable AI agents with TTS and event tracking
+- **KISS Hook Architecture**: 4 focused scripts (context loader, startup notifier, resume detector, event tracker)
+- **TTS Integration**: Enterprise text-to-speech system with intelligent voice selection and cost optimization

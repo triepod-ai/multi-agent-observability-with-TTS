@@ -43,8 +43,8 @@ kill_port() {
 # Kill server processes (port 4000)
 kill_port 4000 "server"
 
-# Kill client dev server (port 5173)
-kill_port 5173 "client"
+# Kill client dev server (port 8543)
+kill_port 8543 "client"
 
 # Kill any remaining bun processes related to our apps
 echo -e "\n${YELLOW}Checking for remaining bun processes...${NC}"

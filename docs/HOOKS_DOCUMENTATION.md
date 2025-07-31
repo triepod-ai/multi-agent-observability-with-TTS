@@ -125,47 +125,66 @@ If you see "Tool used: unknown" in the UI:
 - Compaction trigger monitoring
 - Performance impact analysis
 
-### 8. SessionStart Hook (`session_start.py`) - **New Feature**
+### 8. SessionStart Hook (KISS Architecture) - **Refactored for Single Responsibility**
 
 **Purpose**: Runs when Claude Code starts a new session or resumes an existing session
 
-**Features**:
-- **Session Initialization**: Automatically triggered on startup, resume, or clear
-- **Context Loading**: Can inject project-specific context at session start
-- **Development Context**: Load existing issues, recent changes, or project status
-- **Multiple Triggers**: Handles different session start scenarios
+**Architecture**: **KISS-compliant focused hooks** - replaced monolithic `session_start.py` with 4 specialized scripts, each with single responsibility
+
+#### Individual Hook Scripts
+
+**`session_context_loader.py`** - Project Context Injection
+- **Single Purpose**: Load PROJECT_STATUS.md, git status, recent commits → inject context into Claude session
+- **When Used**: startup, resume (not clear - fresh sessions don't need old context)
+- **Output**: Context injection text for Claude
+- **No TTS, no events, no complex decisions**
+
+**`session_startup_notifier.py`** - New Session TTS with Rate Limiting  
+- **Single Purpose**: Send TTS notification for genuine new sessions
+- **When Used**: startup only
+- **Features**: 30-second rate limiting prevents spam
+- **Output**: TTS notification only
+- **No context loading, no events**
+
+**`session_resume_detector.py`** - Smart Resume Notifications
+- **Single Purpose**: Send TTS for meaningful resume sessions only
+- **When Used**: resume only  
+- **Logic**: Only notifies if significant work context exists (modified files, commits, project status)
+- **Output**: Conditional TTS notification
+- **No context loading, no events**
+
+**`session_event_tracker.py`** - Observability Events
+- **Single Purpose**: Send session tracking events to observability server
+- **When Used**: All session types (startup, resume, clear)
+- **Logic**: Always sends event (observability needs all data)
+- **Output**: HTTP event to server only
+- **No TTS, no context loading**
+
+#### Hook Execution Flow
 
 **Hook Matchers**:
 - `startup` - Invoked from startup
-- `resume` - Invoked from `--resume`, `--continue`, or `/resume`
+- `resume` - Invoked from `--resume`, `--continue`, or `/resume`  
 - `clear` - Invoked from `/clear`
 
-**Input Schema**:
-```json
-{
-  "session_id": "abc123",
-  "transcript_path": "~/.claude/projects/.../session.jsonl",
-  "hook_event_name": "SessionStart",
-  "source": "startup"
-}
-```
+**Execution Per Session Type**:
 
-**Output Control**:
-- **Exit code 0**: Success. `stdout` is added to the context (special behavior for SessionStart)
-- **Exit code 2**: N/A, shows stderr to user only
-- **Other exit codes**: Non-blocking error, stderr shown to user
+**Startup Session**:
+1. `session_context_loader.py` → loads context, outputs context injection
+2. `session_startup_notifier.py` → sends TTS (with 30s rate limiting)
+3. `session_event_tracker.py` → sends observability event
 
-**Advanced JSON Output**:
-```json
-{
-  "hookSpecificOutput": {
-    "hookEventName": "SessionStart",
-    "additionalContext": "Current project status and recent changes..."
-  }
-}
-```
+**Resume Session**:
+1. `session_context_loader.py` → loads context, outputs context injection
+2. `session_resume_detector.py` → smart TTS (only if meaningful work exists)
+3. `session_event_tracker.py` → sends observability event
 
-**Configuration Example**:
+**Clear Session**:
+1. `session_event_tracker.py` → sends observability event only
+
+#### Configuration
+
+**Current Configuration** (KISS Architecture):
 ```json
 {
   "hooks": {
@@ -173,15 +192,50 @@ If you see "Tool used: unknown" in the UI:
       {
         "matcher": "startup",
         "hooks": [
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session_start.py"
-          }
+          {"type": "command", "command": "uv run .claude/hooks/session_context_loader.py"},
+          {"type": "command", "command": "uv run .claude/hooks/session_startup_notifier.py"},
+          {"type": "command", "command": "uv run .claude/hooks/session_event_tracker.py"}
+        ]
+      },
+      {
+        "matcher": "resume",
+        "hooks": [
+          {"type": "command", "command": "uv run .claude/hooks/session_context_loader.py"},
+          {"type": "command", "command": "uv run .claude/hooks/session_resume_detector.py"},
+          {"type": "command", "command": "uv run .claude/hooks/session_event_tracker.py"}
+        ]
+      },
+      {
+        "matcher": "clear",
+        "hooks": [
+          {"type": "command", "command": "uv run .claude/hooks/session_event_tracker.py"}
         ]
       }
     ]
   }
 }
+```
+
+#### Benefits of KISS Architecture
+
+1. **Single Responsibility**: Each script does one thing well (50-100 lines each)
+2. **Easy Debugging**: Know exactly which script failed if there's an issue
+3. **Selective Disabling**: Can disable TTS without breaking context loading
+4. **No Repetition**: Rate limiting prevents spam, smart logic prevents unnecessary notifications
+5. **Independent Failure**: If one script fails, others continue working
+6. **Clear Purpose**: Each script's function is immediately obvious from its name
+
+#### Shared Utilities
+
+**`utils/session_helpers.py`** - Common functionality:
+- `get_project_name()`, `get_project_status()`, `get_git_status()`
+- `is_rate_limited()`, `update_rate_limit()` - 30-second cooldown system
+- `format_git_summary()` - Consistent git status formatting
+
+#### Legacy
+
+- **Original**: `session_start.py.backup` (260+ lines, monolithic)
+- **Refactored**: 4 focused scripts + shared utilities (following KISS principle)
 ```
 
 **Use Cases**:

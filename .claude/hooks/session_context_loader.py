@@ -1,0 +1,345 @@
+#!/usr/bin/env python3
+"""
+Session Context Loader Hook
+
+SINGLE PURPOSE: Load and inject project context into Claude sessions.
+
+- Loads PROJECT_STATUS.md, git status, recent commits
+- Generates context injection text for Claude
+- NO TTS notifications, NO observability events, NO complex decisions
+- Used for: startup, resume (not clear - fresh sessions don't need old context)
+"""
+
+import sys
+import json
+import os
+import subprocess
+from pathlib import Path
+
+# Add utils to path
+sys.path.append(os.path.join(os.path.dirname(__file__), 'utils'))
+
+from session_helpers import get_project_name, get_project_status, get_git_status, format_git_summary
+
+import glob
+from datetime import datetime, timedelta
+
+
+def get_latest_handoff_context(project_name: str) -> str:
+    """Retrieve the most recent handoff context from Redis for this project."""
+    try:
+        import redis
+        import re
+        from datetime import datetime
+        
+        # Connect to Redis (using standard connection)
+        r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+        
+        # Search for handoff keys for this project (try both formats)
+        # Format 1: Simple Redis keys (direct storage)
+        pattern1 = f"handoff:project:{project_name}:*"
+        keys1 = r.keys(pattern1)
+        
+        # Format 2: MCP Redis keys (MCP storage)
+        pattern2 = f"*:cache:*:handoff:project:{project_name}:*"
+        keys2 = r.keys(pattern2)
+        
+        # Combine both key sets
+        keys = keys1 + keys2
+        
+        if not keys:
+            return ""
+        
+        # Extract timestamps and find the most recent
+        key_timestamps = []
+        for key in keys:
+            # Extract timestamp from key (format: handoff:project:name:YYYYMMDD_HHMMSS)
+            match = re.search(r':(\d{8}_\d{6})$', key)
+            if match:
+                timestamp_str = match.group(1)
+                try:
+                    timestamp = datetime.strptime(timestamp_str, '%Y%m%d_%H%M%S')
+                    key_timestamps.append((timestamp, key))
+                except ValueError:
+                    continue
+        
+        if not key_timestamps:
+            return ""
+        
+        # Sort by timestamp and get the most recent
+        key_timestamps.sort(reverse=True)
+        most_recent_key = key_timestamps[0][1]
+        
+        # Retrieve the handoff content
+        handoff_content = r.get(most_recent_key)
+        return handoff_content if handoff_content else ""
+        
+    except Exception as e:
+        # Fallback - try to find recent file-based handoff
+        try:
+            import glob
+            handoff_files = glob.glob("handoff_*.md")
+            if handoff_files:
+                # Sort by modification time
+                handoff_files.sort(key=os.path.getmtime, reverse=True)
+                with open(handoff_files[0], 'r') as f:
+                    return f.read()
+        except Exception:
+            pass
+        
+        print(f"Warning: Could not retrieve handoff context: {e}", file=sys.stderr)
+        return ""
+
+
+def get_recent_summaries(project_name: str, max_sessions: int = 3) -> dict:
+    """Load recent session summaries from ~/.claude/summaries/ for this project."""
+    try:
+        summaries_dir = os.path.expanduser("~/.claude/summaries")
+        if not os.path.exists(summaries_dir):
+            return {}
+        
+        # Find all summary files for this project
+        pattern = os.path.join(summaries_dir, f"{project_name}_*_*.md")
+        files = glob.glob(pattern)
+        
+        if not files:
+            return {}
+        
+        # Parse filenames to extract type and timestamp
+        file_info = []
+        for filepath in files:
+            filename = os.path.basename(filepath)
+            # For pattern: project-name_type_YYYYMMDD_HHMMSS.md
+            # We need to extract the last two parts: type and timestamp
+            # Remove .md extension first
+            name_without_ext = filename[:-3]  # Remove .md
+            # Find the last occurrence of underscore followed by 8 digits
+            parts = name_without_ext.split('_')
+            if len(parts) >= 3:
+                # The timestamp should be the last two parts joined with underscore
+                timestamp_str = f"{parts[-2]}_{parts[-1]}"
+                summary_type = parts[-3]  # The part before the date
+                try:
+                    # Parse timestamp (format: YYYYMMDD_HHMMSS)
+                    timestamp = datetime.strptime(timestamp_str, '%Y%m%d_%H%M%S')
+                    file_info.append((timestamp, summary_type, filepath))
+                except ValueError:
+                    continue
+        
+        if not file_info:
+            return {}
+        
+        # Sort by timestamp (most recent first)
+        file_info.sort(reverse=True)
+        
+        # Group by session (same timestamp)
+        sessions = {}
+        for timestamp, summary_type, filepath in file_info:
+            session_key = timestamp.strftime('%Y%m%d_%H%M%S')
+            if session_key not in sessions:
+                sessions[session_key] = {}
+            sessions[session_key][summary_type] = filepath
+        
+        # Load content from most recent sessions
+        result = {
+            'blockers': [],
+            'actions': [],
+            'insights': [],
+            'achievements': []
+        }
+        
+        sessions_loaded = 0
+        for session_key in sorted(sessions.keys(), reverse=True):
+            if sessions_loaded >= max_sessions:
+                break
+            
+            session_files = sessions[session_key]
+            
+            # Load action items
+            if 'actions' in session_files:
+                try:
+                    with open(session_files['actions'], 'r') as f:
+                        content = f.read()
+                        # Extract action items (looking for "**Task N**:" pattern)
+                        for line in content.split('\n'):
+                            if line.startswith('**Task') and ':' in line:
+                                task = line.split(':', 1)[1].strip()
+                                if task and task not in result['actions']:
+                                    result['actions'].append(task)
+                            elif line.startswith('**Blocker') and ':' in line:
+                                blocker = line.split(':', 1)[1].strip()
+                                if blocker and blocker not in result['blockers']:
+                                    result['blockers'].append(blocker)
+                except Exception:
+                    pass
+            
+            # Load insights
+            if 'insights' in session_files:
+                try:
+                    with open(session_files['insights'], 'r') as f:
+                        content = f.read()
+                        # Extract insights (looking for "- " pattern after "## Key Insights")
+                        in_insights = False
+                        for line in content.split('\n'):
+                            if '## Key Insights' in line:
+                                in_insights = True
+                            elif in_insights and line.startswith('- '):
+                                insight = line[2:].strip()
+                                if insight and insight not in result['insights']:
+                                    result['insights'].append(insight)
+                            elif line.startswith('##') and in_insights:
+                                break  # End of insights section
+                except Exception:
+                    pass
+            
+            # Load achievements from analysis files
+            if 'analysis' in session_files:
+                try:
+                    with open(session_files['analysis'], 'r') as f:
+                        content = f.read()
+                        # Extract achievements (looking for "- " pattern after "## Achievements")
+                        in_achievements = False
+                        for line in content.split('\n'):
+                            if '## Achievements' in line:
+                                in_achievements = True
+                            elif in_achievements and line.startswith('- '):
+                                achievement = line[2:].strip()
+                                if achievement and achievement not in result['achievements']:
+                                    result['achievements'].append(achievement)
+                            elif line.startswith('##') and in_achievements:
+                                break  # End of achievements section
+                except Exception:
+                    pass
+            
+            sessions_loaded += 1
+        
+        # Limit items per category to preserve context space
+        result['blockers'] = result['blockers'][:3]
+        result['actions'] = result['actions'][:5]
+        result['insights'] = result['insights'][:3]
+        result['achievements'] = result['achievements'][:3]
+        
+        return result
+        
+    except Exception as e:
+        print(f"Warning: Could not load summaries: {e}", file=sys.stderr)
+        return {}
+
+
+def generate_context_injection(project_name: str, project_status: str, git_info: dict, handoff_context: str = "", summaries: dict = None) -> str:
+    """Generate context to inject into Claude's session."""
+    parts = []
+    
+    # Project overview
+    parts.append(f"# {project_name} - Session Context")
+    parts.append("")
+    
+    # Previous session handoff context (priority - load first)
+    if handoff_context:
+        parts.append("## Previous Session Handoff")
+        parts.append("```")
+        parts.append(handoff_context)
+        parts.append("```")
+        parts.append("")
+    
+    # Previous session insights from summaries
+    if summaries and any(summaries.values()):
+        parts.append("## Previous Session Insights")
+        
+        # Active blockers (highest priority)
+        if summaries.get('blockers'):
+            parts.append("### ⚠️ Active Blockers")
+            for blocker in summaries['blockers']:
+                parts.append(f"- {blocker}")
+            parts.append("")
+        
+        # Pending actions
+        if summaries.get('actions'):
+            parts.append("### 📋 Pending Actions (from recent sessions)")
+            for i, action in enumerate(summaries['actions'], 1):
+                parts.append(f"{i}. {action}")
+            parts.append("")
+        
+        # Recent achievements
+        if summaries.get('achievements'):
+            parts.append("### ✅ Recent Achievements")
+            for achievement in summaries['achievements']:
+                parts.append(f"- {achievement}")
+            parts.append("")
+        
+        # Key insights
+        if summaries.get('insights'):
+            parts.append("### 💡 Key Insights")
+            for insight in summaries['insights']:
+                parts.append(f"- {insight}")
+            parts.append("")
+    
+    # Recent git activity
+    if git_info["recent_commits"]:
+        parts.append("## Recent Changes")
+        for commit in git_info["recent_commits"][:3]:
+            parts.append(f"- {commit}")
+        parts.append("")
+    
+    # Current modifications
+    if git_info["modified_count"] > 0:
+        parts.append("## Modified Files")
+        for status_line in git_info["status_lines"][:5]:
+            # Extract filename from git status format
+            filename = status_line[3:] if len(status_line) > 3 else status_line
+            parts.append(f"- {filename}")
+        parts.append("")
+    
+    # Project status summary
+    if project_status:
+        parts.append("## Current Project Status")
+        parts.append(project_status)
+        parts.append("")
+    
+    # Agent monitoring note
+    parts.append("## Agent Monitoring Active")
+    parts.append("This session includes comprehensive observability for all agent activities, with TTS notifications and real-time event tracking enabled.")
+    
+    return "\n".join(parts)
+
+
+def main():
+    """Main context loader execution - single focused purpose."""
+    try:
+        # Read input data from stdin
+        input_data = json.loads(sys.stdin.read())
+        source = input_data.get('source', 'startup')
+        
+        # Only load context for sessions that need it (not fresh 'clear' sessions)
+        if source == 'clear':
+            print("Fresh session - no context loading needed")
+            return
+        
+        # Load project context
+        project_name = get_project_name()
+        project_status = get_project_status()
+        git_info = get_git_status()
+        
+        # Load previous session handoff context from Redis
+        handoff_context = get_latest_handoff_context(project_name)
+        
+        # Load recent session summaries
+        summaries = get_recent_summaries(project_name)
+        
+        # Generate and output context injection
+        context_injection = generate_context_injection(project_name, project_status, git_info, handoff_context, summaries)
+        print(context_injection)
+        
+        # Simple success indicator to stderr
+        git_summary = format_git_summary(git_info)
+        handoff_indicator = " + handoff" if handoff_context else ""
+        summaries_indicator = f" + {sum(len(v) for v in summaries.values())} insights" if summaries and any(summaries.values()) else ""
+        print(f"Context loaded for {project_name}: {git_summary}{handoff_indicator}{summaries_indicator}", file=sys.stderr)
+        
+    except Exception as e:
+        print(f"Context loader error: {e}", file=sys.stderr)
+        # Don't exit with error - context loading failure shouldn't break session start
+        
+
+if __name__ == "__main__":
+    main()

@@ -159,7 +159,7 @@ You can quickly view how this works by running this repositories .claude setup.
 # 1. Start both server and client
 ./scripts/start-system.sh
 
-# 2. Open http://localhost:5173 in your browser
+# 2. Open http://localhost:8543 in your browser
 
 # 3. Open Claude Code and run the following command:
 Run git ls-files to understand the codebase.
@@ -422,7 +422,7 @@ Copy `.env.sample` to `.env` in the project root and fill in your API keys:
 ### Server Ports
 
 - Server: `4000` (HTTP/WebSocket)
-- Client: `5173` (Vite dev server)
+- Client: `8543` (Vite dev server)
 
 ## 🛡️ Security Features
 

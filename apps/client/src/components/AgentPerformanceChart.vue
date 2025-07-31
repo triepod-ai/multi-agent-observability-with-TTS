@@ -1,16 +1,16 @@
 <template>
-  <div class="bg-gray-800/50 rounded-lg border border-gray-700 p-6">
+  <div class="bg-gray-800/50 rounded-lg border border-gray-700 p-4">
     <!-- Chart Header -->
-    <div class="flex items-center justify-between mb-6">
+    <div class="flex items-center justify-between mb-4">
       <div class="flex items-center space-x-3">
-        <div class="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
-          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="w-6 h-6 bg-gradient-to-br from-purple-500 to-purple-600 rounded flex items-center justify-center">
+          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
           </svg>
         </div>
         <div>
-          <h3 class="text-lg font-semibold text-white">Agent Performance Analytics</h3>
-          <p class="text-sm text-gray-400">Real-time agent execution metrics and trends</p>
+          <h3 class="text-base font-semibold text-white">Agent Performance Analytics</h3>
+          <p class="text-xs text-gray-400">Real-time agent execution metrics and trends</p>
         </div>
       </div>
       
@@ -31,42 +31,42 @@
     </div>
 
     <!-- Performance Metrics Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-      <div class="bg-gray-900/50 rounded-lg p-4 text-center">
-        <div class="text-2xl font-bold text-purple-400 mb-1">{{ totalAgentExecutions }}</div>
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+      <div class="bg-gray-900/50 rounded-lg p-3 text-center">
+        <div class="text-xl font-bold text-purple-400 mb-1">{{ totalAgentExecutions }}</div>
         <div class="text-xs text-gray-400">Total Executions</div>
         <div class="text-xs text-green-400 mt-1">{{ executionTrend }}% vs last period</div>
       </div>
       
-      <div class="bg-gray-900/50 rounded-lg p-4 text-center">
-        <div class="text-2xl font-bold text-green-400 mb-1">{{ overallSuccessRate }}%</div>
+      <div class="bg-gray-900/50 rounded-lg p-3 text-center">
+        <div class="text-xl font-bold text-green-400 mb-1">{{ overallSuccessRate }}%</div>
         <div class="text-xs text-gray-400">Success Rate</div>
         <div class="text-xs" :class="successRateTrend >= 0 ? 'text-green-400' : 'text-red-400'">
           {{ successRateTrend >= 0 ? '+' : '' }}{{ successRateTrend }}% vs last period
         </div>
       </div>
       
-      <div class="bg-gray-900/50 rounded-lg p-4 text-center">
-        <div class="text-2xl font-bold text-blue-400 mb-1">{{ averageExecutionTime }}s</div>
+      <div class="bg-gray-900/50 rounded-lg p-3 text-center">
+        <div class="text-xl font-bold text-blue-400 mb-1">{{ averageExecutionTime }}s</div>
         <div class="text-xs text-gray-400">Avg Duration</div>
         <div class="text-xs" :class="executionTimeTrend <= 0 ? 'text-green-400' : 'text-yellow-400'">
           {{ executionTimeTrend >= 0 ? '+' : '' }}{{ executionTimeTrend }}s vs last period
         </div>
       </div>
       
-      <div class="bg-gray-900/50 rounded-lg p-4 text-center">
-        <div class="text-2xl font-bold text-orange-400 mb-1">{{ activeAgentTypes }}</div>
+      <div class="bg-gray-900/50 rounded-lg p-3 text-center">
+        <div class="text-xl font-bold text-orange-400 mb-1">{{ activeAgentTypes }}</div>
         <div class="text-xs text-gray-400">Agent Types</div>
         <div class="text-xs text-purple-400">{{ mostUsedAgentType }} most active</div>
       </div>
     </div>
 
     <!-- Charts Container -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <!-- Execution Timeline Chart -->
-      <div class="bg-gray-900/30 rounded-lg p-4">
-        <h4 class="text-sm font-medium text-white mb-4">Execution Timeline</h4>
-        <div class="h-48 relative">
+      <div class="bg-gray-900/30 rounded-lg p-3">
+        <h4 class="text-sm font-medium text-white mb-3">Execution Timeline</h4>
+        <div class="h-32 relative">
           <!-- Y-axis labels -->
           <div class="absolute left-0 top-0 bottom-0 flex flex-col justify-between text-xs text-gray-500 pr-2">
             <span>{{ maxExecutions }}</span>
@@ -105,9 +105,9 @@
       </div>
 
       <!-- Agent Type Performance -->
-      <div class="bg-gray-900/30 rounded-lg p-4">
-        <h4 class="text-sm font-medium text-white mb-4">Performance by Agent Type</h4>
-        <div class="space-y-3 max-h-48 overflow-y-auto custom-scrollbar">
+      <div class="bg-gray-900/30 rounded-lg p-3">
+        <h4 class="text-sm font-medium text-white mb-3">Performance by Agent Type</h4>
+        <div class="space-y-2 max-h-32 overflow-y-auto custom-scrollbar">
           <div
             v-for="agentType in agentTypeStats"
             :key="agentType.type"
@@ -140,16 +140,16 @@
     </div>
 
     <!-- Tool Usage Distribution -->
-    <div class="mt-6 bg-gray-900/30 rounded-lg p-4">
-      <h4 class="text-sm font-medium text-white mb-4">Tool Usage Distribution</h4>
-      <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+    <div class="mt-4 bg-gray-900/30 rounded-lg p-3">
+      <h4 class="text-sm font-medium text-white mb-3">Tool Usage Distribution</h4>
+      <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
         <div
           v-for="tool in topTools"
           :key="tool.name"
-          class="bg-gray-800/50 rounded-lg p-3 text-center hover:bg-gray-800/70 transition-colors cursor-pointer"
+          class="bg-gray-800/50 rounded-lg p-2 text-center hover:bg-gray-800/70 transition-colors cursor-pointer"
           :title="`${tool.name}: ${tool.count} uses across ${tool.agentCount} agents`"
         >
-          <div class="text-lg mb-1">{{ getToolIcon(tool.name) }}</div>
+          <div class="text-base mb-1">{{ getToolIcon(tool.name) }}</div>
           <div class="text-xs font-medium text-white">{{ tool.name }}</div>
           <div class="text-xs text-gray-400">{{ tool.count }} uses</div>
           <div class="text-xs text-purple-400">{{ tool.agentCount }} agents</div>
@@ -158,13 +158,13 @@
     </div>
 
     <!-- Activity Heatmap -->
-    <div class="mt-6 bg-gray-900/30 rounded-lg p-4">
-      <h4 class="text-sm font-medium text-white mb-4">Activity Heatmap (Last 24 Hours)</h4>
+    <div class="mt-4 bg-gray-900/30 rounded-lg p-3">
+      <h4 class="text-sm font-medium text-white mb-3">Activity Heatmap (Last 24 Hours)</h4>
       <div class="flex items-center space-x-1">
         <div
           v-for="(hour, index) in activityHeatmap"
           :key="index"
-          class="flex-1 h-6 rounded-sm transition-all duration-200 hover:scale-105 cursor-pointer"
+          class="flex-1 h-4 rounded-sm transition-all duration-200 hover:scale-105 cursor-pointer"
           :class="getHeatmapColor(hour.intensity)"
           :title="`${hour.time}: ${hour.executions} agent executions`"
         ></div>

@@ -236,7 +236,7 @@ result2=$(/spawn @.claude/agents/processor.md "$result1")
 # Start the observability dashboard
 cd apps/client
 npm run dev
-# Access at http://localhost:5173
+# Access at http://localhost:8543
 ```
 
 ### TTS Configuration

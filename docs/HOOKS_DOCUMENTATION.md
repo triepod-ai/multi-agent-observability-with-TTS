@@ -133,16 +133,25 @@ If you see "Tool used: unknown" in the UI:
 
 #### Individual Hook Scripts
 
-**`session_context_loader.py`** - Project Context Injection
-- **Single Purpose**: Load PROJECT_STATUS.md, git status, recent commits → inject context into Claude session
+**`session_context_loader.py`** - Project Context Injection with Redis Handoff Integration
+- **Single Purpose**: Load PROJECT_STATUS.md, git status, recent commits, and **previous session handoff context from Redis** → inject context into Claude session
 - **When Used**: startup, resume (not clear - fresh sessions don't need old context)
-- **Output**: Context injection text for Claude
+- **Enhanced Features**:
+  - **Redis Handoff Retrieval**: Automatically loads latest handoff context from `/get-up-to-speed-export` Redis storage
+  - **MCP Redis Integration**: Uses correct `operation: "cache"` parameter for Redis namespace compatibility
+  - **Session Continuity**: Previous session context loads first for maximum relevance
+  - **Multi-source Context**: Combines Redis handoffs, file-based handoffs, session summaries, and project status
+  - **Graceful Fallbacks**: Redis → file-based handoffs → project context only
+  - **Smart Context Management**: Loads last 3 session summaries with intelligent deduplication
+- **Dependencies**: Redis (managed automatically via UV `--with redis`)
+- **Output**: Context injection text for Claude with seamless session continuity
 - **No TTS, no events, no complex decisions**
 
 **`session_startup_notifier.py`** - New Session TTS with Rate Limiting  
 - **Single Purpose**: Send TTS notification for genuine new sessions
 - **When Used**: startup only
 - **Features**: 30-second rate limiting prevents spam
+- **Dependencies**: OpenAI, pyttsx3 (managed automatically via UV `--with openai,pyttsx3`)
 - **Output**: TTS notification only
 - **No context loading, no events**
 
@@ -150,6 +159,7 @@ If you see "Tool used: unknown" in the UI:
 - **Single Purpose**: Send TTS for meaningful resume sessions only
 - **When Used**: resume only  
 - **Logic**: Only notifies if significant work context exists (modified files, commits, project status)
+- **Dependencies**: OpenAI, pyttsx3 (managed automatically via UV `--with openai,pyttsx3`)
 - **Output**: Conditional TTS notification
 - **No context loading, no events**
 
@@ -163,9 +173,13 @@ If you see "Tool used: unknown" in the UI:
 #### Hook Execution Flow
 
 **Hook Matchers**:
-- `startup` - Invoked from startup
-- `resume` - Invoked from `--resume`, `--continue`, or `/resume`  
-- `clear` - Invoked from `/clear`
+- `startup` - Invoked from startup (new session)
+- `resume` - Invoked from `--resume [sessionId]`, `--continue`, `-c`, or `/resume`
+- `clear` - Invoked from `/clear` (fresh session without context)
+
+**Environment Variable Control**:
+- `CLAUDE_SKIP_CONTEXT=true` - Skip context loading for fast startup
+- `CLAUDE_CONTINUE_SESSION=true` - Alternative skip context flag
 
 **Execution Per Session Type**:
 
@@ -174,17 +188,34 @@ If you see "Tool used: unknown" in the UI:
 2. `session_startup_notifier.py` → sends TTS (with 30s rate limiting)
 3. `session_event_tracker.py` → sends observability event
 
-**Resume Session**:
-1. `session_context_loader.py` → loads context, outputs context injection
+**Resume Session** (`--resume [sessionId]`, `--continue`, `-c`, or `/resume`):
+1. `session_context_loader.py` → loads context (unless `CLAUDE_SKIP_CONTEXT=true`), outputs context injection
 2. `session_resume_detector.py` → smart TTS (only if meaningful work exists)
 3. `session_event_tracker.py` → sends observability event
 
-**Clear Session**:
+**Clear Session** (`/clear`):
 1. `session_event_tracker.py` → sends observability event only
+
+**Quick Continue Usage**:
+```bash
+# Method 1: Use the cld alias (recommended)
+cld
+
+# Method 2: Set environment variable manually
+CLAUDE_SKIP_CONTEXT=true claude -c
+
+# Method 3: Add custom alias to your shell profile
+alias claude-fast="CLAUDE_SKIP_CONTEXT=true claude -c"
+```
+
+**Alias Definition** (already added to ~/.bash_aliases):
+```bash
+alias cld="CLAUDE_SKIP_CONTEXT=true claude -c"
+```
 
 #### Configuration
 
-**Current Configuration** (KISS Architecture):
+**Current Configuration** (KISS Architecture with UV Dependency Management):
 ```json
 {
   "hooks": {
@@ -192,29 +223,63 @@ If you see "Tool used: unknown" in the UI:
       {
         "matcher": "startup",
         "hooks": [
-          {"type": "command", "command": "uv run .claude/hooks/session_context_loader.py"},
-          {"type": "command", "command": "uv run .claude/hooks/session_startup_notifier.py"},
-          {"type": "command", "command": "uv run .claude/hooks/session_event_tracker.py"}
+          {"type": "command", "command": "uv run --with redis /path/to/.claude/hooks/session_context_loader.py"},
+          {"type": "command", "command": "uv run --with openai,pyttsx3 /path/to/.claude/hooks/session_startup_notifier.py"},
+          {"type": "command", "command": "uv run /path/to/.claude/hooks/session_event_tracker.py"}
         ]
       },
       {
         "matcher": "resume",
         "hooks": [
-          {"type": "command", "command": "uv run .claude/hooks/session_context_loader.py"},
-          {"type": "command", "command": "uv run .claude/hooks/session_resume_detector.py"},
-          {"type": "command", "command": "uv run .claude/hooks/session_event_tracker.py"}
+          {"type": "command", "command": "uv run --with redis /path/to/.claude/hooks/session_context_loader.py"},
+          {"type": "command", "command": "uv run --with openai,pyttsx3 /path/to/.claude/hooks/session_resume_detector.py"},
+          {"type": "command", "command": "uv run /path/to/.claude/hooks/session_event_tracker.py"}
+        ]
+      },
+      {
+        "matcher": "continue",
+        "hooks": [
+          {"type": "command", "command": "uv run /path/to/.claude/hooks/session_event_tracker.py"}
         ]
       },
       {
         "matcher": "clear",
         "hooks": [
-          {"type": "command", "command": "uv run .claude/hooks/session_event_tracker.py"}
+          {"type": "command", "command": "uv run /path/to/.claude/hooks/session_event_tracker.py"}
         ]
       }
     ]
   }
 }
 ```
+
+**UV Dependency Management**:
+- **Automatic Setup**: The `install-hooks.sh` script automatically adds `--with` flags for required dependencies
+- **Isolated Environments**: Each project gets its own UV-managed virtual environment
+- **Zero Manual Setup**: No need to manually install Redis, OpenAI, or pyttsx3 packages
+- **Cross-Platform**: Works consistently across different systems without system pollution
+
+#### Session Continuity System (Redis Handoff Integration)
+
+**Enhanced Session Context Loading** - Seamless continuity between Claude Code sessions
+
+**Magic Pipeline**:
+1. **Export**: `/get-up-to-speed-export` creates Redis handoffs in <0.2 seconds
+2. **Storage**: Redis keys with format: `handoff:project:{project-name}:{YYYYMMDD_HHMMSS}`
+3. **Retrieval**: `session_context_loader.py` automatically loads latest handoff on session start
+4. **Injection**: Previous session context loads first for maximum relevance
+
+**Key Benefits**:
+- **Seamless Project Continuity**: No context loss between sessions
+- **Intelligent Context Loading**: Previous session insights load first, then current project status
+- **Multi-source Integration**: Combines Redis handoffs, session summaries, and project status
+- **Zero Configuration**: Works automatically with existing KISS hook architecture
+- **Fast Performance**: Direct Redis access bypasses MCP complexity
+
+**MCP Redis Compatibility Fix**:
+- **Root Cause Resolved**: Fixed operation namespace mismatch (`"handoff"` vs `"cache"`)
+- **Correct Parameter**: Uses `operation: "cache"` to match `/get-up-to-speed-export` storage
+- **Fallback Chain**: Redis → file-based handoffs → project context only
 
 #### Benefits of KISS Architecture
 
@@ -224,6 +289,8 @@ If you see "Tool used: unknown" in the UI:
 4. **No Repetition**: Rate limiting prevents spam, smart logic prevents unnecessary notifications
 5. **Independent Failure**: If one script fails, others continue working
 6. **Clear Purpose**: Each script's function is immediately obvious from its name
+7. **Session Continuity**: Redis handoff integration provides seamless context across sessions
+8. **Dependency Management**: UV handles all dependencies automatically via `--with` flags
 
 #### Shared Utilities
 
@@ -232,23 +299,51 @@ If you see "Tool used: unknown" in the UI:
 - `is_rate_limited()`, `update_rate_limit()` - 30-second cooldown system
 - `format_git_summary()` - Consistent git status formatting
 
+#### Installation and UV Integration
+
+**Automatic Installation**: The `install-hooks.sh` script handles all SessionStart hook setup:
+
+1. **Copies all 4 focused scripts** to target project
+2. **Configures UV dependencies automatically**:
+   - `session_context_loader.py` → `--with redis`
+   - `session_startup_notifier.py` → `--with openai,pyttsx3`
+   - `session_resume_detector.py` → `--with openai,pyttsx3`
+   - `session_event_tracker.py` → no dependencies
+3. **Updates absolute paths** for directory-independent execution
+4. **Creates .env configuration** with TTS and project settings
+
+**UV Dependency Benefits**:
+- **Zero Manual Setup**: Dependencies installed automatically on first use
+- **Isolated Environments**: No system Python pollution
+- **Version Management**: Consistent dependency versions across installations
+- **Fast Execution**: UV's performance benefits for dependency resolution
+
+**Testing Installation**:
+```bash
+# Install hooks with UV dependency management
+./bin/install-hooks.sh /path/to/target/project
+
+# Test session context loader specifically
+echo '{"session_id": "test", "source": "startup"}' | \
+  uv run --with redis /path/to/target/project/.claude/hooks/session_context_loader.py
+```
+
 #### Legacy
 
 - **Original**: `session_start.py.backup` (260+ lines, monolithic)
 - **Refactored**: 4 focused scripts + shared utilities (following KISS principle)
-```
 
 **Use Cases**:
-- Loading development context at session start
-- Initializing project-specific settings
-- Adding current project status to context
-- Loading recent changes or issues
+- Loading development context at session start with Redis handoff continuity
+- Initializing project-specific settings and previous session insights
+- Adding current project status and recent changes to context
+- Loading session summaries and action items from previous sessions
 - Setting up environment variables or configurations
 
 **Example Notifications**:
-- "Bryan, Session started - loading project context"
-- "Bryan, Resuming previous session with latest changes"
-- "Bryan, New session initialized with current project status"
+- "Bryan, AI agent ready for multi-agent-observability-system"
+- "Bryan, Continuing work on project - 3 modified files, 2 recent commits"
+- "Bryan, Session context loaded with handoff (2,847 chars) + 4 insights"
 
 ### 9. Send Event Hook (`send_event.py`)
 

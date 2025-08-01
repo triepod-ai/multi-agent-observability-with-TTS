@@ -75,22 +75,26 @@ This project is fundamentally about **creating and monitoring AI agents** with c
   - **Benefits**: Easy debugging, selective disabling, independent failure handling, clear purpose per script
 
 #### KISS Hook Implementation Files
-- **[.claude/hooks/session_context_loader.py](./.claude/hooks/session_context_loader.py)** - **Project context injection with Redis handoff integration** ⭐ (Created: 2025-07-30, Enhanced: 2025-01-30)
+- **[.claude/hooks/session_context_loader.py](./.claude/hooks/session_context_loader.py)** - **Project context injection with Redis handoff integration and UV dependency management** ⭐⭐ (Created: 2025-07-30, Enhanced: 2025-08-01)
   - Single purpose: Load PROJECT_STATUS.md, git status, recent commits, and previous session handoff context from Redis
-  - **Enhanced Feature**: Automatically retrieves latest handoff context from Redis exports created by `/get-up-to-speed-export`
-  - **Seamless Continuity**: Previous session context loads first for maximum relevance in new sessions
-  - **Fallback Support**: Falls back to file-based handoffs if Redis unavailable
+  - **Enhanced Features**: 
+    - **Redis Handoff Integration**: Automatically retrieves latest handoff context from Redis exports created by `/get-up-to-speed-export`
+    - **MCP Redis Compatibility**: Fixed operation namespace (`"cache"`) for proper Redis retrieval
+    - **Session Continuity**: Previous session context loads first for maximum relevance in new sessions
+    - **UV Dependency Management**: Uses `--with redis` for automatic dependency handling
+    - **Multi-source Context**: Combines Redis handoffs, session summaries, and project status
+  - **Fallback Chain**: Redis → file-based handoffs → project context only
   - Used for: startup, resume (not clear - fresh sessions don't need old context)
-  - No TTS, no events, no complex decisions (~150 lines)
+  - No TTS, no events, no complex decisions (~350 lines with Redis integration)
 
-- **[.claude/hooks/session_startup_notifier.py](./.claude/hooks/session_startup_notifier.py)** - **New session TTS with rate limiting** (Created: 2025-07-30)  
+- **[.claude/hooks/session_startup_notifier.py](./.claude/hooks/session_startup_notifier.py)** - **New session TTS with rate limiting and UV dependency management** (Created: 2025-07-30, Enhanced: 2025-08-01)  
   - Single purpose: Send TTS notification for genuine new sessions only
-  - Features: 30-second rate limiting prevents spam
+  - Features: 30-second rate limiting prevents spam, UV `--with openai,pyttsx3` dependency management
   - Used for: startup only (50 lines)
 
-- **[.claude/hooks/session_resume_detector.py](./.claude/hooks/session_resume_detector.py)** - **Smart resume notifications** (Created: 2025-07-30)
+- **[.claude/hooks/session_resume_detector.py](./.claude/hooks/session_resume_detector.py)** - **Smart resume notifications with UV dependency management** (Created: 2025-07-30, Enhanced: 2025-08-01)
   - Single purpose: Send TTS for meaningful resume sessions only
-  - Logic: Only notifies if significant work context exists
+  - Logic: Only notifies if significant work context exists, UV `--with openai,pyttsx3` dependency management
   - Used for: resume only (75 lines)
 
 - **[.claude/hooks/session_event_tracker.py](./.claude/hooks/session_event_tracker.py)** - **Observability events only** (Created: 2025-07-30)
@@ -115,7 +119,13 @@ This project is fundamentally about **creating and monitoring AI agents** with c
 - [apps/demo-cc-agent/.claude/commands/convert_paths_absolute.md](./apps/demo-cc-agent/.claude/commands/convert_paths_absolute.md) - Demo agent path conversion utility documentation (Added: 2025-07-24)
 
 ### Utility Scripts
-- [bin/install-hooks.sh](./bin/install-hooks.sh) - Automated hook installer with path conversion (Added: 2025-07-24)
+- **[bin/install-hooks.sh](./bin/install-hooks.sh)** - **Enhanced automated hook installer with UV dependency management** ⭐ (Added: 2025-07-24, Enhanced: 2025-08-01)
+  - **New Step 5.6**: UV dependency management configuration
+  - **Automatic Dependencies**: Adds `--with redis`, `--with openai,pyttsx3`, `--with requests` flags to appropriate hooks
+  - **Smart Mapping**: Maps 16 different hook scripts to their required dependencies
+  - **Argument Handling**: Handles scripts with arguments (e.g., `stop.py --chat`)
+  - **Zero Manual Setup**: Target projects get full functionality without manual dependency installation
+  - **Cross-Platform**: Works on any system with UV installed
 - [bin/README.md](./bin/README.md) - Bin directory documentation (Added: 2025-07-24)
 
 ### TTS Implementation Documentation
@@ -124,6 +134,10 @@ This project is fundamentally about **creating and monitoring AI agents** with c
 - [.claude/hooks/utils/tts/PHASE_3_4_2_HEAP_OPTIMIZATION_DOCUMENTATION.md](./.claude/hooks/utils/tts/PHASE_3_4_2_HEAP_OPTIMIZATION_DOCUMENTATION.md) - TTS heap optimization documentation (Added: 2025-07-24)
 - [.claude/hooks/utils/tts/PHASE_3_4_2_MESSAGE_PROCESSING_CACHE_COMPLETE.md](./.claude/hooks/utils/tts/PHASE_3_4_2_MESSAGE_PROCESSING_CACHE_COMPLETE.md) - TTS message processing cache completion (Added: 2025-07-24)
 - **[.claude/hooks/utils/tts/coordinated_speak.py](./.claude/hooks/utils/tts/coordinated_speak.py)** - TTS Queue Coordination module preventing audio overlap (Added: 2025-01-25)
+- **[.claude/hooks/pyproject.toml](./.claude/hooks/pyproject.toml)** - **UV dependency specification for hooks** ⭐ (Added: 2025-08-01)
+  - **Dependencies**: redis>=4.0.0, requests>=2.28.0, openai>=1.0.0, pyttsx3>=2.90
+  - **UV Integration**: Enables automatic dependency management for all hook scripts
+  - **Zero Configuration**: Works automatically with UV `--with` flags
 
 ### UI Documentation
 - **[docs/UI_ENHANCEMENTS_GUIDE.md](./docs/UI_ENHANCEMENTS_GUIDE.md)** - **Comprehensive guide to UI enhancements including Activity Dashboard, Timeline View, EventCard Details, Sorting, Applications Overview flexbox layout fixes, and Multi-Selection Filtering** ⭐ (Updated: 2025-07-26)

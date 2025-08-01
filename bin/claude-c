@@ -1,0 +1,6 @@
+#!/bin/bash
+# claude-c - Quick continue command without context loading
+# Usage: ./bin/claude-c (equivalent to: CLAUDE_SKIP_CONTEXT=true claude -c)
+
+export CLAUDE_SKIP_CONTEXT=true
+exec claude -c "$@"

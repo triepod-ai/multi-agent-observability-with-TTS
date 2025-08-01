@@ -28,67 +28,100 @@ from datetime import datetime, timedelta
 def get_latest_handoff_context(project_name: str) -> str:
     """Retrieve the most recent handoff context from Redis for this project."""
     try:
-        import redis
+        # Try to import redis - if not available, skip to fallback
+        try:
+            import redis
+        except ImportError:
+            # Redis not available, skip to file fallback
+            return get_file_fallback_handoff()
+        
         import re
         from datetime import datetime
         
-        # Connect to Redis (using standard connection)
-        r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
-        
-        # Search for handoff keys for this project (try both formats)
-        # Format 1: Simple Redis keys (direct storage)
-        pattern1 = f"handoff:project:{project_name}:*"
-        keys1 = r.keys(pattern1)
-        
-        # Format 2: MCP Redis keys (MCP storage)
-        pattern2 = f"*:cache:*:handoff:project:{project_name}:*"
-        keys2 = r.keys(pattern2)
-        
-        # Combine both key sets
-        keys = keys1 + keys2
-        
-        if not keys:
-            return ""
-        
-        # Extract timestamps and find the most recent
-        key_timestamps = []
-        for key in keys:
-            # Extract timestamp from key (format: handoff:project:name:YYYYMMDD_HHMMSS)
-            match = re.search(r':(\d{8}_\d{6})$', key)
-            if match:
-                timestamp_str = match.group(1)
-                try:
-                    timestamp = datetime.strptime(timestamp_str, '%Y%m%d_%H%M%S')
-                    key_timestamps.append((timestamp, key))
-                except ValueError:
-                    continue
-        
-        if not key_timestamps:
-            return ""
-        
-        # Sort by timestamp and get the most recent
-        key_timestamps.sort(reverse=True)
-        most_recent_key = key_timestamps[0][1]
-        
-        # Retrieve the handoff content
-        handoff_content = r.get(most_recent_key)
-        return handoff_content if handoff_content else ""
-        
-    except Exception as e:
-        # Fallback - try to find recent file-based handoff
+        # Direct Redis access - search for both MCP and simple keys
         try:
-            import glob
-            handoff_files = glob.glob("handoff_*.md")
-            if handoff_files:
-                # Sort by modification time
-                handoff_files.sort(key=os.path.getmtime, reverse=True)
-                with open(handoff_files[0], 'r') as f:
-                    return f.read()
+            r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+            
+            # Search for all possible handoff key patterns
+            mcp_pattern = f"*:cache:*handoff:project:{project_name}:*"  # MCP format
+            simple_pattern = f"handoff:project:{project_name}:*"         # Simple format
+            
+            all_keys = []
+            all_keys.extend(r.keys(mcp_pattern))
+            all_keys.extend(r.keys(simple_pattern))
+            
+            if all_keys:
+                # Extract timestamps and find the most recent key
+                key_timestamps = []
+                for key in all_keys:
+                    match = re.search(r':(\d{8}_\d{6})$', key)
+                    if match:
+                        timestamp_str = match.group(1)
+                        try:
+                            timestamp = datetime.strptime(timestamp_str, '%Y%m%d_%H%M%S')
+                            key_timestamps.append((timestamp, key))
+                        except ValueError:
+                            continue
+                
+                if key_timestamps:
+                    # Sort by timestamp and get the most recent
+                    key_timestamps.sort(reverse=True)
+                    most_recent_key = key_timestamps[0][1]
+                    
+                    # Retrieve the handoff content directly
+                    handoff_content = r.get(most_recent_key)
+                    if handoff_content:
+                        return handoff_content
+        
         except Exception:
             pass
         
+        # If Redis didn't work, try file fallback
+        return get_file_fallback_handoff()
+        
+    except Exception as e:
         print(f"Warning: Could not retrieve handoff context: {e}", file=sys.stderr)
-        return ""
+        return get_file_fallback_handoff()
+
+
+def get_file_fallback_handoff() -> str:
+    """Fallback to file-based handoff retrieval."""
+    try:
+        import glob
+        import re
+        from datetime import datetime
+        
+        # Look for handoff files with timestamp pattern: handoff_YYYYMMDD_HHMMSS.md
+        handoff_files = glob.glob("handoff_*.md")
+        if handoff_files:
+            # Parse timestamps from filenames and sort by actual timestamp
+            file_timestamps = []
+            for filepath in handoff_files:
+                filename = os.path.basename(filepath)
+                match = re.search(r'handoff_(\d{8}_\d{6})\.md$', filename)
+                if match:
+                    timestamp_str = match.group(1)
+                    try:
+                        timestamp = datetime.strptime(timestamp_str, '%Y%m%d_%H%M%S')
+                        file_timestamps.append((timestamp, filepath))
+                    except ValueError:
+                        continue
+            
+            if file_timestamps:
+                # Sort by timestamp (most recent first) and get the latest
+                file_timestamps.sort(reverse=True)
+                latest_file = file_timestamps[0][1]
+                with open(latest_file, 'r') as f:
+                    return f.read()
+            else:
+                # Fallback to modification time if no valid timestamps found
+                handoff_files.sort(key=os.path.getmtime, reverse=True)
+                with open(handoff_files[0], 'r') as f:
+                    return f.read()
+    except Exception:
+        pass
+    
+    return ""
 
 
 def get_recent_summaries(project_name: str, max_sessions: int = 3) -> dict:
@@ -303,6 +336,33 @@ def generate_context_injection(project_name: str, project_status: str, git_info:
     return "\n".join(parts)
 
 
+def is_continue_session() -> bool:
+    """Detect if this is a continue session that should skip context loading."""
+    # Primary: Check environment variable for user control
+    if os.environ.get('CLAUDE_SKIP_CONTEXT') == 'true':
+        return True
+    
+    # Secondary: Check for continue session indicator
+    if os.environ.get('CLAUDE_CONTINUE_SESSION') == 'true':
+        return True
+    
+    # Tertiary: Try parent process detection (may not work in all environments)
+    try:
+        parent_pid = os.getppid()
+        cmdline_path = f"/proc/{parent_pid}/cmdline"
+        
+        if os.path.exists(cmdline_path):
+            with open(cmdline_path, 'rb') as f:
+                cmdline = f.read().decode('utf-8', errors='ignore')
+                # Claude Code arguments are null-separated
+                args = cmdline.split('\0')
+                return '-c' in args or '--continue' in args
+    except Exception:
+        pass
+    
+    return False
+
+
 def main():
     """Main context loader execution - single focused purpose."""
     try:
@@ -310,9 +370,14 @@ def main():
         input_data = json.loads(sys.stdin.read())
         source = input_data.get('source', 'startup')
         
+        # Check if this is a continue session (claude -c)
+        if is_continue_session():
+            print("Continue session - no context loading needed")
+            return
+        
         # Only load context for sessions that need it (not fresh 'clear' sessions)
-        if source == 'clear':
-            print("Fresh session - no context loading needed")
+        if source in ['clear', 'continue']:
+            print(f"{source.title()} session - no context loading needed")
             return
         
         # Load project context
@@ -332,7 +397,7 @@ def main():
         
         # Simple success indicator to stderr
         git_summary = format_git_summary(git_info)
-        handoff_indicator = " + handoff" if handoff_context else ""
+        handoff_indicator = f" + handoff ({len(handoff_context)} chars)" if handoff_context else ""
         summaries_indicator = f" + {sum(len(v) for v in summaries.values())} insights" if summaries and any(summaries.values()) else ""
         print(f"Context loaded for {project_name}: {git_summary}{handoff_indicator}{summaries_indicator}", file=sys.stderr)
         

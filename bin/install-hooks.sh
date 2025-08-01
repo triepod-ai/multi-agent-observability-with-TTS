@@ -498,6 +498,108 @@ EOF
     rm -f "$TARGET_PROJECT/.claude/convert_paths_temp.py"
 }
 
+# Step 5.6: Configure UV dependency management
+configure_uv_dependencies() {
+    echo -e "${BLUE}🔧 Step 5.6: Configuring UV dependency management...${NC}"
+    log_message "Configuring UV dependencies for hooks"
+    
+    if [ "$DRY_RUN" = true ]; then
+        echo -e "${BLUE}📋 DRY RUN - Would configure UV dependencies${NC}"
+        return 0
+    fi
+    
+    local target_settings="$TARGET_PROJECT/.claude/settings.json"
+    
+    # Update UV commands to use --with dependencies for hooks that need them
+    [ "$VERBOSE" = true ] && echo "  Adding --with dependencies to UV commands..."
+    
+    # Create a temporary Python script to update UV commands
+    cat > "$TARGET_PROJECT/.claude/update_uv_deps_temp.py" << 'EOF'
+#!/usr/bin/env python3
+import json
+import os
+import re
+import sys
+
+# Get the project directory from command line argument
+project_dir = sys.argv[1]
+
+# Read the settings.json file
+settings_path = os.path.join(project_dir, '.claude', 'settings.json')
+with open(settings_path, 'r') as f:
+    settings = json.load(f)
+
+# Track changes
+changes = []
+
+# Dependencies that hooks need
+HOOK_DEPENDENCIES = {
+    'session_context_loader.py': '--with redis',
+    'pre_tool_use.py': '--with requests',
+    'post_tool_use.py': '--with requests',
+    'send_event_async.py': '--with requests',
+    'notification.py': '--with openai,pyttsx3',
+    'stop.py': '--with openai,pyttsx3',
+    'subagent_stop.py': '--with openai,pyttsx3',
+    'session_startup_notifier.py': '--with openai,pyttsx3',
+    'session_resume_detector.py': '--with openai,pyttsx3',
+    'pre_compact.py': '--with openai,requests'
+}
+
+def update_uv_command(command):
+    """Add --with dependencies to uv run commands that need them."""
+    original = command
+    
+    # Check if this is a uv run command
+    if command.startswith('uv run '):
+        # Extract the script name from the command (handles scripts with arguments)
+        script_match = re.search(r'/([^/]+\.py)(?:\s|$)', command)
+        if script_match:
+            script_name = script_match.group(1)
+            if script_name in HOOK_DEPENDENCIES:
+                # Add --with dependencies after "uv run"
+                deps = HOOK_DEPENDENCIES[script_name]
+                command = command.replace('uv run ', f'uv run {deps} ')
+    
+    if command != original:
+        changes.append((original, command))
+    
+    return command
+
+# Process all hooks
+if 'hooks' in settings:
+    for hook_type, hook_configs in settings['hooks'].items():
+        for config in hook_configs:
+            if 'hooks' in config:
+                for hook in config['hooks']:
+                    if 'command' in hook:
+                        hook['command'] = update_uv_command(hook['command'])
+
+# Write the updated settings
+with open(settings_path, 'w') as f:
+    json.dump(settings, f, indent=2)
+
+# Report changes
+print(f"Updated {len(changes)} UV commands with dependencies")
+for old, new in changes:
+    script_name = old.split('/')[-1] if '/' in old else old
+    print(f"  ✅ {script_name}: Added dependency management")
+EOF
+    
+    # Run the UV dependency update script
+    [ "$VERBOSE" = true ] && echo "  Updating UV commands with dependencies..."
+    if python3 "$TARGET_PROJECT/.claude/update_uv_deps_temp.py" "$TARGET_PROJECT"; then
+        echo -e "${GREEN}  ✅ UV dependency management configured${NC}"
+        log_message "Successfully configured UV dependencies"
+    else
+        echo -e "${YELLOW}  ⚠️  UV dependency configuration may have had issues${NC}"
+        log_message "Warning: UV dependency configuration may have had issues"
+    fi
+    
+    # Clean up temporary script
+    rm -f "$TARGET_PROJECT/.claude/update_uv_deps_temp.py"
+}
+
 # Step 6: Set up environment configuration
 setup_environment() {
     echo -e "${BLUE}🔧 Step 6: Setting up environment...${NC}"
@@ -638,6 +740,7 @@ main() {
     install_hooks
     configure_settings
     convert_paths_to_absolute
+    configure_uv_dependencies
     setup_environment
     validate_installation
     

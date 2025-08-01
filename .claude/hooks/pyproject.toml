@@ -1,0 +1,23 @@
+# /// script
+# dependencies = [
+#     "redis>=4.0.0",
+#     "requests>=2.28.0", 
+#     "openai>=1.0.0",
+#     "pyttsx3>=2.90"
+# ]
+# ///
+
+[project]
+name = "multi-agent-observability-hooks"
+version = "0.1.0"
+description = "Claude Code hooks for multi-agent observability system"
+requires-python = ">=3.8"
+dependencies = [
+    "redis>=4.0.0",
+    "requests>=2.28.0",
+    "openai>=1.0.0",
+    "pyttsx3>=2.90"
+]
+
+[tool.uv]
+# No build required for scripts

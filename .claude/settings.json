@@ -110,7 +110,7 @@
           },
           {
             "type": "command", 
-            "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/session_startup_notifier.py"
+            "command": "uv run --with openai,pyttsx3 /home/bryan/multi-agent-observability-system/.claude/hooks/session_startup_notifier.py"
           },
           {
             "type": "command",
@@ -127,7 +127,7 @@
           },
           {
             "type": "command",
-            "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/session_resume_detector.py"
+            "command": "uv run --with openai,pyttsx3 /home/bryan/multi-agent-observability-system/.claude/hooks/session_resume_detector.py"
           },
           {
             "type": "command",

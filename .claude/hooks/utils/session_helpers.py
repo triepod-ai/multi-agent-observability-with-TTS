@@ -13,7 +13,18 @@ from datetime import datetime
 
 
 def get_project_name() -> str:
-    """Get project name from current working directory."""
+    """Get project name from git root directory, regardless of current working directory."""
+    import os
+    current_dir = os.getcwd()
+    
+    # Walk up the directory tree to find git root
+    while current_dir != "/":
+        if os.path.exists(os.path.join(current_dir, ".git")):
+            # Found git root, return its basename
+            return os.path.basename(current_dir)
+        current_dir = os.path.dirname(current_dir)
+    
+    # Fallback: if no git root found, use current directory
     return Path.cwd().name
 
 

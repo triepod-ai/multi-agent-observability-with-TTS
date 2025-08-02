@@ -285,7 +285,8 @@ const filters = ref<FilterState>({
   sessionIds: [],
   eventTypes: [],
   toolNames: [],
-  search: ''
+  search: '',
+  demoMode: false
 });
 
 // Filter notifications

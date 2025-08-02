@@ -9,7 +9,9 @@ set -euo pipefail
 # Configuration
 SOURCE_DIR="/home/bryan/multi-agent-observability-system"
 SPEAK_COMMAND="/home/bryan/bin/speak-app/speak"
-LOG_FILE="/tmp/hook-installer-$(date +%Y%m%d_%H%M%S).log"
+# Generate unique temp suffix to prevent race conditions
+TEMP_SUFFIX="$(date +%s)_$$_$RANDOM"
+LOG_FILE="/tmp/hook-installer-${TEMP_SUFFIX}.log"
 
 # Colors for output
 RED='\033[0;31m'
@@ -353,10 +355,10 @@ configure_settings() {
                 else
                     .hooks = $source.hooks
                 end
-            ' "$target_settings" > "$target_settings.tmp"
+            ' "$target_settings" > "$target_settings.tmp.${TEMP_SUFFIX}"
             
             # Check if merge was successful
-            if [ $? -eq 0 ]; then
+            if [ $? -eq 0 ] && jq empty "$target_settings.tmp.${TEMP_SUFFIX}" 2>/dev/null; then
                 echo -e "${GREEN}  ✅ Merged hooks while preserving existing configuration${NC}"
                 
                 # Show what was preserved if verbose
@@ -369,7 +371,14 @@ configure_settings() {
             else
                 echo -e "${YELLOW}⚠️  Complex merge failed - using fallback strategy${NC}"
                 # Fallback: Preserve non-hook settings and add our hooks
-                jq --slurpfile new "$source_settings" '. + {hooks: $new[0].hooks}' "$target_settings" > "$target_settings.tmp"
+                jq --slurpfile new "$source_settings" '. + {hooks: $new[0].hooks}' "$target_settings" > "$target_settings.tmp.${TEMP_SUFFIX}"
+                
+                # Validate fallback result
+                if ! jq empty "$target_settings.tmp.${TEMP_SUFFIX}" 2>/dev/null; then
+                    echo -e "${RED}  ❌ Error: Failed to merge settings files - invalid JSON generated${NC}"
+                    rm -f "$target_settings.tmp.${TEMP_SUFFIX}"
+                    return 1
+                fi
             fi
         else
             echo -e "${YELLOW}⚠️  jq not available - will overwrite existing settings${NC}"
@@ -383,18 +392,18 @@ configure_settings() {
                 echo -e "${RED}Installation aborted to preserve existing settings${NC}"
                 exit 1
             fi
-            cp "$source_settings" "$target_settings.tmp"
+            cp "$source_settings" "$target_settings.tmp.${TEMP_SUFFIX}"
         fi
     else
         # Create new settings from template
         [ "$VERBOSE" = true ] && echo "  Creating new settings.json..."
-        cp "$source_settings" "$target_settings.tmp"
+        cp "$source_settings" "$target_settings.tmp.${TEMP_SUFFIX}"
     fi
     
     # Validate JSON format
     [ "$VERBOSE" = true ] && echo "  Validating JSON format..."
-    if command -v jq >/dev/null 2>&1 && jq empty "$target_settings.tmp" 2>/dev/null; then
-        mv "$target_settings.tmp" "$target_settings"
+    if command -v jq >/dev/null 2>&1 && jq empty "$target_settings.tmp.${TEMP_SUFFIX}" 2>/dev/null; then
+        mv "$target_settings.tmp.${TEMP_SUFFIX}" "$target_settings"
         echo -e "${GREEN}  ✅ Settings configured successfully${NC}"
         
         # Update source-app references in settings.json
@@ -405,9 +414,49 @@ configure_settings() {
         local updated_count=$(grep -c -- "--source-app $PROJECT_NAME" "$target_settings" 2>/dev/null || echo "0")
         echo -e "${GREEN}  ✅ Updated $updated_count source-app references to '$PROJECT_NAME'${NC}"
     else
-        rm -f "$target_settings.tmp"
+        rm -f "$target_settings.tmp.${TEMP_SUFFIX}"
         echo -e "${RED}  ❌ Error: Invalid JSON format generated${NC}"
         return 1
+    fi
+}
+
+# Step 5.4: Update hook paths from source to target directory
+update_hook_paths() {
+    echo -e "${BLUE}🔧 Step 5.4: Updating hook paths to target directory...${NC}"
+    log_message "Updating hook paths from source to target directory"
+    
+    if [ "$DRY_RUN" = true ]; then
+        echo -e "${BLUE}📋 DRY RUN - Would update hook paths from source to target${NC}"
+        return 0
+    fi
+    
+    local target_settings="$TARGET_PROJECT/.claude/settings.json"
+    
+    # Update all hook paths to point to the target project directory instead of source
+    [ "$VERBOSE" = true ] && echo "  Updating hook paths in settings.json..."
+    
+    # Count paths before update
+    local paths_before=$(grep -c "$SOURCE_DIR/.claude/hooks" "$target_settings" 2>/dev/null || echo "0")
+    
+    # Replace source directory paths with target project paths
+    sed -i "s|$SOURCE_DIR/.claude/hooks|$TARGET_PROJECT/.claude/hooks|g" "$target_settings"
+    
+    # Count paths after update
+    local paths_after=$(grep -c "$TARGET_PROJECT/.claude/hooks" "$target_settings" 2>/dev/null || echo "0")
+    local paths_updated=$((paths_after - (paths_before - paths_after)))
+    
+    if [ "$paths_updated" -gt 0 ]; then
+        echo -e "${GREEN}  ✅ Updated $paths_updated hook paths from source to target directory${NC}"
+        log_message "Successfully updated $paths_updated hook paths"
+    else
+        echo -e "${YELLOW}  ⚠️  No hook paths needed updating (may already be correct)${NC}"
+    fi
+    
+    # Verify no source paths remain
+    local remaining_source_paths=$(grep -c "$SOURCE_DIR/.claude/hooks" "$target_settings" 2>/dev/null || echo "0")
+    if [ "$remaining_source_paths" -gt 0 ]; then
+        echo -e "${RED}  ❌ Warning: $remaining_source_paths source paths still remain in settings.json${NC}"
+        log_message "Warning: $remaining_source_paths source paths still remain"
     fi
 }
 
@@ -424,7 +473,7 @@ convert_paths_to_absolute() {
     local target_settings="$TARGET_PROJECT/.claude/settings.json"
     
     # Create Python script to convert paths
-    cat > "$TARGET_PROJECT/.claude/convert_paths_temp.py" << 'EOF'
+    cat > "$TARGET_PROJECT/.claude/convert_paths_temp_${TEMP_SUFFIX}.py" << 'EOF'
 #!/usr/bin/env python3
 import json
 import os
@@ -486,7 +535,7 @@ EOF
     
     # Run the conversion script
     [ "$VERBOSE" = true ] && echo "  Converting relative paths to absolute..."
-    if python3 "$TARGET_PROJECT/.claude/convert_paths_temp.py" "$TARGET_PROJECT"; then
+    if python3 "$TARGET_PROJECT/.claude/convert_paths_temp_${TEMP_SUFFIX}.py" "$TARGET_PROJECT"; then
         echo -e "${GREEN}  ✅ Paths converted to absolute${NC}"
         log_message "Successfully converted paths to absolute"
     else
@@ -495,7 +544,7 @@ EOF
     fi
     
     # Clean up temporary script
-    rm -f "$TARGET_PROJECT/.claude/convert_paths_temp.py"
+    rm -f "$TARGET_PROJECT/.claude/convert_paths_temp_${TEMP_SUFFIX}.py"
 }
 
 # Step 5.6: Configure UV dependency management
@@ -514,7 +563,7 @@ configure_uv_dependencies() {
     [ "$VERBOSE" = true ] && echo "  Adding --with dependencies to UV commands..."
     
     # Create a temporary Python script to update UV commands
-    cat > "$TARGET_PROJECT/.claude/update_uv_deps_temp.py" << 'EOF'
+    cat > "$TARGET_PROJECT/.claude/update_uv_deps_temp_${TEMP_SUFFIX}.py" << 'EOF'
 #!/usr/bin/env python3
 import json
 import os
@@ -588,7 +637,7 @@ EOF
     
     # Run the UV dependency update script
     [ "$VERBOSE" = true ] && echo "  Updating UV commands with dependencies..."
-    if python3 "$TARGET_PROJECT/.claude/update_uv_deps_temp.py" "$TARGET_PROJECT"; then
+    if python3 "$TARGET_PROJECT/.claude/update_uv_deps_temp_${TEMP_SUFFIX}.py" "$TARGET_PROJECT"; then
         echo -e "${GREEN}  ✅ UV dependency management configured${NC}"
         log_message "Successfully configured UV dependencies"
     else
@@ -597,7 +646,68 @@ EOF
     fi
     
     # Clean up temporary script
-    rm -f "$TARGET_PROJECT/.claude/update_uv_deps_temp.py"
+    rm -f "$TARGET_PROJECT/.claude/update_uv_deps_temp_${TEMP_SUFFIX}.py"
+}
+
+# Step 5.7: Validate UV dependencies work correctly
+validate_dependencies() {
+    echo -e "${BLUE}🧪 Step 5.7: Validating UV dependencies...${NC}"
+    log_message "Validating UV dependencies work correctly"
+    
+    if [ "$DRY_RUN" = true ]; then
+        echo -e "${BLUE}📋 DRY RUN - Would validate UV dependencies${NC}"
+        return 0
+    fi
+    
+    local validation_failed=false
+    
+    # Change to target project directory for UV to work correctly
+    pushd "$TARGET_PROJECT" > /dev/null
+    
+    # Test critical dependencies
+    echo "  Testing critical dependencies..."
+    
+    # Test redis (critical for session context)
+    if timeout 10 uv run --with redis python3 -c "import redis; print('  ✅ Redis module available')" 2>/dev/null; then
+        echo -e "${GREEN}  ✅ Redis dependency validated${NC}"
+    else
+        echo -e "${RED}  ❌ Redis dependency failed - session context loading will not work${NC}"
+        validation_failed=true
+    fi
+    
+    # Test requests (critical for event tracking)
+    if timeout 10 uv run --with requests python3 -c "import requests; print('  ✅ Requests module available')" 2>/dev/null; then
+        echo -e "${GREEN}  ✅ Requests dependency validated${NC}"
+    else
+        echo -e "${RED}  ❌ Requests dependency failed - event tracking will not work${NC}"
+        validation_failed=true
+    fi
+    
+    # Test openai (optional - for TTS)
+    if timeout 10 uv run --with openai python3 -c "import openai; print('  ✅ OpenAI module available')" 2>/dev/null; then
+        echo -e "${GREEN}  ✅ OpenAI dependency validated (TTS will work)${NC}"
+    else
+        echo -e "${YELLOW}  ⚠️  OpenAI dependency not available - TTS will use fallback providers${NC}"
+    fi
+    
+    # Test pyttsx3 (optional - for offline TTS)
+    if timeout 10 uv run --with pyttsx3 python3 -c "import pyttsx3; print('  ✅ pyttsx3 module available')" 2>/dev/null; then
+        echo -e "${GREEN}  ✅ pyttsx3 dependency validated (offline TTS available)${NC}"
+    else
+        echo -e "${YELLOW}  ⚠️  pyttsx3 dependency not available - offline TTS not available${NC}"
+    fi
+    
+    # Return to original directory
+    popd > /dev/null
+    
+    if [ "$validation_failed" = true ]; then
+        echo -e "${RED}❌ Critical dependency validation failed${NC}"
+        echo -e "${BLUE}💡 Ensure UV is installed and configured correctly${NC}"
+        echo -e "${BLUE}💡 Try running: pip install uv${NC}"
+        return 1
+    else
+        echo -e "${GREEN}✅ All critical dependencies validated${NC}"
+    fi
 }
 
 # Step 6: Set up environment configuration
@@ -739,8 +849,10 @@ main() {
     detect_conflicts
     install_hooks
     configure_settings
+    update_hook_paths  # New: Update paths from source to target
     convert_paths_to_absolute
     configure_uv_dependencies
+    validate_dependencies || true  # New: Validate but continue if fails
     setup_environment
     validate_installation
     

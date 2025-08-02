@@ -104,3 +104,16 @@ If you continue to see "Tool used: unknown" after applying this fix:
 3. File an issue with the debug output for further investigation
 
 The enhanced extraction logic should handle most current and future Claude Code data formats automatically.
+
+## Related Issues and Fixes
+
+### Redis Handoff Retrieval
+
+If you're experiencing issues with hook path configurations or Redis dependency retrieval, refer to our comprehensive [Redis Handoff Retrieval Fix guide](/docs/REDIS_HANDOFF_RETRIEVAL_FIX.md).
+
+**Key Problems Addressed**:
+- Hook path misconfigurations
+- Dependency resolution failures
+- Session context loading issues
+
+The guide provides in-depth troubleshooting steps, prevention strategies, and testing procedures to resolve hook installation and dependency management complexities.

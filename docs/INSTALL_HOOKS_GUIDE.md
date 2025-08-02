@@ -384,3 +384,8 @@ RUN /opt/observability/bin/install-hooks.sh --no-speak-check /app
 - [Hook Migration Guide](./HOOK_MIGRATION_GUIDE.md) - Migrating from global to project hooks
 - [Enterprise TTS Integration](./ENTERPRISE_TTS_INTEGRATION.md) - Advanced TTS features
 - [Multi-Agent Observability README](../README.md) - System overview
+- [Redis Handoff Retrieval Fix](./REDIS_HANDOFF_RETRIEVAL_FIX.md) - Resolving hook path and dependency issues
+
+### Dependency and Path Retrieval
+
+If you're experiencing complex issues with hook path configurations, dependency resolution, or Redis context loading, refer to our [Redis Handoff Retrieval Fix guide](./REDIS_HANDOFF_RETRIEVAL_FIX.md). This comprehensive document provides in-depth troubleshooting steps, prevention strategies, and technical insights into resolving hook installation and dependency management complexities.

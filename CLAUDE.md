@@ -27,6 +27,9 @@ This project is fundamentally about **creating and monitoring AI agents** with c
 ### Multi-Agent Demo System (NEW)
 - **[docs/SALESAI_DEMO_TECHNICAL_IMPLEMENTATION.md](./docs/SALESAI_DEMO_TECHNICAL_IMPLEMENTATION.md)** - **Complete technical documentation of the SalesAi multi-agent demo system architecture and implementation** ⭐⭐⭐ (Added: 2025-08-01)
 
+### Hook Installation and Diagnostics
+- **[docs/REDIS_HANDOFF_RETRIEVAL_FIX.md](./docs/REDIS_HANDOFF_RETRIEVAL_FIX.md)** - **Comprehensive documentation for resolving hook path configuration and dependency retrieval issues** ⭐ (Added: 2025-08-02)
+
 ### Core Documentation
 - [README.md](./README.md) - Main project overview and setup instructions (Added: 2025-07-24)
 - [PROJECT_STATUS.md](./PROJECT_STATUS.md) - Current project status and progress tracking (Added: 2025-07-24)

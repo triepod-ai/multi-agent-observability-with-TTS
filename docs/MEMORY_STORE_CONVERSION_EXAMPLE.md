@@ -40,7 +40,7 @@ Running the above command would generate:
 ---
 name: memory-store
 description: Stores information in appropriate memory system based on content type. Returns storage confirmation with ID and location.
-tools: mcp__chroma__chroma_add_documents, mcp__qdrant__qdrant_store, mcp__redis__store_memory
+tools: mcp__chroma__chroma_add_documents, mcp__qdrant__qdrant_store
 ---
 
 # Memory Store Agent
@@ -54,7 +54,6 @@ Analyze the input content and store it in the appropriate system based on its ty
 1. Analyze content to determine type:
    - Process/interaction content → Chroma
    - Knowledge/documentation → Qdrant  
-   - Temporary/cache data → Redis
 2. Store in the selected system with appropriate metadata
 3. Verify storage succeeded
 4. Return structured result
@@ -62,7 +61,7 @@ Analyze the input content and store it in the appropriate system based on its ty
 ## Success Criteria
 Return a JSON object with:
 - `id`: Storage identifier
-- `system`: Which system was used (chroma/qdrant/redis)
+- `system`: Which system was used (chroma/qdrant)
 - `status`: "success" or "failed"
 - `message`: Brief confirmation or error message
 ```

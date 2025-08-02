@@ -29,6 +29,7 @@ This project is fundamentally about **creating and monitoring AI agents** with c
 
 ### Hook Installation and Diagnostics
 - **[docs/REDIS_HANDOFF_RETRIEVAL_FIX.md](./docs/REDIS_HANDOFF_RETRIEVAL_FIX.md)** - **Comprehensive documentation for resolving hook path configuration and dependency retrieval issues** ⭐ (Added: 2025-08-02)
+- **[docs/REDIS_MCP_REMOVAL_GUIDE.md](./docs/REDIS_MCP_REMOVAL_GUIDE.md)** - **Complete technical guide for removing Redis MCP and transitioning to direct Redis CLI usage** ⭐⭐ (Added: 2025-08-02)
 
 ### Core Documentation
 - [README.md](./README.md) - Main project overview and setup instructions (Added: 2025-07-24)

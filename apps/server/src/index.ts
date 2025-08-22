@@ -1,5 +1,14 @@
-import { initDatabase, insertEvent, getFilterOptions, getRecentEvents } from './db';
-import type { HookEvent } from './types';
+import { initDatabase, insertEvent, getFilterOptions, getRecentEvents, getDatabase } from './db';
+import type { HookEvent, SessionRelationship, SpawnContext } from './types';
+import {
+  insertSessionRelationship,
+  updateRelationshipCompletion,
+  getSessionRelationships,
+  buildSessionTree,
+  getSessionChildren,
+  getSessionSiblings,
+  getRelationshipStats
+} from './services/relationshipService';
 import { 
   createTheme, 
   updateThemeById, 
@@ -10,6 +19,30 @@ import {
   importTheme,
   getThemeStats 
 } from './theme';
+import { setupAgentNamingRoutes } from './agent-naming';
+import {
+  getCurrentMetrics,
+  getAgentTimeline,
+  getAgentTypeDistribution,
+  getAgentPerformance,
+  getToolUsage,
+  updateAgentMetrics,
+  markAgentStarted,
+  markAgentCompleted,
+  setWebSocketClients,
+  getTerminalStatus,
+  getAgentTypeColor
+} from './agents';
+import { unifiedMetricsService } from './services/unifiedMetricsService';
+import {
+  setWebSocketClients as setHookCoverageClients,
+  broadcastHookCoverage,
+  getHookCoverageAPI
+} from './services/hookCoverageService';
+import { redisConnectivity } from './services/redisConnectivityService';
+import { fallbackStorage } from './services/fallbackStorageService';
+import { fallbackSync } from './services/fallbackSyncService';
+import { agentsService } from './services/agentsService';
 
 // Initialize database
 initDatabase();
@@ -17,9 +50,158 @@ initDatabase();
 // Store WebSocket clients
 const wsClients = new Set<any>();
 
+// Initialize agent module with WebSocket clients
+setWebSocketClients(wsClients);
+
+// Initialize hook coverage module with WebSocket clients
+setHookCoverageClients(wsClients);
+
+// Initialize relationship module with WebSocket clients
+import { setWebSocketClientsForRelationships } from './db';
+setWebSocketClientsForRelationships(wsClients);
+
+/**
+ * Process event metrics through the unified metrics service
+ * Handles agent lifecycle events and general metric recording
+ */
+async function processEventMetrics(event: HookEvent, savedEvent: any): Promise<void> {
+  try {
+    console.log(`🔄 Processing metrics for ${event.hook_event_type} event (session: ${event.session_id})`);
+    
+    // Record basic metric for all events to the unified service
+    await unifiedMetricsService.recordMetric(event);
+    console.log(`✅ Basic metrics recorded for ${event.hook_event_type}`);
+    
+    // Handle specialized agent lifecycle events
+    if (event.hook_event_type === 'SubagentStart' && event.payload) {
+      await processSubagentStartEvent(event, savedEvent);
+    } else if (event.hook_event_type === 'SubagentStop' && event.payload) {
+      await processSubagentStopEvent(event, savedEvent);
+    }
+    
+    // Extract and record tool usage from any event that contains tools
+    if (event.payload && event.payload.tools_used && Array.isArray(event.payload.tools_used)) {
+      console.log(`🔧 Recording tool usage: ${event.payload.tools_used.join(', ')}`);
+    }
+    
+  } catch (error) {
+    console.error(`❌ Error processing metrics for ${event.hook_event_type}:`, error);
+    // Don't throw - metrics recording shouldn't break event processing
+  }
+}
+
+/**
+ * Process SubagentStart events
+ */
+async function processSubagentStartEvent(event: HookEvent, savedEvent: any): Promise<void> {
+  try {
+    const agentData = {
+      agent_name: event.payload.agent_name || event.payload.subagent_type || 'unknown',
+      agent_type: event.payload.agent_type || event.payload.subagent_type || 'subagent',
+      task_description: event.payload.task || event.payload.description || '',
+      tools: event.payload.tools || [],
+      session_id: event.session_id,
+      source_app: event.source_app,
+      start_time: event.timestamp || Date.now()
+    };
+    
+    console.log(`🚀 Agent starting: ${agentData.agent_name} (type: ${agentData.agent_type})`);
+    
+    // Use unified metrics service for agent started tracking
+    const agentId = await unifiedMetricsService.markAgentStarted(agentData);
+    
+    // Store agent ID in event payload for correlation
+    savedEvent.payload.agent_id = agentId;
+    
+    console.log(`✅ Agent ${agentData.agent_name} started with ID: ${agentId}`);
+    
+  } catch (error) {
+    console.error('❌ Error processing SubagentStart event:', error);
+    // Fallback to legacy system if unified service fails
+    try {
+      const agentId = await markAgentStarted({
+        agent_name: event.payload.agent_name || 'unknown',
+        agent_type: event.payload.agent_type || 'subagent',
+        session_id: event.session_id,
+        source_app: event.source_app
+      });
+      savedEvent.payload.agent_id = agentId;
+      console.log(`⚠️ Fallback: Agent started with legacy system: ${agentId}`);
+    } catch (fallbackError) {
+      console.error('❌ Both unified and legacy agent start failed:', fallbackError);
+    }
+  }
+}
+
+/**
+ * Process SubagentStop events
+ */
+async function processSubagentStopEvent(event: HookEvent, savedEvent: any): Promise<void> {
+  try {
+    const agentData = {
+      agent_name: event.payload.agent_name || 'unknown',
+      agent_type: event.payload.agent_type || 'subagent',
+      agent_id: event.payload.agent_id || `ag_${Date.now()}`,
+      duration: event.payload.duration || 0,
+      tokens: event.payload.tokens_used || 0,
+      success: event.payload.result !== false && !event.payload.error,
+      status: event.payload.result ? 'success' : (event.payload.error ? 'failed' : 'unknown'),
+      token_usage: {
+        total_tokens: event.payload.tokens_used || 0,
+        estimated_cost: Math.round((event.payload.tokens_used || 0) * 0.01) // in cents
+      },
+      tools_used: event.payload.tools_used || [],
+      session_id: event.session_id,
+      source_app: event.source_app,
+      end_time: event.timestamp || Date.now()
+    };
+    
+    console.log(`🏁 Agent completed: ${agentData.agent_name} (${agentData.status}, ${agentData.tokens} tokens, ${agentData.duration}ms)`);
+    
+    // Use unified metrics service for agent completion tracking
+    const success = await unifiedMetricsService.markAgentCompleted(agentData);
+    
+    if (success) {
+      console.log(`✅ Agent ${agentData.agent_name} completed successfully`);
+    } else {
+      console.warn(`⚠️ Failed to mark agent ${agentData.agent_name} as completed`);
+    }
+    
+  } catch (error) {
+    console.error('❌ Error processing SubagentStop event:', error);
+    // Fallback to legacy system if unified service fails
+    try {
+      const agentData = {
+        agent_name: event.payload.agent_name || 'unknown',
+        agent_type: event.payload.agent_type || 'subagent',
+        agent_id: event.payload.agent_id || `ag_${Date.now()}`,
+        duration_ms: event.payload.duration || 0,
+        status: event.payload.result ? 'success' : 'failed',
+        token_usage: {
+          total_tokens: event.payload.tokens_used || 0,
+          estimated_cost: Math.round((event.payload.tokens_used || 0) * 0.01)
+        },
+        tools_used: event.payload.tools_used || [],
+        session_id: event.session_id,
+        source_app: event.source_app
+      };
+      
+      await updateAgentMetrics(agentData);
+      
+      if (event.payload.agent_id) {
+        await markAgentCompleted(event.payload.agent_id, agentData);
+      }
+      
+      console.log(`⚠️ Fallback: Agent completed using legacy system`);
+    } catch (fallbackError) {
+      console.error('❌ Both unified and legacy agent completion failed:', fallbackError);
+    }
+  }
+}
+
 // Create Bun server with HTTP and WebSocket support
 const server = Bun.serve({
-  port: 4000,
+  port: process.env.PORT ? parseInt(process.env.PORT) : 4000,
   
   async fetch(req: Request) {
     const url = new URL(req.url);
@@ -52,6 +234,70 @@ const server = Bun.serve({
         // Insert event into database
         const savedEvent = insertEvent(event);
         
+        // Process event through unified metrics service
+        await processEventMetrics(event, savedEvent);
+        
+        // Process relationship events
+        if (event.hook_event_type === 'SessionStart' && event.parent_session_id) {
+          // Auto-create relationship when a child session starts
+          try {
+            const relationship: Omit<SessionRelationship, 'id'> = {
+              parent_session_id: event.parent_session_id,
+              child_session_id: event.session_id,
+              relationship_type: event.wave_id ? 'wave_member' : 'parent/child',
+              spawn_reason: event.payload.spawn_reason || 'auto_detected',
+              delegation_type: event.payload.delegation_type || 'isolated',
+              spawn_metadata: event.delegation_context || event.payload,
+              created_at: event.timestamp || Date.now(),
+              depth_level: event.session_depth || 1,
+              session_path: `${event.parent_session_id}.${event.session_id}`
+            };
+            
+            insertSessionRelationship(relationship);
+            
+            // Broadcast relationship created event
+            const relationshipMessage = JSON.stringify({
+              type: 'relationship_created',
+              data: relationship
+            });
+            wsClients.forEach(client => {
+              try {
+                client.send(relationshipMessage);
+              } catch (err) {
+                wsClients.delete(client);
+              }
+            });
+          } catch (error) {
+            console.error('Error creating relationship from SessionStart event:', error);
+          }
+        }
+        
+        if (event.hook_event_type === 'SessionEnd' && event.parent_session_id) {
+          // Update relationship completion when child session ends
+          try {
+            updateRelationshipCompletion(event.parent_session_id, event.session_id, event.timestamp);
+            
+            // Broadcast relationship updated event
+            const relationshipMessage = JSON.stringify({
+              type: 'relationship_updated',
+              data: {
+                parent_session_id: event.parent_session_id,
+                child_session_id: event.session_id,
+                completed_at: event.timestamp
+              }
+            });
+            wsClients.forEach(client => {
+              try {
+                client.send(relationshipMessage);
+              } catch (err) {
+                wsClients.delete(client);
+              }
+            });
+          } catch (error) {
+            console.error('Error updating relationship from SessionEnd event:', error);
+          }
+        }
+        
         // Broadcast to all WebSocket clients
         const message = JSON.stringify({ type: 'event', data: savedEvent });
         wsClients.forEach(client => {
@@ -62,6 +308,9 @@ const server = Bun.serve({
             wsClients.delete(client);
           }
         });
+        
+        // Broadcast updated hook coverage
+        broadcastHookCoverage(getDatabase());
         
         return new Response(JSON.stringify(savedEvent), {
           headers: { ...headers, 'Content-Type': 'application/json' }
@@ -268,6 +517,933 @@ const server = Bun.serve({
       });
     }
     
+    // Agent API endpoints
+    
+    // GET /api/agents/metrics/current - Get current agent metrics
+    if (url.pathname === '/api/agents/metrics/current' && req.method === 'GET') {
+      try {
+        console.log('🔍 Fetching current agent metrics via unified service...');
+        
+        // Parse optional time range from query parameters
+        const startParam = url.searchParams.get('start');
+        const endParam = url.searchParams.get('end');
+        
+        let timeRange = undefined;
+        if (startParam && endParam) {
+          timeRange = {
+            start: parseInt(startParam),
+            end: parseInt(endParam)
+          };
+        }
+        
+        const metrics = await unifiedMetricsService.getMetrics(timeRange);
+        console.log(`✅ Retrieved metrics: ${metrics.executions_today} executions, ${metrics.active_agents} active agents`);
+        
+        return new Response(JSON.stringify(metrics), {
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        console.error('❌ Error getting agent metrics from unified service:', error);
+        
+        // Fallback to legacy system
+        try {
+          console.log('⚠️ Attempting fallback to legacy metrics system...');
+          const metrics = await getCurrentMetrics();
+          return new Response(JSON.stringify(metrics), {
+            headers: { ...headers, 'Content-Type': 'application/json' }
+          });
+        } catch (fallbackError) {
+          console.error('❌ Legacy metrics fallback also failed:', fallbackError);
+          return new Response(JSON.stringify({ 
+            error: 'Failed to get metrics from both unified and legacy systems',
+            details: error instanceof Error ? error.message : 'Unknown error'
+          }), {
+            status: 500,
+            headers: { ...headers, 'Content-Type': 'application/json' }
+          });
+        }
+      }
+    }
+    
+    // GET /api/agents/metrics/timeline - Get agent execution timeline
+    if (url.pathname === '/api/agents/metrics/timeline' && req.method === 'GET') {
+      try {
+        console.log('🔍 Fetching agent timeline via unified service...');
+        
+        // Parse time range parameters
+        const hours = parseInt(url.searchParams.get('hours') || '24');
+        const startParam = url.searchParams.get('start');
+        const endParam = url.searchParams.get('end');
+        
+        let timeRange = undefined;
+        if (startParam && endParam) {
+          timeRange = {
+            start: parseInt(startParam),
+            end: parseInt(endParam)
+          };
+        } else if (hours) {
+          // Convert hours to time range
+          const endTime = Date.now();
+          const startTime = endTime - (hours * 60 * 60 * 1000);
+          timeRange = { start: startTime, end: endTime };
+        }
+        
+        const timeline = await unifiedMetricsService.getTimeline(timeRange);
+        console.log(`✅ Retrieved timeline with ${timeline.timeline.length} data points`);
+        
+        return new Response(JSON.stringify(timeline), {
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        console.error('❌ Error getting agent timeline from unified service:', error);
+        
+        // Fallback to legacy system
+        try {
+          console.log('⚠️ Attempting fallback to legacy timeline system...');
+          const hours = parseInt(url.searchParams.get('hours') || '24');
+          const timeline = await getAgentTimeline(hours);
+          return new Response(JSON.stringify(timeline), {
+            headers: { ...headers, 'Content-Type': 'application/json' }
+          });
+        } catch (fallbackError) {
+          console.error('❌ Legacy timeline fallback also failed:', fallbackError);
+          return new Response(JSON.stringify({ 
+            error: 'Failed to get timeline from both unified and legacy systems',
+            details: error instanceof Error ? error.message : 'Unknown error'
+          }), {
+            status: 500,
+            headers: { ...headers, 'Content-Type': 'application/json' }
+          });
+        }
+      }
+    }
+    
+    // GET /api/agents/types/distribution - Get agent type distribution
+    if (url.pathname === '/api/agents/types/distribution' && req.method === 'GET') {
+      try {
+        console.log('🔍 Fetching agent type distribution via unified service...');
+        
+        const distribution = await unifiedMetricsService.getDistribution();
+        console.log(`✅ Retrieved distribution with ${distribution.distribution.length} agent types`);
+        
+        return new Response(JSON.stringify(distribution), {
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        console.error('❌ Error getting agent distribution from unified service:', error);
+        
+        // Fallback to legacy system
+        try {
+          console.log('⚠️ Attempting fallback to legacy distribution system...');
+          const distribution = await getAgentTypeDistribution();
+          return new Response(JSON.stringify(distribution), {
+            headers: { ...headers, 'Content-Type': 'application/json' }
+          });
+        } catch (fallbackError) {
+          console.error('❌ Legacy distribution fallback also failed:', fallbackError);
+          return new Response(JSON.stringify({ 
+            error: 'Failed to get distribution from both unified and legacy systems',
+            details: error instanceof Error ? error.message : 'Unknown error'
+          }), {
+            status: 500,
+            headers: { ...headers, 'Content-Type': 'application/json' }
+          });
+        }
+      }
+    }
+    
+    // GET /api/agents/performance/:agentName - Get agent performance history
+    if (url.pathname.startsWith('/api/agents/performance/') && req.method === 'GET') {
+      try {
+        const pathParts = url.pathname.split('/');
+        const agentName = pathParts[4];
+        const days = parseInt(url.searchParams.get('days') || '7');
+        
+        if (!agentName) {
+          return new Response(JSON.stringify({ error: 'Agent name required' }), {
+            status: 400,
+            headers: { ...headers, 'Content-Type': 'application/json' }
+          });
+        }
+        
+        const performance = await getAgentPerformance(agentName, days);
+        return new Response(JSON.stringify(performance), {
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        console.error('Error getting agent performance:', error);
+        return new Response(JSON.stringify({ error: 'Failed to get performance' }), {
+          status: 500,
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+    
+    // GET /api/agents/tools/usage - Get tool usage analytics
+    if (url.pathname === '/api/agents/tools/usage' && req.method === 'GET') {
+      try {
+        console.log('🔍 Fetching tool usage analytics via unified service...');
+        
+        const usage = await unifiedMetricsService.getToolUsage();
+        console.log(`✅ Retrieved tool usage with ${usage.tools.length} tools analyzed`);
+        
+        return new Response(JSON.stringify(usage), {
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        console.error('❌ Error getting tool usage from unified service:', error);
+        
+        // Fallback to legacy system
+        try {
+          console.log('⚠️ Attempting fallback to legacy tool usage system...');
+          const period = (url.searchParams.get('period') || 'day') as 'day' | 'week';
+          const usage = await getToolUsage(period);
+          return new Response(JSON.stringify(usage), {
+            headers: { ...headers, 'Content-Type': 'application/json' }
+          });
+        } catch (fallbackError) {
+          console.error('❌ Legacy tool usage fallback also failed:', fallbackError);
+          return new Response(JSON.stringify({ 
+            error: 'Failed to get tool usage from both unified and legacy systems',
+            details: error instanceof Error ? error.message : 'Unknown error'
+          }), {
+            status: 500,
+            headers: { ...headers, 'Content-Type': 'application/json' }
+          });
+        }
+      }
+    }
+    
+    // GET /api/terminal/status - Get current terminal status
+    if (url.pathname === '/api/terminal/status' && req.method === 'GET') {
+      try {
+        const status = await getTerminalStatus();
+        return new Response(JSON.stringify(status), {
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        console.error('Error getting terminal status:', error);
+        return new Response(JSON.stringify({ error: 'Failed to get terminal status' }), {
+          status: 500,
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+    
+    // GET /api/terminal/agent-colors - Get agent type color mapping
+    if (url.pathname === '/api/terminal/agent-colors' && req.method === 'GET') {
+      try {
+        const agentTypes = [
+          'analyzer', 'debugger', 'builder', 'tester', 'reviewer', 'optimizer',
+          'security', 'writer', 'deployer', 'data-processor', 'monitor',
+          'configurator', 'context', 'collector', 'storage', 'searcher',
+          'api-handler', 'integrator', 'ui-developer', 'designer', 'ml-engineer',
+          'predictor', 'database-admin', 'data-manager', 'translator', 'generator',
+          'linter', 'generic'
+        ];
+        
+        const colorMapping = agentTypes.reduce((map, type) => {
+          map[type] = getAgentTypeColor(type);
+          return map;
+        }, {} as Record<string, string>);
+        
+        return new Response(JSON.stringify(colorMapping), {
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        console.error('Error getting agent colors:', error);
+        return new Response(JSON.stringify({ error: 'Failed to get agent colors' }), {
+          status: 500,
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+    
+    // Hook Coverage API endpoint
+    // GET /api/hooks/coverage - Get current hook coverage status
+    if (url.pathname === '/api/hooks/coverage' && req.method === 'GET') {
+      try {
+        const db = getDatabase();
+        const hookCoverage = getHookCoverageAPI(db);
+        return new Response(JSON.stringify(hookCoverage), {
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        console.error('Error getting hook coverage:', error);
+        return new Response(JSON.stringify({ error: 'Failed to get hook coverage' }), {
+          status: 500,
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+    
+    // POST /api/agents/start - Mark agent as started
+    if (url.pathname === '/api/agents/start' && req.method === 'POST') {
+      try {
+        const agentData = await req.json();
+        console.log(`🚀 API request to start agent: ${agentData.agent_name || 'unknown'}`);
+        
+        // Use unified metrics service
+        const agentId = await unifiedMetricsService.markAgentStarted(agentData);
+        console.log(`✅ Agent started via unified service: ${agentId}`);
+        
+        // Broadcast to WebSocket clients
+        const message = JSON.stringify({ 
+          type: 'agent_started', 
+          data: { agent_id: agentId, ...agentData }
+        });
+        wsClients.forEach(client => {
+          try {
+            client.send(message);
+          } catch (err) {
+            wsClients.delete(client);
+          }
+        });
+        
+        return new Response(JSON.stringify({ agent_id: agentId }), {
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        console.error('❌ Error marking agent started via unified service:', error);
+        
+        // Fallback to legacy system
+        try {
+          console.log('⚠️ Attempting fallback to legacy agent start system...');
+          const agentData = await req.json();
+          const agentId = await markAgentStarted(agentData);
+          
+          const message = JSON.stringify({ 
+            type: 'agent_started', 
+            data: { agent_id: agentId, ...agentData }
+          });
+          wsClients.forEach(client => {
+            try {
+              client.send(message);
+            } catch (err) {
+              wsClients.delete(client);
+            }
+          });
+          
+          return new Response(JSON.stringify({ agent_id: agentId }), {
+            headers: { ...headers, 'Content-Type': 'application/json' }
+          });
+        } catch (fallbackError) {
+          console.error('❌ Legacy agent start fallback also failed:', fallbackError);
+          return new Response(JSON.stringify({ 
+            error: 'Failed to mark agent started in both unified and legacy systems',
+            details: error instanceof Error ? error.message : 'Unknown error'
+          }), {
+            status: 500,
+            headers: { ...headers, 'Content-Type': 'application/json' }
+          });
+        }
+      }
+    }
+    
+    // POST /api/agents/complete - Mark agent as completed and update metrics
+    if (url.pathname === '/api/agents/complete' && req.method === 'POST') {
+      try {
+        const agentData = await req.json();
+        console.log(`🏁 API request to complete agent: ${agentData.agent_name || agentData.agent_id || 'unknown'}`);
+        
+        // Use unified metrics service to mark as completed
+        const success = await unifiedMetricsService.markAgentCompleted(agentData);
+        
+        if (success) {
+          console.log(`✅ Agent completed via unified service: ${agentData.agent_name || agentData.agent_id}`);
+        } else {
+          console.warn(`⚠️ Agent completion reported as failed: ${agentData.agent_name || agentData.agent_id}`);
+        }
+        
+        // Broadcast to WebSocket clients
+        const message = JSON.stringify({ 
+          type: 'agent_completed', 
+          data: agentData 
+        });
+        wsClients.forEach(client => {
+          try {
+            client.send(message);
+          } catch (err) {
+            wsClients.delete(client);
+          }
+        });
+        
+        return new Response(JSON.stringify({ success }), {
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        console.error('❌ Error marking agent completed via unified service:', error);
+        
+        // Fallback to legacy system
+        try {
+          console.log('⚠️ Attempting fallback to legacy agent completion system...');
+          const agentData = await req.json();
+          
+          // Update metrics
+          await updateAgentMetrics(agentData);
+          
+          // Mark as completed
+          if (agentData.agent_id) {
+            await markAgentCompleted(agentData.agent_id, agentData);
+          }
+          
+          // Broadcast to WebSocket clients
+          const message = JSON.stringify({ 
+            type: 'agent_completed', 
+            data: agentData 
+          });
+          wsClients.forEach(client => {
+            try {
+              client.send(message);
+            } catch (err) {
+              wsClients.delete(client);
+            }
+          });
+          
+          return new Response(JSON.stringify({ success: true }), {
+            headers: { ...headers, 'Content-Type': 'application/json' }
+          });
+        } catch (fallbackError) {
+          console.error('❌ Legacy agent completion fallback also failed:', fallbackError);
+          return new Response(JSON.stringify({ 
+            error: 'Failed to mark agent completed in both unified and legacy systems',
+            details: error instanceof Error ? error.message : 'Unknown error'
+          }), {
+            status: 500,
+            headers: { ...headers, 'Content-Type': 'application/json' }
+          });
+        }
+      }
+    }
+    
+    // Session Relationship API endpoints
+    
+    // GET /api/sessions/:id/relationships - Get all relationships for a session
+    if (url.pathname.match(/^\/api\/sessions\/[^\/]+\/relationships$/) && req.method === 'GET') {
+      try {
+        const sessionId = url.pathname.split('/')[3];
+        if (!sessionId) {
+          return new Response(JSON.stringify({ error: 'Session ID is required' }), {
+            status: 400,
+            headers: { ...headers, 'Content-Type': 'application/json' }
+          });
+        }
+        
+        const includeParent = url.searchParams.get('includeParent') !== 'false';
+        const includeChildren = url.searchParams.get('includeChildren') !== 'false';
+        const includeSiblings = url.searchParams.get('includeSiblings') === 'true';
+        const maxDepth = parseInt(url.searchParams.get('maxDepth') || '5');
+        
+        const relationships = getSessionRelationships(sessionId, {
+          includeParent,
+          includeChildren,
+          includeSiblings,
+          maxDepth
+        });
+        
+        if (!relationships) {
+          return new Response(JSON.stringify({ error: 'Session not found' }), {
+            status: 404,
+            headers: { ...headers, 'Content-Type': 'application/json' }
+          });
+        }
+        
+        return new Response(JSON.stringify(relationships), {
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        console.error('Error getting session relationships:', error);
+        return new Response(JSON.stringify({ error: 'Failed to get session relationships' }), {
+          status: 500,
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+    
+    // GET /api/sessions/:id/children - Get child sessions
+    if (url.pathname.match(/^\/api\/sessions\/[^\/]+\/children$/) && req.method === 'GET') {
+      try {
+        const sessionId = url.pathname.split('/')[3];
+        if (!sessionId) {
+          return new Response(JSON.stringify({ error: 'Session ID is required' }), {
+            status: 400,
+            headers: { ...headers, 'Content-Type': 'application/json' }
+          });
+        }
+        
+        const children = getSessionChildren(sessionId);
+        return new Response(JSON.stringify(children), {
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        console.error('Error getting session children:', error);
+        return new Response(JSON.stringify({ error: 'Failed to get session children' }), {
+          status: 500,
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+    
+    // GET /api/sessions/:id/tree - Get full hierarchy tree
+    if (url.pathname.match(/^\/api\/sessions\/[^\/]+\/tree$/) && req.method === 'GET') {
+      try {
+        const sessionId = url.pathname.split('/')[3];
+        if (!sessionId) {
+          return new Response(JSON.stringify({ error: 'Session ID is required' }), {
+            status: 400,
+            headers: { ...headers, 'Content-Type': 'application/json' }
+          });
+        }
+        
+        const maxDepth = parseInt(url.searchParams.get('maxDepth') || '5');
+        const tree = buildSessionTree(sessionId, maxDepth);
+        
+        if (!tree) {
+          return new Response(JSON.stringify({ error: 'Session not found or cycle detected' }), {
+            status: 404,
+            headers: { ...headers, 'Content-Type': 'application/json' }
+          });
+        }
+        
+        return new Response(JSON.stringify({ tree }), {
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        console.error('Error getting session tree:', error);
+        return new Response(JSON.stringify({ error: 'Failed to get session tree' }), {
+          status: 500,
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+    
+    // POST /api/sessions/spawn - Register spawn attempt
+    if (url.pathname === '/api/sessions/spawn' && req.method === 'POST') {
+      try {
+        const requestBody = await req.json();
+        const { parent_session_id, spawn_context }: { parent_session_id: string; spawn_context: SpawnContext } = requestBody;
+        
+        if (!parent_session_id || !spawn_context) {
+          return new Response(JSON.stringify({ error: 'parent_session_id and spawn_context are required' }), {
+            status: 400,
+            headers: { ...headers, 'Content-Type': 'application/json' }
+          });
+        }
+        
+        // Generate child session ID (in practice, this would come from the actual session creation)
+        const child_session_id = `session_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+        
+        const relationship: Omit<SessionRelationship, 'id'> = {
+          parent_session_id,
+          child_session_id,
+          relationship_type: spawn_context.spawn_method === 'wave_orchestration' ? 'wave_member' : 'parent/child',
+          spawn_reason: spawn_context.spawn_method || 'manual',
+          delegation_type: spawn_context.delegation_type || 'isolated',
+          spawn_metadata: spawn_context,
+          created_at: Date.now(),
+          depth_level: 1, // This should be calculated based on parent depth
+          session_path: `${parent_session_id}.${child_session_id}`
+        };
+        
+        const savedRelationship = insertSessionRelationship(relationship);
+        
+        // Broadcast spawn event to WebSocket clients
+        const message = JSON.stringify({ 
+          type: 'session_spawn', 
+          data: {
+            parent_session_id,
+            child_session_id,
+            relationship: savedRelationship,
+            spawn_context
+          }
+        });
+        wsClients.forEach(client => {
+          try {
+            client.send(message);
+          } catch (err) {
+            wsClients.delete(client);
+          }
+        });
+        
+        return new Response(JSON.stringify({ 
+          child_session_id, 
+          relationship: savedRelationship 
+        }), {
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        console.error('Error registering spawn attempt:', error);
+        return new Response(JSON.stringify({ error: 'Failed to register spawn attempt' }), {
+          status: 500,
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+    
+    // POST /api/sessions/:id/child_completed - Notify parent of child completion
+    if (url.pathname.match(/^\/api\/sessions\/[^\/]+\/child_completed$/) && req.method === 'POST') {
+      try {
+        const parentId = url.pathname.split('/')[3];
+        const requestBody = await req.json();
+        const { child_session_id, completion_data } = requestBody;
+        
+        if (!parentId || !child_session_id) {
+          return new Response(JSON.stringify({ error: 'Parent ID and child_session_id are required' }), {
+            status: 400,
+            headers: { ...headers, 'Content-Type': 'application/json' }
+          });
+        }
+        
+        const updated = updateRelationshipCompletion(parentId, child_session_id);
+        
+        if (updated) {
+          // Broadcast completion event to WebSocket clients
+          const message = JSON.stringify({ 
+            type: 'child_session_completed', 
+            data: {
+              parent_session_id: parentId,
+              child_session_id,
+              completion_data,
+              completed_at: Date.now()
+            }
+          });
+          wsClients.forEach(client => {
+            try {
+              client.send(message);
+            } catch (err) {
+              wsClients.delete(client);
+            }
+          });
+        }
+        
+        return new Response(JSON.stringify({ success: updated }), {
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        console.error('Error marking child completed:', error);
+        return new Response(JSON.stringify({ error: 'Failed to mark child completed' }), {
+          status: 500,
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+    
+    // GET /api/relationships/stats - Get relationship statistics
+    if (url.pathname === '/api/relationships/stats' && req.method === 'GET') {
+      try {
+        const timeRangeStart = url.searchParams.get('start');
+        const timeRangeEnd = url.searchParams.get('end');
+        
+        let timeRange: { start: number; end: number } | undefined;
+        if (timeRangeStart && timeRangeEnd) {
+          timeRange = {
+            start: parseInt(timeRangeStart),
+            end: parseInt(timeRangeEnd)
+          };
+        }
+        
+        const stats = getRelationshipStats(timeRange);
+        return new Response(JSON.stringify(stats), {
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        console.error('Error getting relationship stats:', error);
+        return new Response(JSON.stringify({ error: 'Failed to get relationship stats' }), {
+          status: 500,
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+    
+    // Agent Naming System routes
+    const agentNamingRoutes = setupAgentNamingRoutes(server);
+    
+    for (const [path, methods] of Object.entries(agentNamingRoutes)) {
+      // Handle exact path matches
+      if (url.pathname === path) {
+        const handler = methods[req.method as keyof typeof methods];
+        if (handler) {
+          const response = await handler(req);
+          return new Response(response.body, {
+            status: response.status,
+            headers: { ...headers, ...Object.fromEntries(response.headers.entries()) }
+          });
+        }
+      }
+      
+      // Handle parameterized paths (e.g., /api/agent-names/:cacheKey)
+      if (path.includes(':')) {
+        const pathPattern = path.replace(/:[^/]+/g, '[^/]+');
+        const regex = new RegExp(`^${pathPattern}$`);
+        if (regex.test(url.pathname)) {
+          const handler = methods[req.method as keyof typeof methods];
+          if (handler) {
+            const response = await handler(req);
+            return new Response(response.body, {
+              status: response.status,
+              headers: { ...headers, ...Object.fromEntries(response.headers.entries()) }
+            });
+          }
+        }
+      }
+    }
+    
+    // Fallback System Routes
+    
+    // GET /api/fallback/status - Get fallback system status
+    if (url.pathname === '/api/fallback/status' && req.method === 'GET') {
+      try {
+        const redisStatus = await redisConnectivity.getConnectionInfo();
+        const storageStats = await fallbackStorage.getStorageStats();
+        const syncStats = await fallbackSync.getSyncStats();
+        
+        return new Response(JSON.stringify({
+          redis: redisStatus,
+          fallback_storage: {
+            enabled: fallbackStorage.isEnabled(),
+            stats: storageStats
+          },
+          sync_service: {
+            enabled: fallbackSync.getConfig().enabled,
+            is_syncing: fallbackSync.isSyncInProgress(),
+            stats: syncStats
+          },
+          overall_status: {
+            mode: redisStatus.status.isConnected ? 'redis' : 'fallback',
+            operational: true,
+            last_update: Date.now()
+          }
+        }), {
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        console.error('Error getting fallback status:', error);
+        return new Response(JSON.stringify({ 
+          error: 'Failed to get fallback status',
+          details: error instanceof Error ? error.message : 'Unknown error'
+        }), {
+          status: 500,
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+    
+    // POST /api/fallback/test-redis - Test Redis connectivity
+    if (url.pathname === '/api/fallback/test-redis' && req.method === 'POST') {
+      try {
+        const connectionStatus = await redisConnectivity.testConnection();
+        const operationsTest = await redisConnectivity.testOperations();
+        
+        return new Response(JSON.stringify({
+          connection: connectionStatus,
+          operations: operationsTest,
+          timestamp: Date.now()
+        }), {
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        console.error('Error testing Redis connectivity:', error);
+        return new Response(JSON.stringify({ 
+          error: 'Failed to test Redis connectivity',
+          details: error instanceof Error ? error.message : 'Unknown error'
+        }), {
+          status: 500,
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+    
+    // POST /api/fallback/sync - Force sync to Redis
+    if (url.pathname === '/api/fallback/sync' && req.method === 'POST') {
+      try {
+        if (!redisConnectivity.isConnected()) {
+          return new Response(JSON.stringify({
+            error: 'Redis not connected',
+            message: 'Cannot sync when Redis is not available'
+          }), {
+            status: 400,
+            headers: { ...headers, 'Content-Type': 'application/json' }
+          });
+        }
+
+        const syncResult = await fallbackSync.forceSyncAll();
+        
+        return new Response(JSON.stringify({
+          success: syncResult.success,
+          operations_synced: syncResult.operations_synced,
+          operations_failed: syncResult.operations_failed,
+          duration_ms: syncResult.duration_ms,
+          errors: syncResult.errors.length > 0 ? syncResult.errors : undefined,
+          timestamp: Date.now()
+        }), {
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        console.error('Error forcing sync:', error);
+        return new Response(JSON.stringify({ 
+          error: 'Failed to force sync',
+          details: error instanceof Error ? error.message : 'Unknown error'
+        }), {
+          status: 500,
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+    
+    // GET /api/agents/health - Unified metrics service health check
+    if (url.pathname === '/api/agents/health' && req.method === 'GET') {
+      try {
+        console.log('🏥 Checking unified metrics service health...');
+        
+        const health = await unifiedMetricsService.getServiceHealth();
+        const cacheStats = await unifiedMetricsService.getCacheStats();
+        
+        const response = {
+          ...health,
+          cache: cacheStats,
+          metrics_available: health.status !== 'unhealthy',
+          timestamp: Date.now()
+        };
+        
+        console.log(`✅ Unified metrics service health: ${health.status} (SQLite: ${health.sqlite.status}, Redis: ${health.redis.status})`);
+        
+        const statusCode = health.status === 'unhealthy' ? 503 : 200;
+        
+        return new Response(JSON.stringify(response), {
+          status: statusCode,
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        console.error('❌ Error checking unified metrics service health:', error);
+        return new Response(JSON.stringify({ 
+          status: 'unhealthy',
+          error: 'Health check failed',
+          details: error instanceof Error ? error.message : 'Unknown error',
+          timestamp: Date.now()
+        }), {
+          status: 503,
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+    
+    // GET /api/fallback/health - Health check endpoint
+    if (url.pathname === '/api/fallback/health' && req.method === 'GET') {
+      try {
+        const redisConnected = redisConnectivity.isConnected();
+        const fallbackEnabled = fallbackStorage.isEnabled();
+        
+        const health = {
+          status: 'healthy',
+          redis_available: redisConnected,
+          fallback_enabled: fallbackEnabled,
+          operational_mode: redisConnected ? 'redis' : 'fallback',
+          timestamp: Date.now()
+        };
+        
+        // If neither Redis nor fallback is working, mark as unhealthy
+        let status = 200;
+        if (!redisConnected && !fallbackEnabled) {
+          health.status = 'unhealthy';
+          status = 503;
+        }
+        
+        return new Response(JSON.stringify(health), {
+          status,
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        console.error('Error checking health:', error);
+        return new Response(JSON.stringify({ 
+          status: 'unhealthy',
+          error: 'Health check failed',
+          details: error instanceof Error ? error.message : 'Unknown error',
+          timestamp: Date.now()
+        }), {
+          status: 503,
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+    
+    // GET /api/fallback/handoffs/:projectName - Get session handoffs for a project
+    if (url.pathname.match(/^\/api\/fallback\/handoffs\/[^\/]+$/) && req.method === 'GET') {
+      try {
+        const projectName = url.pathname.split('/').pop()!;
+        const handoffContent = await fallbackStorage.getLatestSessionHandoff(projectName);
+        
+        return new Response(JSON.stringify({
+          project_name: projectName,
+          handoff_content: handoffContent,
+          has_content: handoffContent.length > 0,
+          timestamp: Date.now()
+        }), {
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        console.error('Error getting session handoff:', error);
+        return new Response(JSON.stringify({ 
+          error: 'Failed to get session handoff',
+          details: error instanceof Error ? error.message : 'Unknown error'
+        }), {
+          status: 500,
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+    
+    // POST /api/fallback/handoffs/:projectName - Save session handoff
+    if (url.pathname.match(/^\/api\/fallback\/handoffs\/[^\/]+$/) && req.method === 'POST') {
+      try {
+        const projectName = url.pathname.split('/').pop()!;
+        const body = await req.json();
+        const { handoff_content, session_id, metadata } = body;
+        
+        if (!handoff_content) {
+          return new Response(JSON.stringify({
+            error: 'Missing handoff_content in request body'
+          }), {
+            status: 400,
+            headers: { ...headers, 'Content-Type': 'application/json' }
+          });
+        }
+        
+        const success = await fallbackStorage.saveSessionHandoff(
+          projectName, 
+          handoff_content, 
+          session_id, 
+          metadata
+        );
+        
+        if (success) {
+          return new Response(JSON.stringify({
+            success: true,
+            message: 'Session handoff saved',
+            project_name: projectName,
+            timestamp: Date.now()
+          }), {
+            headers: { ...headers, 'Content-Type': 'application/json' }
+          });
+        } else {
+          return new Response(JSON.stringify({
+            error: 'Failed to save session handoff'
+          }), {
+            status: 500,
+            headers: { ...headers, 'Content-Type': 'application/json' }
+          });
+        }
+      } catch (error) {
+        console.error('Error saving session handoff:', error);
+        return new Response(JSON.stringify({ 
+          error: 'Failed to save session handoff',
+          details: error instanceof Error ? error.message : 'Unknown error'
+        }), {
+          status: 500,
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+    
     // WebSocket upgrade
     if (url.pathname === '/stream') {
       const success = server.upgrade(req);
@@ -283,13 +1459,21 @@ const server = Bun.serve({
   },
   
   websocket: {
-    open(ws) {
+    async open(ws) {
       console.log('WebSocket client connected');
       wsClients.add(ws);
       
       // Send recent events on connection
       const events = getRecentEvents(50);
       ws.send(JSON.stringify({ type: 'initial', data: events }));
+      
+      // Send current terminal status
+      try {
+        const terminalStatus = await getTerminalStatus();
+        ws.send(JSON.stringify({ type: 'terminal_status', data: terminalStatus }));
+      } catch (error) {
+        console.error('Error sending terminal status on connection:', error);
+      }
     },
     
     message(ws, message) {

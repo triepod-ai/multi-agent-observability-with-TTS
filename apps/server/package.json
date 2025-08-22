@@ -7,7 +7,15 @@
   "scripts": {
     "dev": "bun --watch src/index.ts",
     "start": "bun src/index.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:pipeline": "node test-metrics-pipeline.js",
+    "test:redis-failure": "node test-redis-failure.js",
+    "test:display": "node test-metrics-display.js",
+    "test:performance": "node test-performance.js",
+    "test:health": "node test-health-monitoring.js",
+    "test:all": "node run-all-tests.js",
+    "test:all:verbose": "node run-all-tests.js --verbose",
+    "test:critical": "node run-all-tests.js --continue-on-failure"
   },
   "devDependencies": {
     "@types/bun": "latest",
@@ -15,6 +23,7 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
+    "redis": "^4.6.0",
     "sqlite": "^5.1.1",
     "sqlite3": "^5.1.7"
   }

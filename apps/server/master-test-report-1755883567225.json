@@ -1,0 +1,59 @@
+{
+  "masterTestSuite": "Comprehensive Metrics Pipeline Validation",
+  "timestamp": "2025-08-22T17:26:07.225Z",
+  "server": "http://localhost:3001",
+  "client": "http://localhost:5173",
+  "masterTestSession": "master_test_1755883540842",
+  "configuration": {
+    "verbose": false,
+    "skipCleanup": false,
+    "continueOnFailure": false,
+    "generateReport": true,
+    "timeout": 300000,
+    "retries": 1
+  },
+  "overallStartTime": 1755883540842,
+  "overallEndTime": 1755883567224,
+  "totalDuration": 26382,
+  "testSuites": [
+    {
+      "name": "Metrics Pipeline End-to-End",
+      "file": "test-metrics-pipeline.js",
+      "description": "Validates complete event flow from ingestion to dashboard display",
+      "critical": true,
+      "priority": 1,
+      "startTime": 1755883540867,
+      "endTime": 1755883543629,
+      "duration": 2762,
+      "exitCode": 0,
+      "success": true,
+      "stdout": "🧪 [2025-08-22T17:25:40.882Z] Starting Metrics Pipeline End-to-End Validation Tests\n✅ [2025-08-22T17:25:40.884Z] Server: http://localhost:3001\n✅ [2025-08-22T17:25:40.884Z] Test Session: test_session_1755883540882\n🧪 [2025-08-22T17:25:40.884Z] Testing server health and connectivity...\n✅ [2025-08-22T17:25:40.907Z] Server health: healthy (SQLite: healthy, Redis: healthy)\n🧪 [2025-08-22T17:25:40.907Z] Sending test events to the pipeline...\n✅ [2025-08-22T17:25:41.603Z] Successfully sent 5 test events\n🧪 [2025-08-22T17:25:41.603Z] Waiting 2000ms for event processing...\n🧪 [2025-08-22T17:25:43.606Z] Validating metrics API endpoints return real data...\n✅ [2025-08-22T17:25:43.608Z] ✅ Current metrics validation passed: 88 executions, 6417 tokens\n✅ [2025-08-22T17:25:43.610Z] ✅ Timeline validation passed: 1 data points\n✅ [2025-08-22T17:25:43.611Z] ✅ Distribution validation passed: 8 agent types\n✅ [2025-08-22T17:25:43.612Z] ✅ Tool usage validation passed: 8 tools tracked\n🧪 [2025-08-22T17:25:43.612Z] Testing time range filtering functionality...\n✅ [2025-08-22T17:25:43.614Z] ✅ Time range filtering validation passed\n🧪 [2025-08-22T17:25:43.614Z] Testing aggregation accuracy...\n✅ [2025-08-22T17:25:43.615Z] ✅ Aggregation accuracy validation passed\n🧪 [2025-08-22T17:25:43.615Z] Testing WebSocket real-time updates...\n✅ [2025-08-22T17:25:43.626Z] ✅ WebSocket real-time updates validation passed\n🧪 [2025-08-22T17:25:43.626Z] Generating test report...\n\n================================================================================\n                    METRICS PIPELINE TEST REPORT\n================================================================================\nTest Suite: Metrics Pipeline End-to-End Validation\nTimestamp: 2025-08-22T17:25:43.626Z\nServer: http://localhost:3001\nTest Session: test_session_1755883540882\n\nSUMMARY:\n  Total Tests: 6\n  Passed: 6\n  Failed: 0\n  Overall: ✅ PASSED\n\nDETAILED RESULTS:\n  ✅ PASS serverHealth\n  ✅ PASS eventIngestion\n  ✅ PASS metricsAPI\n  ✅ PASS timeRangeFiltering\n  ✅ PASS aggregationAccuracy\n  ✅ PASS webSocketUpdates\n================================================================================\n",
+      "stderr": ""
+    },
+    {
+      "name": "Redis Failure Fallback",
+      "file": "test-redis-failure.js",
+      "description": "Tests system behavior when Redis is unavailable",
+      "critical": true,
+      "priority": 2,
+      "startTime": 1755883556906,
+      "endTime": 1755883567224,
+      "duration": 10318,
+      "exitCode": 1,
+      "success": false,
+      "stdout": "🧪 [2025-08-22T17:25:56.920Z] Starting Redis Failure Fallback System Validation Tests\n✅ [2025-08-22T17:25:56.922Z] Server: http://localhost:3001\n✅ [2025-08-22T17:25:56.922Z] Test Session: redis_failure_test_1755883556920\n✅ [2025-08-22T17:25:56.922Z] Note: To test actual Redis failure, stop Redis service before running this test\n🧪 [2025-08-22T17:25:56.922Z] Phase 1: Verifying normal Redis+SQLite operation...\n✅ [2025-08-22T17:25:56.945Z] Initial system health: healthy (Redis: healthy, SQLite: healthy)\n✅ [2025-08-22T17:25:57.216Z] Successfully sent 2 events during normal operation\n✅ [2025-08-22T17:26:00.220Z] Normal operation metrics: 104 executions, 11117 tokens\n🔴 [2025-08-22T17:26:00.220Z] Phase 2: Simulating Redis failure...\n🔴 [2025-08-22T17:26:00.220Z] Monitoring system for Redis disconnection...\n🔴 [2025-08-22T17:26:00.220Z] In production, this would involve stopping Redis service: sudo systemctl stop redis-server\n🧪 [2025-08-22T17:26:00.222Z] Phase 3: Testing SQLite fallback operation...\n✅ [2025-08-22T17:26:00.923Z] Successfully sent 3 events during potential Redis unavailability\n✅ [2025-08-22T17:26:03.929Z] Fallback metrics retrieval successful: 108 executions\n✅ [2025-08-22T17:26:03.932Z] Fallback system status: mode=redis, operational=true\n🧪 [2025-08-22T17:26:03.933Z] Phase 4: Testing Redis recovery and cache warming...\n🔴 [2025-08-22T17:26:03.935Z] Redis still unavailable - testing will continue with SQLite-only mode\n🔴 [2025-08-22T17:26:03.935Z] Skipping cache sync - Redis not available\n🧪 [2025-08-22T17:26:03.935Z] Phase 5: Verifying system operation after Redis recovery...\n✅ [2025-08-22T17:26:04.216Z] Successfully sent 2 events after recovery\n✅ [2025-08-22T17:26:07.220Z] Final system health: healthy (Redis: healthy, SQLite: healthy)\n✅ [2025-08-22T17:26:07.221Z] Final metrics: 111 total executions, 13817 total tokens\n🧪 [2025-08-22T17:26:07.221Z] Generating Redis failure test report...\n\n================================================================================\n                REDIS FAILURE FALLBACK TEST REPORT\n================================================================================\nTest Suite: Redis Failure Fallback System Validation\nTimestamp: 2025-08-22T17:26:07.222Z\nServer: http://localhost:3001\nTest Session: redis_failure_test_1755883556920\n\nSUMMARY:\n  Total Tests: 12\n  Passed: 10\n  Failed: 2\n  Overall: ❌ FAILED\n\nPHASE RESULTS:\n  ✅ PASS phase1 (3/3)\n    ✅ initialHealth\n    ✅ normalEventSending\n    ✅ normalMetricsRetrieval\n\n  ✅ PASS phase2 (1/1)\n    ✅ redisConnectivityTest\n\n  ✅ PASS phase3 (3/3)\n    ✅ fallbackEventSending\n    ✅ fallbackMetricsRetrieval\n    ✅ fallbackSystemStatus\n\n  ❌ FAIL phase4 (0/2)\n    ❌ redisRecoveryTest\n    ❌ cacheSyncOperation\n        Error: Redis not available for sync\n\n  ✅ PASS phase5 (3/3)\n    ✅ recoveryEventSending\n    ✅ finalSystemHealth\n    ✅ finalMetricsRetrieval\n\n================================================================================\n",
+      "stderr": ""
+    }
+  ],
+  "summary": {
+    "totalTests": 2,
+    "passedTests": 1,
+    "failedTests": 1,
+    "criticalTests": 2,
+    "criticalPassed": 1,
+    "criticalFailed": 1,
+    "overallSuccess": false,
+    "criticalSuccess": false,
+    "productionReady": false
+  }
+}

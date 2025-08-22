@@ -9,10 +9,12 @@ This system fundamentally transforms how AI agents are created and monitored. **
 ### 🚀 Key Features:
 - **Observable Agent Creation** - Use `/agent create` to build agents with monitoring built-in
 - **Automatic TTS Integration** - Voice notifications powered by enterprise Speak System ([details](docs/SPEAK_SYSTEM_OVERVIEW.md))
+- **Intelligent TTS Filtering** - Generic agents operate silently while specialized agents provide audio feedback (NEW)
 - **Real-time Dashboard** - Watch agent activities as they happen
 - **Performance Metrics** - Track token usage, execution time, and costs
 - **Agent Chaining** - Structured data returns enable agent-to-agent communication
 - **Slash-to-Agent Conversion** - Transform complex commands into efficient, observable agents
+- **30+ Agent Type Classifications** - Comprehensive categorization for better monitoring and filtering
 
 ## 📊 Overview
 
@@ -437,6 +439,33 @@ Copy `.env.sample` to `.env` in the project root and fill in your API keys:
 - **Client**: Vue 3, TypeScript, Vite, Tailwind CSS
 - **Hooks**: Python 3.8+, Astral uv, Enterprise TTS System (speak command), LLMs (Claude or OpenAI)
 - **Communication**: HTTP REST, WebSocket
+
+### Agent Operations Monitoring
+
+The Agent Operations modal provides real-time, comprehensive insights into agent behavior:
+
+#### Key Monitoring Features
+- **6-Strategy Agent Detection**: Advanced multi-layered identification system
+- **12 Agent Type Classifications**: Comprehensive categorization of subagents
+- **Real-time WebSocket Integration**: Live updates of agent metrics
+- **Performance Tracking**:
+  - Token usage and cost
+  - Execution duration
+  - Tool utilization
+- **Error Tracking**:
+  - Detailed error context
+  - Severity classification
+  - Performance impact assessment
+
+#### Detection Strategies
+1. @-Mention Detection
+2. Task Tool Delegation
+3. Transcript Analysis
+4. Keyword Pattern Matching
+5. Persona-Based Detection
+6. Explicit Configuration
+
+**Full Documentation**: [Agent Operations Modal Enhancement](docs/AGENT_OPERATIONS_MODAL_ENHANCEMENT.md)
 
 ## 🎙️ Enterprise TTS System
 

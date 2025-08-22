@@ -1,4 +1,11 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "redis>=4.0.0",
+#     "python-dotenv",
+# ]
+# ///
 """
 Session Context Loader Hook
 
@@ -20,67 +27,25 @@ from pathlib import Path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'utils'))
 
 from session_helpers import get_project_name, get_project_status, get_git_status, format_git_summary
+from relationship_tracker import get_parent_session_id, build_session_path, calculate_session_depth
 
 import glob
 from datetime import datetime, timedelta
 
 
 def get_latest_handoff_context(project_name: str) -> str:
-    """Retrieve the most recent handoff context from Redis for this project."""
+    """Retrieve the most recent handoff context with automatic fallback."""
     try:
-        # Try to import redis - if not available, skip to fallback
-        try:
-            import redis
-        except ImportError:
-            # Redis not available, skip to file fallback
-            return get_file_fallback_handoff()
+        # Import fallback storage
+        from utils.fallback_storage import get_fallback_storage
+        fallback = get_fallback_storage()
         
-        import re
-        from datetime import datetime
-        
-        # Direct Redis access - search for both MCP and simple keys
-        try:
-            r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
-            
-            # Search for all possible handoff key patterns
-            mcp_pattern = f"*:cache:*handoff:project:{project_name}:*"  # MCP format
-            simple_pattern = f"handoff:project:{project_name}:*"         # Simple format
-            
-            all_keys = []
-            all_keys.extend(r.keys(mcp_pattern))
-            all_keys.extend(r.keys(simple_pattern))
-            
-            if all_keys:
-                # Extract timestamps and find the most recent key
-                key_timestamps = []
-                for key in all_keys:
-                    match = re.search(r':(\d{8}_\d{6})$', key)
-                    if match:
-                        timestamp_str = match.group(1)
-                        try:
-                            timestamp = datetime.strptime(timestamp_str, '%Y%m%d_%H%M%S')
-                            key_timestamps.append((timestamp, key))
-                        except ValueError:
-                            continue
-                
-                if key_timestamps:
-                    # Sort by timestamp and get the most recent
-                    key_timestamps.sort(reverse=True)
-                    most_recent_key = key_timestamps[0][1]
-                    
-                    # Retrieve the handoff content directly
-                    handoff_content = r.get(most_recent_key)
-                    if handoff_content:
-                        return handoff_content
-        
-        except Exception:
-            pass
-        
-        # If Redis didn't work, try file fallback
-        return get_file_fallback_handoff()
+        # Use fallback storage which handles Redis and local storage automatically
+        return fallback.get_latest_session_handoff(project_name)
         
     except Exception as e:
         print(f"Warning: Could not retrieve handoff context: {e}", file=sys.stderr)
+        # Final fallback to file-based retrieval
         return get_file_fallback_handoff()
 
 
@@ -259,12 +224,21 @@ def get_recent_summaries(project_name: str, max_sessions: int = 3) -> dict:
         return {}
 
 
-def generate_context_injection(project_name: str, project_status: str, git_info: dict, handoff_context: str = "", summaries: dict = None) -> str:
+def generate_context_injection(project_name: str, project_status: str, git_info: dict, handoff_context: str = "", summaries: dict = None, session_id: str = "") -> str:
     """Generate context to inject into Claude's session."""
     parts = []
     
-    # Project overview
-    parts.append(f"# {project_name} - Session Context")
+    # Project overview with session information
+    parent_session_id = get_parent_session_id()
+    if parent_session_id:
+        depth = calculate_session_depth(parent_session_id)
+        session_path = build_session_path(parent_session_id, session_id)
+        parts.append(f"# {project_name} - Child Session Context (Depth: {depth})")
+        parts.append(f"**Session Hierarchy**: {session_path}")
+        parts.append(f"**Parent Session**: {parent_session_id}")
+    else:
+        parts.append(f"# {project_name} - Root Session Context")
+    
     parts.append("")
     
     # Previous session handoff context (priority - load first)
@@ -329,9 +303,21 @@ def generate_context_injection(project_name: str, project_status: str, git_info:
         parts.append(project_status)
         parts.append("")
     
+    # Session relationship context
+    if parent_session_id:
+        parts.append("## Session Relationship Context")
+        parts.append(f"This is a child session spawned from parent session `{parent_session_id}`.")
+        parts.append(f"Depth level: {calculate_session_depth(parent_session_id)}")
+        parts.append(f"Session path: {build_session_path(parent_session_id, session_id)}")
+        parts.append("All activities in this session are automatically tracked and related to the parent session.")
+        parts.append("")
+    
     # Agent monitoring note
     parts.append("## Agent Monitoring Active")
-    parts.append("This session includes comprehensive observability for all agent activities, with TTS notifications and real-time event tracking enabled.")
+    if parent_session_id:
+        parts.append("This child session includes comprehensive observability for all agent activities, with parent/child relationship tracking, TTS notifications, and real-time event tracking enabled.")
+    else:
+        parts.append("This root session includes comprehensive observability for all agent activities, with TTS notifications and real-time event tracking enabled.")
     
     return "\n".join(parts)
 
@@ -356,7 +342,15 @@ def is_continue_session() -> bool:
                 cmdline = f.read().decode('utf-8', errors='ignore')
                 # Claude Code arguments are null-separated
                 args = cmdline.split('\0')
-                return '-c' in args or '--continue' in args
+                # Only check for Claude continue flags, not bash -c
+                # Look specifically for Claude executable with continue flag
+                if len(args) > 0:
+                    executable = args[0]
+                    if 'claude' in executable.lower():
+                        # This is a Claude process, check for continue flags
+                        return '--continue' in args or '-c' in args
+                # Not a Claude process, ignore
+                return False
     except Exception:
         pass
     
@@ -380,6 +374,9 @@ def main():
             print(f"{source.title()} session - no context loading needed")
             return
         
+        # Extract session ID from input data
+        session_id = input_data.get('session_id', '')
+        
         # Load project context
         project_name = get_project_name()
         project_status = get_project_status()
@@ -391,8 +388,8 @@ def main():
         # Load recent session summaries
         summaries = get_recent_summaries(project_name)
         
-        # Generate and output context injection
-        context_injection = generate_context_injection(project_name, project_status, git_info, handoff_context, summaries)
+        # Generate and output context injection with session relationship context
+        context_injection = generate_context_injection(project_name, project_status, git_info, handoff_context, summaries, session_id)
         print(context_injection)
         
         # Simple success indicator to stderr

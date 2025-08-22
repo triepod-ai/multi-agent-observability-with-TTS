@@ -538,6 +538,12 @@ class FallbackStorageService {
   async updateMetrics(agentData: any): Promise<void> {
     if (!this.db) await this.initialize();
 
+    // Only process if we have valid agent data with required fields
+    if (!agentData || !agentData.agent_type) {
+      console.log('⚠️ Skipping metrics update - no valid agent_type found');
+      return;
+    }
+
     try {
       const now = new Date();
       const hourKey = `${now.toISOString().slice(0, 13)}:${agentData.agent_type}`;
@@ -681,7 +687,8 @@ class FallbackStorageService {
       );
 
       // Update aggregated data via existing updateMetrics method
-      if (event.payload) {
+      // Only update metrics for events that have agent_type (actual agent events)
+      if (event.payload && event.payload.agent_type) {
         await this.updateMetrics(event.payload);
       }
 

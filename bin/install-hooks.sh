@@ -547,106 +547,44 @@ EOF
     rm -f "$TARGET_PROJECT/.claude/convert_paths_temp_${TEMP_SUFFIX}.py"
 }
 
-# Step 5.6: Configure UV dependency management
-configure_uv_dependencies() {
-    echo -e "${BLUE}🔧 Step 5.6: Configuring UV dependency management...${NC}"
-    log_message "Configuring UV dependencies for hooks"
+# Step 5.6: Validate UV single-file architecture
+validate_uv_architecture() {
+    echo -e "${BLUE}🧪 Step 5.6: Validating UV single-file architecture...${NC}"
+    log_message "Validating UV single-file architecture"
     
     if [ "$DRY_RUN" = true ]; then
-        echo -e "${BLUE}📋 DRY RUN - Would configure UV dependencies${NC}"
+        echo -e "${BLUE}📋 DRY RUN - Would validate UV single-file architecture${NC}"
         return 0
     fi
     
-    local target_settings="$TARGET_PROJECT/.claude/settings.json"
+    local hooks_dir="$TARGET_PROJECT/.claude/hooks"
+    local valid_hooks=0
+    local total_hooks=0
     
-    # Update UV commands to use --with dependencies for hooks that need them
-    [ "$VERBOSE" = true ] && echo "  Adding --with dependencies to UV commands..."
+    # Check that hooks have UV single-file headers
+    [ "$VERBOSE" = true ] && echo "  Checking UV single-file headers..."
     
-    # Create a temporary Python script to update UV commands
-    cat > "$TARGET_PROJECT/.claude/update_uv_deps_temp_${TEMP_SUFFIX}.py" << 'EOF'
-#!/usr/bin/env python3
-import json
-import os
-import re
-import sys
-
-# Get the project directory from command line argument
-project_dir = sys.argv[1]
-
-# Read the settings.json file
-settings_path = os.path.join(project_dir, '.claude', 'settings.json')
-with open(settings_path, 'r') as f:
-    settings = json.load(f)
-
-# Track changes
-changes = []
-
-# Dependencies that hooks need
-HOOK_DEPENDENCIES = {
-    'session_context_loader.py': '--with redis',
-    'pre_tool_use.py': '--with requests',
-    'post_tool_use.py': '--with requests',
-    'send_event_async.py': '--with requests',
-    'notification.py': '--with openai,pyttsx3',
-    'stop.py': '--with openai,pyttsx3',
-    'subagent_stop.py': '--with openai,pyttsx3',
-    'session_startup_notifier.py': '--with openai,pyttsx3',
-    'session_resume_detector.py': '--with openai,pyttsx3',
-    'pre_compact.py': '--with openai,requests'
-}
-
-def update_uv_command(command):
-    """Add --with dependencies to uv run commands that need them."""
-    original = command
+    for hook_file in "$hooks_dir"/*.py; do
+        if [ -f "$hook_file" ]; then
+            total_hooks=$((total_hooks + 1))
+            # Check if file has UV script header
+            if head -n 5 "$hook_file" | grep -q "uv run --script"; then
+                valid_hooks=$((valid_hooks + 1))
+                [ "$VERBOSE" = true ] && echo -e "${GREEN}    ✅ $(basename "$hook_file")${NC}"
+            else
+                echo -e "${YELLOW}    ⚠️  $(basename "$hook_file") missing UV header${NC}"
+            fi
+        fi
+    done
     
-    # Check if this is a uv run command
-    if command.startswith('uv run '):
-        # Extract the script name from the command (handles scripts with arguments)
-        script_match = re.search(r'/([^/]+\.py)(?:\s|$)', command)
-        if script_match:
-            script_name = script_match.group(1)
-            if script_name in HOOK_DEPENDENCIES:
-                # Add --with dependencies after "uv run"
-                deps = HOOK_DEPENDENCIES[script_name]
-                command = command.replace('uv run ', f'uv run {deps} ')
+    echo -e "${GREEN}  ✅ $valid_hooks/$total_hooks hooks have UV single-file architecture${NC}"
+    log_message "UV validation: $valid_hooks/$total_hooks hooks valid"
     
-    if command != original:
-        changes.append((original, command))
-    
-    return command
-
-# Process all hooks
-if 'hooks' in settings:
-    for hook_type, hook_configs in settings['hooks'].items():
-        for config in hook_configs:
-            if 'hooks' in config:
-                for hook in config['hooks']:
-                    if 'command' in hook:
-                        hook['command'] = update_uv_command(hook['command'])
-
-# Write the updated settings
-with open(settings_path, 'w') as f:
-    json.dump(settings, f, indent=2)
-
-# Report changes
-print(f"Updated {len(changes)} UV commands with dependencies")
-for old, new in changes:
-    script_name = old.split('/')[-1] if '/' in old else old
-    print(f"  ✅ {script_name}: Added dependency management")
-EOF
-    
-    # Run the UV dependency update script
-    [ "$VERBOSE" = true ] && echo "  Updating UV commands with dependencies..."
-    if python3 "$TARGET_PROJECT/.claude/update_uv_deps_temp_${TEMP_SUFFIX}.py" "$TARGET_PROJECT"; then
-        echo -e "${GREEN}  ✅ UV dependency management configured${NC}"
-        log_message "Successfully configured UV dependencies"
+    if [ "$valid_hooks" -eq "$total_hooks" ]; then
+        echo -e "${GREEN}  ✅ All hooks are UV single-file compatible${NC}"
     else
-        echo -e "${YELLOW}  ⚠️  UV dependency configuration may have had issues${NC}"
-        log_message "Warning: UV dependency configuration may have had issues"
+        echo -e "${YELLOW}  ⚠️  Some hooks may need manual conversion${NC}"
     fi
-    
-    # Clean up temporary script
-    rm -f "$TARGET_PROJECT/.claude/update_uv_deps_temp_${TEMP_SUFFIX}.py"
 }
 
 # Step 5.7: Validate UV dependencies work correctly
@@ -851,7 +789,7 @@ main() {
     configure_settings
     update_hook_paths  # New: Update paths from source to target
     convert_paths_to_absolute
-    configure_uv_dependencies
+    validate_uv_architecture  # New: Validate UV single-file architecture
     validate_dependencies || true  # New: Validate but continue if fails
     setup_environment
     validate_installation
@@ -862,6 +800,7 @@ main() {
     echo -e "${BLUE}📋 Summary:${NC}"
     echo -e "${GREEN}   ✅ Project: $PROJECT_NAME${NC}"
     echo -e "${GREEN}   ✅ Location: $TARGET_PROJECT/.claude/${NC}"
+    echo -e "${GREEN}   ✅ Architecture: UV single-file (self-contained dependencies)${NC}"
     echo -e "${GREEN}   ✅ Paths: converted to absolute (directory-independent)${NC}"
     echo -e "${GREEN}   ✅ Speak integration: $([ "$NO_SPEAK_CHECK" = false ] && echo "validated" || echo "skipped")${NC}"
     echo -e "${GREEN}   ✅ Environment: configured${NC}"

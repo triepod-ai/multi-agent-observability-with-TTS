@@ -109,12 +109,135 @@ If you see "Tool used: unknown" in the UI:
 
 ### 6. SubagentStop Hook (`subagent_stop.py`)
 
-**Purpose**: Tracks when sub-agents complete their tasks
+**Purpose**: Comprehensive tracking and summarization of sub-agent task completion
 
-**Features**:
-- Sub-agent completion tracking
-- Task result summarization
-- Parent-child session relationship tracking
+**Enhanced Features**:
+- **Advanced Agent Detection**:
+  - Multi-strategy agent name extraction
+  - Robust tool usage tracking
+  - Comprehensive metadata capture
+  - **Intelligent TTS Filtering for Generic Agents** (NEW)
+
+- **Agent Name Extraction**:
+  ```python
+  def extract_agent_name_from_transcript(transcript):
+      """
+      Extract agent name using multiple detection strategies
+      """
+      # Strategy 1: @-mention detection
+      mention_match = re.search(r'@(\w+(?:-\w+)*)', transcript)
+      if mention_match:
+          return mention_match.group(1)
+      
+      # Strategy 2: Task tool delegation
+      task_match = re.search(r'delegate to (\w+(?:-\w+)*)', transcript)
+      if task_match:
+          return task_match.group(1)
+      
+      # Strategy 3: Keyword pattern matching
+      keyword_patterns = {
+          'debugger': ['debug', 'fix', 'troubleshoot'],
+          'analyzer': ['analyze', 'investigate'],
+          'reviewer': ['review', 'check', 'validate']
+      }
+      
+      for agent_type, patterns in keyword_patterns.items():
+          if any(pattern in transcript.lower() for pattern in patterns):
+              return f"{agent_type}-agent"
+      
+      return 'unknown-agent'
+  ```
+
+- **Tool Extraction**:
+  ```python
+  def extract_tools_from_transcript(transcript):
+      """
+      Extract tools used by analyzing the transcript
+      """
+      tool_patterns = {
+          'Read': ['read file', 'read', 'cat', 'grep'],
+          'Write': ['write file', 'create', 'generate'],
+          'Edit': ['edit', 'modify', 'update', 'change'],
+          'Bash': ['run command', 'bash', 'shell'],
+          'Grep': ['search', 'find in files'],
+          'MultiEdit': ['multi-edit', 'bulk edit']
+      }
+      
+      used_tools = []
+      for tool, patterns in tool_patterns.items():
+          if any(pattern in transcript.lower() for pattern in patterns):
+              used_tools.append(tool)
+      
+      return used_tools
+  ```
+
+- **Sub-agent Completion Tracking**
+  - Capture task start and end times
+  - Calculate precise duration
+  - Track resource utilization
+  - Detect success/failure status
+
+- **Metadata Enrichment**
+  - Automatically classify agent types
+  - Capture performance metrics
+  - Track token usage and cost
+
+- **Error Detection**
+  - Sophisticated error pattern recognition
+  - Categorize error severity
+  - Extract meaningful error context
+
+- **Observability Integration**
+  - Push metrics to Redis
+  - Send events to observability server
+  - Support real-time monitoring
+
+#### Generic Agent TTS Filtering (NEW)
+
+**Purpose**: Reduce audio notification spam by filtering out generic/utility agents from TTS announcements while maintaining full observability.
+
+**Implementation**:
+- Generic agents (type="generic") are automatically filtered from TTS notifications
+- A debug message is logged to stderr: "Skipping TTS for generic agent: {agent_name}"
+- All other observability features (metrics, events) remain active for generic agents
+
+**Enhanced Agent Type Classification**:
+The system now classifies agents into 30+ specific types to minimize "generic" classifications:
+- **Data Processing**: data-processor, statistics, metrics
+- **Development**: builder, deployer, linter  
+- **Content**: translator, writer, generator
+- **Infrastructure**: monitor, configurator, storage
+- **API/Integration**: api-handler, integrator, searcher
+- **UI/Frontend**: ui-developer, designer
+- **ML/AI**: ml-engineer, predictor
+- **Database**: database-admin, data-manager
+- **And many more...**
+
+**Benefits**:
+- Reduced audio spam from utility/helper agents
+- Important agents (code-reviewer, debugger, etc.) still trigger notifications
+- Better user experience with fewer interruptions
+- Full observability maintained for all agents regardless of TTS status
+
+**Example Enhanced Metadata**:
+```python
+agent_metadata = {
+    "agent_name": extract_agent_name_from_transcript(transcript),
+    "agent_type": classify_agent_type(agent_name),
+    "tools_used": extract_tools_from_transcript(transcript),
+    "execution_details": {
+        "start_time": start_timestamp,
+        "end_time": end_timestamp,
+        "duration_ms": duration,
+        "status": "success" | "partial" | "failure"
+    },
+    "performance_metrics": {
+        "token_usage": total_tokens,
+        "estimated_cost": calculate_cost(total_tokens),
+        "tools_used_count": len(tools_used)
+    }
+}
+```
 
 ### 7. PreCompact Hook (`pre_compact.py`)
 

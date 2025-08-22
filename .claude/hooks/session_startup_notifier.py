@@ -1,4 +1,12 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "openai>=1.0.0",
+#     "pyttsx3>=2.90",
+#     "python-dotenv",
+# ]
+# ///
 """
 Session Startup Notifier Hook
 

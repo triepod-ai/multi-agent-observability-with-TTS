@@ -3,7 +3,7 @@
     <!-- Timeline Header -->
     <div class="mb-6 text-center">
       <h2 class="text-xl font-bold text-white mb-2">Event Timeline</h2>
-      <div class="flex items-center justify-center space-x-4 text-sm text-gray-400">
+      <div class="flex items-center justify-center space-x-4 text-sm text-gray-400 mb-4">
         <span>{{ events.length }} events</span>
         <span>•</span>
         <span>{{ agentGroups.length }} agent operations</span>
@@ -14,15 +14,39 @@
           {{ showAgentGroupsOnly ? 'Show All Events' : 'Agents Only' }}
         </button>
       </div>
+      
+      <!-- Timeline View Mode Toggle -->
+      <div class="flex items-center justify-center space-x-2">
+        <button
+          @click="timelineMode = 'vertical'"
+          class="px-3 py-1 rounded-lg text-xs font-medium transition-colors"
+          :class="timelineMode === 'vertical' 
+            ? 'bg-blue-600 text-white' 
+            : 'bg-gray-800 text-gray-400 hover:text-white'"
+        >
+          Vertical Timeline
+        </button>
+        <button
+          @click="timelineMode = 'hierarchy'"
+          class="px-3 py-1 rounded-lg text-xs font-medium transition-colors"
+          :class="timelineMode === 'hierarchy' 
+            ? 'bg-blue-600 text-white' 
+            : 'bg-gray-800 text-gray-400 hover:text-white'"
+        >
+          Hierarchy Lanes
+        </button>
+      </div>
     </div>
 
     <!-- Timeline Container -->
     <div class="relative max-w-6xl mx-auto">
-      <!-- Vertical Timeline Line -->
-      <div class="absolute left-1/2 transform -translate-x-1/2 w-0.5 h-full bg-gradient-to-b from-blue-500/50 via-purple-500/50 to-pink-500/50"></div>
+      <!-- Vertical Timeline (Default Mode) -->
+      <div v-if="timelineMode === 'vertical'" class="relative">
+        <!-- Vertical Timeline Line -->
+        <div class="absolute left-1/2 transform -translate-x-1/2 w-0.5 h-full bg-gradient-to-b from-blue-500/50 via-purple-500/50 to-pink-500/50"></div>
       
-      <!-- Timeline Events with Agent Grouping -->
-      <div class="space-y-8">
+        <!-- Timeline Events with Agent Grouping -->
+        <div class="space-y-8">
         <TransitionGroup name="timeline-event">
           <!-- Agent Group Container -->
           <div
@@ -130,9 +154,9 @@
                       <!-- Tool/Command Info -->
                       <div v-if="getToolInfo(event)" class="mb-2">
                         <div class="text-xs" :class="group.isAgent ? 'text-purple-300' : 'text-gray-400'">
-                          <span class="font-medium">{{ getToolInfo(event).tool }}</span>
-                          <span v-if="getToolInfo(event).detail" class="ml-1" :class="group.isAgent ? 'text-purple-400' : 'text-gray-500'">
-                            - {{ truncate(getToolInfo(event).detail, 50) }}
+                          <span class="font-medium">{{ getToolInfo(event)?.tool || 'Unknown' }}</span>
+                          <span v-if="getToolInfo(event)?.detail" class="ml-1" :class="group.isAgent ? 'text-purple-400' : 'text-gray-500'">
+                            - {{ truncate(getToolInfo(event)?.detail || '', 50) }}
                           </span>
                         </div>
                       </div>
@@ -179,6 +203,123 @@
             </div>
           </div>
         </TransitionGroup>
+        </div>
+      </div>
+
+      <!-- Hierarchy Lanes Timeline -->
+      <div v-else-if="timelineMode === 'hierarchy'" class="relative overflow-x-auto">
+        <!-- Lane Headers -->
+        <div class="flex mb-4 sticky top-0 z-10 bg-gray-950 pb-2">
+          <div
+            v-for="lane in hierarchyLanes"
+            :key="lane.sessionId"
+            class="flex-shrink-0 w-64 px-4 py-2 mx-1 bg-gray-800 rounded-lg border border-gray-700"
+          >
+            <div class="flex items-center space-x-2">
+              <div class="w-6 h-6 rounded flex items-center justify-center" :class="getTypeIconContainer(lane.sessionType)">
+                <span class="text-sm">{{ getSessionIcon(lane.sessionType) }}</span>
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="font-medium text-sm text-white truncate">{{ lane.agentName || 'Session' }}</div>
+                <div class="text-xs text-gray-400">{{ getSessionShort(lane.sessionId) }} • Depth {{ lane.depth }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Lane Events -->
+        <div class="relative" style="min-height: 400px;">
+          <!-- Connection Lines -->
+          <svg class="absolute inset-0 w-full h-full pointer-events-none" style="z-index: 1;">
+            <defs>
+              <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+                <polygon points="0 0, 10 3.5, 0 7" fill="#6366f1" opacity="0.6" />
+              </marker>
+            </defs>
+            <!-- Relationship Lines -->
+            <line
+              v-for="connection in laneConnections"
+              :key="`${connection.from}-${connection.to}`"
+              :x1="connection.x1"
+              :y1="connection.y1"
+              :x2="connection.x2"
+              :y2="connection.y2"
+              stroke="#6366f1"
+              stroke-width="2"
+              stroke-opacity="0.4"
+              marker-end="url(#arrowhead)"
+            />
+          </svg>
+
+          <!-- Events in Lanes -->
+          <div class="flex relative" style="z-index: 2;">
+            <div
+              v-for="lane in hierarchyLanes"
+              :key="lane.sessionId"
+              class="flex-shrink-0 w-64 mx-1"
+            >
+              <div class="space-y-4 py-4">
+                <div
+                  v-for="event in lane.events"
+                  :key="`${event.id}-${event.timestamp}`"
+                  class="relative"
+                >
+                  <!-- Event Card -->
+                  <div
+                    class="bg-gray-800/80 backdrop-blur-sm border rounded-lg p-3 hover:bg-gray-800 hover:border-gray-600 transition-all duration-200 cursor-pointer"
+                    :class="getHierarchyEventBorder(event, lane)"
+                    @click="$emit('event-click', event)"
+                  >
+                    <!-- Event Header -->
+                    <div class="flex items-center justify-between mb-2">
+                      <div class="flex items-center space-x-2">
+                        <span class="text-sm">{{ getEventEmoji(event.hook_event_type) }}</span>
+                        <span class="font-medium text-xs text-white truncate">{{ event.hook_event_type }}</span>
+                      </div>
+                      <div class="text-xs font-mono text-gray-500">
+                        {{ formatTimestamp(event.timestamp) }}
+                      </div>
+                    </div>
+
+                    <!-- Tool Info -->
+                    <div v-if="getToolInfo(event)" class="mb-2">
+                      <div class="text-xs text-gray-400">
+                        <span class="font-medium">{{ getToolInfo(event)?.tool || 'Unknown' }}</span>
+                        <span v-if="getToolInfo(event)?.detail" class="ml-1 text-gray-500">
+                          - {{ truncate(getToolInfo(event)?.detail || '', 30) }}
+                        </span>
+                      </div>
+                    </div>
+
+                    <!-- Summary -->
+                    <div v-if="event.summary" class="text-xs italic text-gray-300 mb-2">
+                      "{{ truncate(event.summary, 40) }}"
+                    </div>
+
+                    <!-- Event Actions -->
+                    <div class="flex items-center justify-between">
+                      <div 
+                        class="inline-flex items-center px-2 py-0.5 rounded-full text-xs"
+                        :class="getSessionColorClass(event.session_id)"
+                      >
+                        <div class="w-1 h-1 rounded-full mr-1" :class="getSessionDotClass(event.session_id)"></div>
+                        Status
+                      </div>
+                      <button 
+                        @click.stop="$emit('copy-event', event)"
+                        class="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-gray-600 transition-opacity"
+                      >
+                        <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Empty State -->
@@ -201,7 +342,7 @@ const props = defineProps<{
   getAppColor: (appName: string) => string;
 }>();
 
-const emit = defineEmits<{
+defineEmits<{
   'event-click': [event: HookEvent];
   'copy-event': [event: HookEvent];
 }>();
@@ -209,6 +350,7 @@ const emit = defineEmits<{
 // Component state
 const collapsedAgents = ref(new Set<string>());
 const showAgentGroupsOnly = ref(false);
+const timelineMode = ref<'vertical' | 'hierarchy'>('vertical');
 
 // Agent session grouping logic (same as AgentDashboard)
 interface EventGroup {
@@ -281,6 +423,133 @@ const agentGroups = computed(() => {
   return groupedEvents.value.filter(group => group.isAgent);
 });
 
+// Hierarchy Lanes Computed Properties
+interface HierarchyLane {
+  sessionId: string;
+  agentName?: string;
+  sessionType: string;
+  depth: number;
+  events: HookEvent[];
+  parentSessionId?: string;
+}
+
+interface LaneConnection {
+  from: string;
+  to: string;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
+
+const hierarchyLanes = computed((): HierarchyLane[] => {
+  if (timelineMode.value !== 'hierarchy') return [];
+
+  // Build hierarchy from agent groups
+  const lanes: HierarchyLane[] = [];
+  const sessionRelationships = new Map<string, string>(); // child -> parent
+
+  // First pass: collect all agent sessions and detect relationships
+  agentGroups.value.forEach(group => {
+    const lane: HierarchyLane = {
+      sessionId: group.sessionId,
+      agentName: group.agentName,
+      sessionType: group.isAgent ? 'subagent' : 'main',
+      depth: 0, // Will be calculated later
+      events: group.events
+    };
+
+    // Try to detect parent-child relationships from Task tool usage
+    const taskEvents = group.events.filter(event => 
+      event.hook_event_type === 'PreToolUse' && 
+      event.payload.tool_name === 'Task'
+    );
+
+    // For now, assume depth based on session creation time
+    const sessionTime = group.events[0]?.timestamp || 0;
+    const isChild = taskEvents.length > 0;
+    
+    if (isChild) {
+      // Try to find parent session (the one that spawned this)
+      const potentialParents = agentGroups.value.filter(parent => 
+        parent.sessionId !== group.sessionId &&
+        parent.events.length > 0 &&
+        (parent.events[0]?.timestamp || 0) < sessionTime &&
+        parent.events.length > 0 &&
+        (parent.events[parent.events.length - 1]?.timestamp || 0) > sessionTime
+      );
+
+      if (potentialParents.length > 0) {
+        // Choose the most recent parent
+        const parent = potentialParents.reduce((latest, current) => 
+          (current.events[0]?.timestamp || 0) > (latest.events[0]?.timestamp || 0) ? current : latest
+        );
+        lane.parentSessionId = parent.sessionId;
+        sessionRelationships.set(group.sessionId, parent.sessionId);
+      }
+    }
+
+    lanes.push(lane);
+  });
+
+  // Calculate depths based on relationships
+  const calculateDepth = (sessionId: string, visited = new Set<string>()): number => {
+    if (visited.has(sessionId)) return 0; // Prevent cycles
+    visited.add(sessionId);
+
+    const parentId = sessionRelationships.get(sessionId);
+    if (!parentId) return 0;
+    
+    return calculateDepth(parentId, visited) + 1;
+  };
+
+  lanes.forEach(lane => {
+    lane.depth = calculateDepth(lane.sessionId);
+  });
+
+  // Sort by depth then by start time
+  return lanes.sort((a, b) => {
+    if (a.depth !== b.depth) return a.depth - b.depth;
+    return (a.events[0]?.timestamp || 0) - (b.events[0]?.timestamp || 0);
+  });
+});
+
+const laneConnections = computed((): LaneConnection[] => {
+  if (timelineMode.value !== 'hierarchy') return [];
+
+  const connections: LaneConnection[] = [];
+  const lanePositions = new Map<string, number>();
+
+  // Map lane positions
+  hierarchyLanes.value.forEach((lane, index) => {
+    lanePositions.set(lane.sessionId, index);
+  });
+
+  // Calculate connections between parent and child lanes
+  hierarchyLanes.value.forEach(lane => {
+    if (lane.parentSessionId) {
+      const parentIndex = lanePositions.get(lane.parentSessionId);
+      const childIndex = lanePositions.get(lane.sessionId);
+
+      if (parentIndex !== undefined && childIndex !== undefined && parentIndex !== null && childIndex !== null) {
+        const parentX = parentIndex * 272 + 128; // 264px width + 8px margin + half width
+        const childX = childIndex * 272 + 128;
+        
+        connections.push({
+          from: lane.parentSessionId,
+          to: lane.sessionId,
+          x1: parentX,
+          y1: 60, // Header height
+          x2: childX,
+          y2: 60
+        });
+      }
+    }
+  });
+
+  return connections;
+});
+
 // Helper functions (from AgentDashboard)
 function detectAgentSession(events: HookEvent[]): boolean {
   const hasTaskTool = events.some(event => 
@@ -306,7 +575,7 @@ function detectAgentSession(events: HookEvent[]): boolean {
   return hasTaskTool || (hasMultipleTools && hasAgentKeywords);
 }
 
-function analyzeAgentGroup(sessionId: string, events: HookEvent[]) {
+function analyzeAgentGroup(_sessionId: string, events: HookEvent[]) {
   const firstEvent = events[0];
   const lastEvent = events[events.length - 1];
   
@@ -399,6 +668,37 @@ const connectionGradients: Record<string, string> = {
   'PreCompact': 'from-transparent to-indigo-500/50',
   'UserPromptSubmit': 'from-transparent to-pink-500/50'
 };
+
+// Helper functions for hierarchy lanes
+function getSessionIcon(sessionType: string): string {
+  const sessionTypeIcons: Record<string, string> = {
+    'main': '🎯',
+    'subagent': '🤖', 
+    'wave': '🌊',
+    'continuation': '🔗'
+  };
+  return sessionTypeIcons[sessionType] || '📄';
+}
+
+function getTypeIconContainer(sessionType: string): string {
+  const containerClasses: Record<string, string> = {
+    'main': 'bg-blue-500/20',
+    'subagent': 'bg-purple-500/20',
+    'wave': 'bg-cyan-500/20', 
+    'continuation': 'bg-green-500/20'
+  };
+  return containerClasses[sessionType] || 'bg-gray-500/20';
+}
+
+function getHierarchyEventBorder(_event: HookEvent, lane: HierarchyLane): string {
+  const borderColors: Record<string, string> = {
+    'main': 'border-blue-500/30',
+    'subagent': 'border-purple-500/30',
+    'wave': 'border-cyan-500/30',
+    'continuation': 'border-green-500/30'
+  };
+  return borderColors[lane.sessionType] || 'border-gray-500/30';
+}
 
 function getAgentIcon(agentType?: string): string {
   const agentIcons: Record<string, string> = {
@@ -520,7 +820,7 @@ function shouldShowTimeSeparatorForEvent(event: HookEvent, globalIndex: number):
   return timeDiff > 5 * 60 * 1000; // 5 minutes
 }
 
-function getTimeSeparatorTextForEvent(event: HookEvent, globalIndex: number): string {
+function getTimeSeparatorTextForEvent(event: HookEvent, _globalIndex: number): string {
   const date = new Date(event.timestamp || 0);
   return date.toLocaleDateString('en-US', { 
     weekday: 'short', 

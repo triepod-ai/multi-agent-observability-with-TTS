@@ -30,6 +30,20 @@
         
         <!-- Right Section -->
         <div class="mobile:w-full mobile:justify-center flex items-center space-x-2">
+          <!-- Educational Mode Toggle -->
+          <div class="flex items-center bg-white/20 backdrop-blur-sm rounded-lg p-1 border border-white/30">
+            <button
+              @click="toggleEducationalMode"
+              class="px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200 flex items-center"
+              :class="isEducationalMode 
+                ? 'bg-green-500 text-white shadow-md font-semibold' 
+                : 'text-white/90 hover:text-white hover:bg-white/20'"
+              :title="isEducationalMode ? 'Switch to Expert Mode' : 'Switch to Educational Mode'"
+            >
+              <span class="mr-1">{{ isEducationalMode ? '🎓' : '👨‍💻' }}</span>
+              <span class="hidden sm:inline">{{ isEducationalMode ? 'Learning' : 'Expert' }}</span>
+            </button>
+          </div>
           <!-- Connection Status -->
           <div class="flex items-center space-x-1.5">
             <div v-if="isConnected" class="flex items-center space-x-1.5">
@@ -59,6 +73,17 @@
           >
             <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+          </button>
+          
+          <!-- Terminal Status Toggle Button -->
+          <button
+            @click="showTerminalStatus = !showTerminalStatus"
+            class="p-2 rounded-lg bg-white/20 hover:bg-white/30 transition-all duration-200 border border-white/30 hover:border-white/50 backdrop-blur-sm shadow-lg hover:shadow-xl"
+            :title="showTerminalStatus ? 'Hide terminal status' : 'Show terminal status'"
+          >
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </button>
           
@@ -147,6 +172,18 @@
       @toggle-notifications="toggleNotifications"
     />
     
+    <!-- Educational Dashboard (when in educational mode) -->
+    <EducationalDashboard
+      v-if="isEducationalMode"
+      :events="events"
+    />
+    
+    <!-- Hook Status Grid (expert mode only) -->
+    <HookStatusGrid
+      v-else
+      :events="events"
+    />
+    
     <!-- Activity Dashboard -->
     <ActivityDashboard
       :events="events"
@@ -209,6 +246,12 @@
       </Transition>
     </div>
     
+    <!-- Terminal Status Bar -->
+    <TerminalStatusBar
+      v-if="showTerminalStatus"
+      :terminal-status="terminalStatus"
+    />
+    
     <!-- Stick to bottom button -->
     <StickScrollButton
       :stick-to-bottom="stickToBottom"
@@ -259,15 +302,22 @@ import TimelineView from './components/TimelineView.vue';
 import ApplicationsOverview from './components/ApplicationsOverview.vue';
 import AgentDashboard from './components/AgentDashboard.vue';
 import FilterNotificationBar from './components/FilterNotificationBar.vue';
+import TerminalStatusBar from './components/TerminalStatusBar.vue';
+import HookStatusGrid from './components/HookStatusGrid.vue';
+import EducationalDashboard from './components/EducationalDashboard.vue';
+import { useEducationalMode } from './composables/useEducationalMode';
 
 // WebSocket connection
-const { events, isConnected, error } = useWebSocket('ws://localhost:4000/stream');
+const { events, isConnected, error, terminalStatus } = useWebSocket('ws://localhost:4000/stream');
 
 // Theme management
 const { } = useThemes();
 
 // Event colors
 const { getColorForSession, getHexColorForSession, getHexColorForApp } = useEventColors();
+
+// Educational mode
+const { isEducationalMode, toggleEducationalMode } = useEducationalMode();
 
 // View modes
 const viewModes = [
@@ -310,6 +360,7 @@ const sortOrder = ref<'asc' | 'desc'>('desc'); // Default to latest first
 const stickToBottom = ref(true);
 const showThemeManager = ref(false);
 const showFilters = ref(false);
+const showTerminalStatus = ref(true); // Toggle for terminal status bar
 const selectedSessionId = ref<string | null>(null);
 const selectedEvent = ref<HookEvent | null>(null);
 const showEventDetail = ref(false);

@@ -247,3 +247,4 @@ claude-output.json
 .mcp.json
 specs/
 multi-agent-observability-system.code-workspace
+.claude/backup-*/

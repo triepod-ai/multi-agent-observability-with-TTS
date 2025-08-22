@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Metrics API Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #1a1a1a; color: #fff; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 20px 0; }
+        .metric-card { background: #2a2a2a; border-radius: 8px; padding: 20px; border: 1px solid #3a3a3a; }
+        .metric-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; color: #4ade80; }
+        .metric-value { font-size: 24px; font-weight: bold; color: #3b82f6; }
+        .test-button { background: #6366f1; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; margin: 10px 10px 10px 0; }
+        .test-button:hover { background: #4f46e5; }
+        .error { color: #ef4444; background: #1f1f1f; padding: 10px; border-radius: 6px; margin: 10px 0; }
+        .success { color: #10b981; background: #1f1f1f; padding: 10px; border-radius: 6px; margin: 10px 0; }
+        pre { background: #1f1f1f; padding: 15px; border-radius: 6px; overflow-x: auto; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Agent Metrics API Test Dashboard</h1>
+        
+        <div style="margin: 20px 0;">
+            <button class="test-button" onclick="testCurrentMetrics()">Test Current Metrics</button>
+            <button class="test-button" onclick="testAgentTypes()">Test Agent Types</button>
+            <button class="test-button" onclick="testToolUsage()">Test Tool Usage</button>
+            <button class="test-button" onclick="testTimeline()">Test Timeline</button>
+            <button class="test-button" onclick="clearResults()">Clear</button>
+        </div>
+        
+        <div id="results"></div>
+        
+        <div class="metrics-grid" id="metricsGrid" style="display: none;">
+            <div class="metric-card">
+                <div class="metric-title">Total Executions</div>
+                <div class="metric-value" id="totalExec">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">Success Rate</div>
+                <div class="metric-value" id="successRate">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">Avg Duration</div>
+                <div class="metric-value" id="avgDuration">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">Active Agents</div>
+                <div class="metric-value" id="activeAgents">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">Tokens Used</div>
+                <div class="metric-value" id="tokensUsed">-</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">Agent Types</div>
+                <div class="metric-value" id="agentTypes">-</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:4000';
+        const resultsDiv = document.getElementById('results');
+        
+        function showResult(title, data, isError = false) {
+            const className = isError ? 'error' : 'success';
+            resultsDiv.innerHTML += `
+                <div class="${className}">
+                    <h3>${title}</h3>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                </div>
+            `;
+        }
+        
+        function clearResults() {
+            resultsDiv.innerHTML = '';
+            document.getElementById('metricsGrid').style.display = 'none';
+        }
+        
+        async function testCurrentMetrics() {
+            try {
+                const response = await fetch(`${API_BASE}/api/agents/metrics/current`);
+                const data = await response.json();
+                
+                showResult('✅ Current Metrics API', data);
+                
+                // Update visual metrics
+                document.getElementById('totalExec').textContent = data.executions_today || 0;
+                document.getElementById('successRate').textContent = Math.round((data.success_rate || 0) * 100) + '%';
+                document.getElementById('avgDuration').textContent = Math.round((data.avg_duration_ms || 0) / 1000 * 100) / 100 + 's';
+                document.getElementById('activeAgents').textContent = data.active_agents || 0;
+                document.getElementById('tokensUsed').textContent = (data.tokens_used_today || 0).toLocaleString();
+                
+                document.getElementById('metricsGrid').style.display = 'grid';
+                
+            } catch (error) {
+                showResult('❌ Current Metrics API Error', error.message, true);
+            }
+        }
+        
+        async function testAgentTypes() {
+            try {
+                const response = await fetch(`${API_BASE}/api/agents/types/distribution`);
+                const data = await response.json();
+                
+                showResult('✅ Agent Types Distribution API', {
+                    total_types: data.distribution?.length || 0,
+                    sample_types: data.distribution?.slice(0, 3) || [],
+                    full_data: data
+                });
+                
+                document.getElementById('agentTypes').textContent = data.distribution?.length || 0;
+                
+            } catch (error) {
+                showResult('❌ Agent Types API Error', error.message, true);
+            }
+        }
+        
+        async function testToolUsage() {
+            try {
+                const response = await fetch(`${API_BASE}/api/agents/tools/usage?period=day`);
+                const data = await response.json();
+                
+                showResult('✅ Tool Usage API', {
+                    total_tools: data.tools?.length || 0,
+                    top_tools: data.tools?.slice(0, 5) || [],
+                    insights: data.insights || {}
+                });
+                
+            } catch (error) {
+                showResult('❌ Tool Usage API Error', error.message, true);
+            }
+        }
+        
+        async function testTimeline() {
+            try {
+                const response = await fetch(`${API_BASE}/api/agents/metrics/timeline?hours=24`);
+                const data = await response.json();
+                
+                showResult('✅ Timeline API', {
+                    timeline_points: data.timeline?.length || 0,
+                    sample_points: data.timeline?.slice(0, 3) || [],
+                    full_data: data
+                });
+                
+            } catch (error) {
+                showResult('❌ Timeline API Error', error.message, true);
+            }
+        }
+        
+        // Auto-load metrics on page load
+        window.addEventListener('load', () => {
+            testCurrentMetrics();
+        });
+    </script>
+</body>
+</html>

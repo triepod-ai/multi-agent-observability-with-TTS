@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Session Relationship API Demo</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .endpoint { background: #f5f5f5; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .method { font-weight: bold; color: #2196F3; }
+        button { padding: 8px 16px; margin: 5px; cursor: pointer; }
+        .response { background: #e8f5e8; padding: 10px; margin-top: 10px; border-radius: 3px; font-family: monospace; }
+        .error { background: #ffe8e8; }
+        input, select { margin: 5px; padding: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Session Relationship API Demo</h1>
+    
+    <div class="endpoint">
+        <h3><span class="method">GET</span> /api/relationships/stats</h3>
+        <p>Get overall relationship statistics</p>
+        <button onclick="getStats()">Get Stats</button>
+        <div id="stats-response" class="response" style="display:none;"></div>
+    </div>
+
+    <div class="endpoint">
+        <h3><span class="method">POST</span> /api/sessions/spawn</h3>
+        <p>Register a session spawn attempt</p>
+        <div>
+            <input type="text" id="parent-id" placeholder="Parent Session ID" value="demo-parent-session">
+            <input type="text" id="agent-name" placeholder="Agent Name" value="test-agent">
+            <select id="spawn-method">
+                <option value="task_tool">Task Tool</option>
+                <option value="subagent_delegation">Subagent Delegation</option>
+                <option value="wave_orchestration">Wave Orchestration</option>
+                <option value="manual">Manual</option>
+            </select>
+            <select id="delegation-type">
+                <option value="parallel">Parallel</option>
+                <option value="sequential">Sequential</option>
+                <option value="isolated">Isolated</option>
+            </select>
+        </div>
+        <button onclick="spawnSession()">Spawn Session</button>
+        <div id="spawn-response" class="response" style="display:none;"></div>
+    </div>
+
+    <div class="endpoint">
+        <h3><span class="method">POST</span> /api/sessions/:id/child_completed</h3>
+        <p>Mark a child session as completed</p>
+        <div>
+            <input type="text" id="complete-parent" placeholder="Parent Session ID" value="demo-parent-session">
+            <input type="text" id="complete-child" placeholder="Child Session ID" value="">
+            <input type="text" id="completion-status" placeholder="Completion Status" value="success">
+        </div>
+        <button onclick="completeChild()">Mark Completed</button>
+        <div id="complete-response" class="response" style="display:none;"></div>
+    </div>
+
+    <div class="endpoint">
+        <h3><span class="method">GET</span> /api/sessions/:id/relationships</h3>
+        <p>Get relationships for a specific session</p>
+        <div>
+            <input type="text" id="session-id" placeholder="Session ID" value="demo-parent-session">
+            <label><input type="checkbox" id="include-parent" checked> Include Parent</label>
+            <label><input type="checkbox" id="include-children" checked> Include Children</label>
+            <label><input type="checkbox" id="include-siblings"> Include Siblings</label>
+        </div>
+        <button onclick="getRelationships()">Get Relationships</button>
+        <div id="relationships-response" class="response" style="display:none;"></div>
+    </div>
+
+    <div class="endpoint">
+        <h3><span class="method">GET</span> /api/sessions/:id/tree</h3>
+        <p>Get session hierarchy tree</p>
+        <div>
+            <input type="text" id="tree-session-id" placeholder="Root Session ID" value="demo-parent-session">
+            <input type="number" id="max-depth" placeholder="Max Depth" value="5" min="1" max="10">
+        </div>
+        <button onclick="getSessionTree()">Get Tree</button>
+        <div id="tree-response" class="response" style="display:none;"></div>
+    </div>
+
+    <h3>WebSocket Events</h3>
+    <div class="endpoint">
+        <button onclick="connectWebSocket()">Connect to WebSocket</button>
+        <button onclick="disconnectWebSocket()">Disconnect</button>
+        <div id="ws-status">Not connected</div>
+        <div id="ws-events" style="background: #f0f0f0; padding: 10px; height: 200px; overflow-y: auto; margin-top: 10px;"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:4000';
+        let ws = null;
+        let lastChildId = '';
+
+        async function apiCall(method, url, data = null) {
+            try {
+                const options = {
+                    method,
+                    headers: { 'Content-Type': 'application/json' }
+                };
+                if (data) options.body = JSON.stringify(data);
+                
+                const response = await fetch(API_BASE + url, options);
+                const result = await response.json();
+                
+                return { success: response.ok, data: result };
+            } catch (error) {
+                return { success: false, data: { error: error.message } };
+            }
+        }
+
+        function showResponse(elementId, response) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.className = response.success ? 'response' : 'response error';
+            element.textContent = JSON.stringify(response.data, null, 2);
+        }
+
+        async function getStats() {
+            const response = await apiCall('GET', '/api/relationships/stats');
+            showResponse('stats-response', response);
+        }
+
+        async function spawnSession() {
+            const parentId = document.getElementById('parent-id').value;
+            const agentName = document.getElementById('agent-name').value;
+            const spawnMethod = document.getElementById('spawn-method').value;
+            const delegationType = document.getElementById('delegation-type').value;
+
+            const spawnContext = {
+                agent_name: agentName,
+                task_description: `Test task using ${agentName}`,
+                spawn_method: spawnMethod,
+                delegation_type: delegationType
+            };
+
+            const response = await apiCall('POST', '/api/sessions/spawn', {
+                parent_session_id: parentId,
+                spawn_context: spawnContext
+            });
+
+            if (response.success) {
+                lastChildId = response.data.child_session_id;
+                document.getElementById('complete-child').value = lastChildId;
+            }
+
+            showResponse('spawn-response', response);
+        }
+
+        async function completeChild() {
+            const parentId = document.getElementById('complete-parent').value;
+            const childId = document.getElementById('complete-child').value;
+            const status = document.getElementById('completion-status').value;
+
+            const response = await apiCall('POST', `/api/sessions/${parentId}/child_completed`, {
+                child_session_id: childId,
+                completion_data: { status, duration: Math.floor(Math.random() * 10000) }
+            });
+
+            showResponse('complete-response', response);
+        }
+
+        async function getRelationships() {
+            const sessionId = document.getElementById('session-id').value;
+            const includeParent = document.getElementById('include-parent').checked;
+            const includeChildren = document.getElementById('include-children').checked;
+            const includeSiblings = document.getElementById('include-siblings').checked;
+
+            const params = new URLSearchParams({
+                includeParent: includeParent.toString(),
+                includeChildren: includeChildren.toString(),
+                includeSiblings: includeSiblings.toString()
+            });
+
+            const response = await apiCall('GET', `/api/sessions/${sessionId}/relationships?${params}`);
+            showResponse('relationships-response', response);
+        }
+
+        async function getSessionTree() {
+            const sessionId = document.getElementById('tree-session-id').value;
+            const maxDepth = document.getElementById('max-depth').value;
+
+            const params = new URLSearchParams({ maxDepth });
+            const response = await apiCall('GET', `/api/sessions/${sessionId}/tree?${params}`);
+            showResponse('tree-response', response);
+        }
+
+        function connectWebSocket() {
+            if (ws) {
+                ws.close();
+            }
+
+            ws = new WebSocket('ws://localhost:4000/stream');
+            
+            ws.onopen = function() {
+                document.getElementById('ws-status').textContent = 'Connected';
+                addWsEvent('Connected to WebSocket');
+            };
+
+            ws.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                addWsEvent(`${data.type}: ${JSON.stringify(data.data, null, 2)}`);
+            };
+
+            ws.onclose = function() {
+                document.getElementById('ws-status').textContent = 'Disconnected';
+                addWsEvent('Disconnected from WebSocket');
+            };
+
+            ws.onerror = function(error) {
+                addWsEvent('WebSocket error: ' + error.message);
+            };
+        }
+
+        function disconnectWebSocket() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+
+        function addWsEvent(message) {
+            const eventsDiv = document.getElementById('ws-events');
+            const timestamp = new Date().toISOString().substr(11, 8);
+            eventsDiv.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+            eventsDiv.scrollTop = eventsDiv.scrollHeight;
+        }
+
+        // Auto-connect WebSocket on load
+        window.onload = function() {
+            connectWebSocket();
+        };
+    </script>
+</body>
+</html>

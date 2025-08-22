@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Session Tree WebSocket Connection Test</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 800px; 
+            margin: 20px auto; 
+            padding: 20px; 
+            background: #1f2937; 
+            color: #f3f4f6; 
+        }
+        .status { 
+            padding: 10px; 
+            margin: 10px 0; 
+            border-radius: 4px; 
+        }
+        .connected { background-color: #059669; }
+        .disconnected { background-color: #dc2626; }
+        .testing { background-color: #d97706; }
+        pre { 
+            background: #374151; 
+            padding: 10px; 
+            border-radius: 4px; 
+            overflow-x: auto; 
+            white-space: pre-wrap;
+        }
+        button {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #059669; }
+        button:disabled { 
+            background: #6b7280; 
+            cursor: not-allowed; 
+        }
+        input {
+            background: #374151;
+            color: white;
+            border: 1px solid #6b7280;
+            padding: 8px;
+            border-radius: 4px;
+            width: 300px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🌳 Session Tree WebSocket Connection Test</h1>
+    
+    <div id="connectionStatus" class="status disconnected">
+        📡 Disconnected - Click "Connect" to test WebSocket
+    </div>
+    
+    <div style="margin: 20px 0;">
+        <button onclick="connectWebSocket()">🔌 Connect WebSocket</button>
+        <button onclick="disconnectWebSocket()">❌ Disconnect</button>
+        <button onclick="testSessionTree()" id="testTreeBtn" disabled>🌳 Test Session Tree</button>
+        <button onclick="clearLogs()">🧹 Clear Logs</button>
+    </div>
+
+    <div style="margin: 20px 0;">
+        <label for="sessionId">Session ID to test:</label><br>
+        <input type="text" id="sessionId" placeholder="e86e3a19-8bc8-4e9e-b0d5-59c49bd3f63f_53471_1754590014" style="width: 400px;">
+        <button onclick="fetchSessionTree()">🔍 Fetch Tree</button>
+    </div>
+    
+    <h3>📊 Connection Log</h3>
+    <pre id="logOutput">Ready to test WebSocket connection...</pre>
+
+    <h3>🔧 Test Results</h3>
+    <div id="testResults">
+        <p>No tests run yet.</p>
+    </div>
+
+    <script>
+        let ws = null;
+        let messageCount = 0;
+
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logOutput = document.getElementById('logOutput');
+            logOutput.textContent += `[${timestamp}] ${message}\n`;
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
+
+        function updateStatus(message, className) {
+            const statusDiv = document.getElementById('connectionStatus');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${className}`;
+        }
+
+        function connectWebSocket() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                log('WebSocket already connected');
+                return;
+            }
+
+            updateStatus('🔄 Connecting...', 'testing');
+            log('Attempting to connect to WebSocket...');
+            
+            // Use the corrected WebSocket URL
+            const wsUrl = 'ws://localhost:4000/stream';
+            
+            try {
+                ws = new WebSocket(wsUrl);
+                
+                ws.onopen = function() {
+                    updateStatus('✅ Connected to WebSocket', 'connected');
+                    log('✅ WebSocket connected successfully');
+                    log(`📡 Connected to: ${wsUrl}`);
+                    document.getElementById('testTreeBtn').disabled = false;
+                };
+                
+                ws.onmessage = function(event) {
+                    messageCount++;
+                    log(`📨 Message ${messageCount} received`);
+                    
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data.type === 'initial') {
+                            log(`🎯 Initial data: ${data.data.length} events`);
+                        } else {
+                            log(`📦 Event: ${data.type}`);
+                        }
+                        
+                        // Show first few messages in detail
+                        if (messageCount <= 3) {
+                            log(`📝 Data: ${JSON.stringify(data, null, 2).substring(0, 200)}...`);
+                        }
+                    } catch (e) {
+                        log(`❌ Error parsing message: ${e.message}`);
+                    }
+                };
+                
+                ws.onerror = function(error) {
+                    updateStatus('❌ WebSocket Error', 'disconnected');
+                    log(`❌ WebSocket error: ${error}`);
+                };
+                
+                ws.onclose = function() {
+                    updateStatus('📡 Disconnected', 'disconnected');
+                    log('📴 WebSocket connection closed');
+                    document.getElementById('testTreeBtn').disabled = true;
+                };
+                
+            } catch (error) {
+                updateStatus('❌ Connection Failed', 'disconnected');
+                log(`❌ Failed to create WebSocket: ${error.message}`);
+            }
+        }
+
+        function disconnectWebSocket() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+
+        function testSessionTree() {
+            updateStatus('🧪 Testing Session Tree APIs...', 'testing');
+            log('🧪 Starting Session Tree API tests...');
+
+            // Test API endpoints that the SessionTree component uses
+            const tests = [
+                {
+                    name: 'Relationship Stats',
+                    url: 'http://localhost:4000/api/relationships/stats'
+                },
+                {
+                    name: 'Sample Session Tree',
+                    url: 'http://localhost:4000/api/sessions/test/tree'
+                }
+            ];
+
+            tests.forEach(test => {
+                fetch(test.url)
+                    .then(response => {
+                        log(`✅ ${test.name}: HTTP ${response.status}`);
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (test.name === 'Relationship Stats') {
+                            log(`📊 Stats: ${JSON.stringify(data, null, 2)}`);
+                        } else {
+                            log(`🌳 Tree response: ${JSON.stringify(data).substring(0, 100)}...`);
+                        }
+                    })
+                    .catch(error => {
+                        log(`❌ ${test.name} failed: ${error.message}`);
+                    });
+            });
+
+            updateStatus('✅ Connected to WebSocket', 'connected');
+        }
+
+        function fetchSessionTree() {
+            const sessionId = document.getElementById('sessionId').value.trim();
+            if (!sessionId) {
+                log('❌ Please enter a session ID');
+                return;
+            }
+
+            log(`🔍 Fetching session tree for: ${sessionId}`);
+            const url = `http://localhost:4000/api/sessions/${sessionId}/tree`;
+            
+            fetch(url)
+                .then(response => {
+                    log(`📊 Session tree response: HTTP ${response.status}`);
+                    return response.json();
+                })
+                .then(data => {
+                    const resultsDiv = document.getElementById('testResults');
+                    resultsDiv.innerHTML = `
+                        <h4>🌳 Session Tree for ${sessionId}:</h4>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                    log(`✅ Session tree data received`);
+                })
+                .catch(error => {
+                    log(`❌ Failed to fetch session tree: ${error.message}`);
+                    const resultsDiv = document.getElementById('testResults');
+                    resultsDiv.innerHTML = `<p style="color: #ef4444;">❌ Error: ${error.message}</p>`;
+                });
+        }
+
+        function clearLogs() {
+            document.getElementById('logOutput').textContent = 'Logs cleared...\n';
+            messageCount = 0;
+        }
+
+        // Auto-connect when page loads
+        window.onload = function() {
+            log('🚀 Session Tree WebSocket Test Page Loaded');
+            log('🎯 This tests the fixes for WebSocket connection issues');
+            log('📍 Server should be running on http://localhost:4000');
+            log('📍 WebSocket endpoint: ws://localhost:4000/stream');
+            log('');
+            log('Click "Connect WebSocket" to start testing...');
+        };
+    </script>
+</body>
+</html>

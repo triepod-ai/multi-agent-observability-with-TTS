@@ -1,0 +1,50 @@
+{
+  "name": "@observability/cli",
+  "version": "1.0.0",
+  "description": "Multi-Agent Observability System CLI - Terminal-first operations with rich UI",
+  "type": "module",
+  "main": "obs",
+  "bin": {
+    "obs": "./obs"
+  },
+  "scripts": {
+    "dev": "node obs",
+    "build": "echo 'No build step required for CLI'",
+    "test": "echo 'Tests not yet implemented'"
+  },
+  "dependencies": {
+    "commander": "^11.1.0",
+    "chalk": "^5.3.0",
+    "ora": "^7.0.1",
+    "inquirer": "^9.2.11",
+    "table": "^6.8.1",
+    "ws": "^8.14.2",
+    "axios": "^1.6.2",
+    "yaml": "^2.3.4",
+    "csv-writer": "^1.6.0",
+    "csv-parse": "^5.5.2",
+    "blessed": "^0.1.81",
+    "blessed-contrib": "^4.11.0",
+    "moment": "^2.29.4",
+    "node-notifier": "^10.0.1",
+    "yargs": "^17.7.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.8.0",
+    "@types/blessed": "^0.1.21",
+    "@types/ws": "^8.5.8",
+    "typescript": "^5.2.2"
+  },
+  "keywords": [
+    "observability",
+    "cli",
+    "terminal",
+    "monitoring",
+    "agents",
+    "multi-agent",
+    "real-time",
+    "dashboard"
+  ],
+  "author": "Multi-Agent Observability System",
+  "license": "MIT"
+}

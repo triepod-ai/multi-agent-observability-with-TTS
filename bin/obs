@@ -1,0 +1,187 @@
+#!/usr/bin/env node
+
+/**
+ * Multi-Agent Observability System CLI
+ * Terminal-first operations with rich UI and real-time capabilities
+ * 
+ * Usage: obs <command> [options]
+ */
+
+import { program } from 'commander';
+import chalk from 'chalk';
+import { CLI } from './src/cli/index.js';
+
+const cli = new CLI();
+
+// Configure the main program
+program
+  .name('obs')
+  .description('Multi-Agent Observability System CLI')
+  .version('1.0.0')
+  .option('-s, --server <url>', 'Server URL', 'http://localhost:4000')
+  .option('-v, --verbose', 'Enable verbose output')
+  .option('--no-color', 'Disable colored output')
+  .option('--json', 'Output in JSON format')
+  .hook('preAction', (thisCommand) => {
+    // Configure CLI with global options
+    const opts = thisCommand.opts();
+    cli.configure({
+      serverUrl: opts.server,
+      verbose: opts.verbose,
+      useColor: opts.color !== false,
+      jsonOutput: opts.json
+    });
+  });
+
+// Status command - Real-time agent and system status
+program
+  .command('status')
+  .description('Show real-time agent and system status')
+  .option('-w, --watch', 'Watch for live updates')
+  .option('-r, --refresh <ms>', 'Refresh interval in milliseconds', '2000')
+  .option('-c, --compact', 'Compact display mode')
+  .action(async (options) => {
+    await cli.commands.status.execute(options);
+  });
+
+// Sessions command - View session relationships and metrics
+program
+  .command('sessions')
+  .description('Manage and view session relationships')
+  .option('-l, --limit <number>', 'Limit number of sessions', '50')
+  .option('-t, --tree <sessionId>', 'Show session tree for specific session')
+  .option('-r, --relationships <sessionId>', 'Show relationships for session')
+  .option('-s, --stats', 'Show session statistics')
+  .option('--export <format>', 'Export session data (json|csv)')
+  .action(async (options) => {
+    await cli.commands.sessions.execute(options);
+  });
+
+// Agents command - List and manage agent executions
+program
+  .command('agents')
+  .description('Manage agent executions and view metrics')
+  .option('-a, --active', 'Show only active agents')
+  .option('-m, --metrics', 'Show agent metrics')
+  .option('-t, --timeline [hours]', 'Show agent timeline (default: 24h)', '24')
+  .option('-d, --distribution', 'Show agent type distribution')
+  .option('-p, --performance <agentName>', 'Show performance for specific agent')
+  .option('--tools', 'Show tool usage analytics')
+  .option('--export <format>', 'Export agent data (json|csv)')
+  .action(async (options) => {
+    await cli.commands.agents.execute(options);
+  });
+
+// Export command - Export data in various formats
+program
+  .command('export')
+  .description('Export system data in various formats')
+  .option('-t, --type <type>', 'Data type to export (events|agents|sessions|themes)', 'events')
+  .option('-f, --format <format>', 'Output format (json|csv|yaml)', 'json')
+  .option('-o, --output <file>', 'Output file (default: stdout)')
+  .option('-l, --limit <number>', 'Limit number of records', '1000')
+  .option('--start <timestamp>', 'Start timestamp (Unix timestamp or ISO string)')
+  .option('--end <timestamp>', 'End timestamp (Unix timestamp or ISO string)')
+  .action(async (options) => {
+    await cli.commands.export.execute(options);
+  });
+
+// Config command - System configuration management
+program
+  .command('config')
+  .description('Manage system configuration')
+  .option('-s, --show', 'Show current configuration')
+  .option('-t, --test', 'Test system connectivity')
+  .option('--redis-test', 'Test Redis connectivity')
+  .option('--fallback-status', 'Show fallback system status')
+  .option('--sync', 'Force sync to Redis')
+  .action(async (options) => {
+    await cli.commands.config.execute(options);
+  });
+
+// Monitor command - Live monitoring dashboard in terminal
+program
+  .command('monitor')
+  .description('Live monitoring dashboard')
+  .option('-f, --focus <area>', 'Focus area (agents|sessions|hooks|all)', 'all')
+  .option('-r, --refresh <ms>', 'Refresh interval in milliseconds', '1000')
+  .option('--layout <layout>', 'Dashboard layout (split|full|compact)', 'split')
+  .action(async (options) => {
+    await cli.commands.monitor.execute(options);
+  });
+
+// Events command - View and filter events
+program
+  .command('events')
+  .description('View and filter system events')
+  .option('-l, --limit <number>', 'Limit number of events', '100')
+  .option('-f, --filter <filter>', 'Filter events (hook_type:value,source_app:value)')
+  .option('-w, --watch', 'Watch for new events')
+  .option('-s, --session <sessionId>', 'Filter by session ID')
+  .option('--export <format>', 'Export events (json|csv)')
+  .action(async (options) => {
+    await cli.commands.events.execute(options);
+  });
+
+// Themes command - Manage UI themes
+program
+  .command('themes')
+  .description('Manage UI themes')
+  .option('-l, --list', 'List available themes')
+  .option('-s, --search <query>', 'Search themes')
+  .option('-c, --create <file>', 'Create theme from file')
+  .option('-e, --export <themeId>', 'Export theme')
+  .option('-i, --import <file>', 'Import theme from file')
+  .option('--stats', 'Show theme statistics')
+  .action(async (options) => {
+    await cli.commands.themes.execute(options);
+  });
+
+// Handoffs command - Manage session handoffs
+program
+  .command('handoffs')
+  .description('Manage session handoffs')
+  .option('-p, --project <name>', 'Project name')
+  .option('-g, --get', 'Get latest handoff for project')
+  .option('-s, --save <content>', 'Save handoff content')
+  .option('-l, --list', 'List recent handoffs')
+  .action(async (options) => {
+    await cli.commands.handoffs.execute(options);
+  });
+
+// Help command - Interactive help system
+program
+  .command('help-interactive')
+  .description('Interactive help system')
+  .action(async () => {
+    await cli.commands.helpInteractive.execute();
+  });
+
+// Error handling
+program.configureOutput({
+  writeErr: (str) => process.stderr.write(chalk.red(str))
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error(chalk.red('Unhandled Rejection at:'), promise, chalk.red('reason:'), reason);
+  process.exit(1);
+});
+
+process.on('uncaughtException', (error) => {
+  console.error(chalk.red('Uncaught Exception:'), error);
+  process.exit(1);
+});
+
+// Handle SIGINT gracefully
+process.on('SIGINT', () => {
+  console.log(chalk.yellow('\n\nGracefully shutting down...'));
+  process.exit(0);
+});
+
+// Parse command line arguments
+program.parse();
+
+// If no command provided, show help
+if (!process.argv.slice(2).length) {
+  program.outputHelp();
+}

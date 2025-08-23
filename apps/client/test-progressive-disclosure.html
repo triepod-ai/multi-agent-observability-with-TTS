@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Progressive Disclosure Test</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #111827; color: white; font-family: sans-serif; }
+    </style>
+</head>
+<body>
+    <div id="app" class="p-8">
+        <h1 class="text-2xl font-bold mb-6 text-center">Progressive Disclosure Test</h1>
+        
+        <!-- Test Simple Expandable Section -->
+        <div class="mb-8">
+            <h2 class="text-lg font-semibold mb-4 text-blue-400">Simple Expandable Section</h2>
+            <expandable-section
+                title="Test Hook: Session Start"
+                subtitle="This is a test of the basic expandable functionality"
+                icon="🏗️"
+                badge="Hook #1"
+                :default-expanded="false"
+                :persist-state="true"
+                state-key="test-session-start"
+            >
+                <div class="space-y-4">
+                    <p class="text-gray-300">This is the expanded content for the session start hook.</p>
+                    <div class="p-4 bg-blue-900/20 border border-blue-700 rounded-lg">
+                        <h4 class="text-sm font-medium text-blue-400 mb-1">Critical Concept</h4>
+                        <p class="text-xs text-gray-300">This demonstrates the Progressive Disclosure system working correctly.</p>
+                    </div>
+                </div>
+            </expandable-section>
+        </div>
+
+        <!-- Test Nested Structure -->
+        <div class="mb-8">
+            <h2 class="text-lg font-semibold mb-4 text-purple-400">Nested Disclosure Levels</h2>
+            <div class="space-y-2">
+                <!-- Level 1 -->
+                <expandable-section
+                    title="Overview Level"
+                    subtitle="Always visible basic information"
+                    icon="📋"
+                    variant="default"
+                    :default-expanded="true"
+                    state-key="test-overview"
+                >
+                    <p class="text-gray-300 mb-4">This is overview level content - always visible and provides basic understanding.</p>
+                    
+                    <!-- Level 2 Nested -->
+                    <expandable-section
+                        title="Details Level"
+                        subtitle="Expanded explanations and examples"
+                        icon="🔍"
+                        variant="bordered"
+                        level="secondary"
+                        state-key="test-details"
+                    >
+                        <p class="text-gray-300 mb-4">This is details level content with more specific information.</p>
+                        
+                        <!-- Level 3 Nested -->
+                        <expandable-section
+                            title="Advanced Level"
+                            subtitle="Expert information and code examples"
+                            icon="🚀"
+                            variant="minimal"
+                            level="tertiary"
+                            size="sm"
+                            state-key="test-advanced"
+                        >
+                            <div class="space-y-3">
+                                <p class="text-gray-300">Advanced level content with implementation details.</p>
+                                <div class="bg-gray-900 rounded-md p-3 border border-gray-600">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="text-xs font-medium text-cyan-400">Code Example</span>
+                                        <button class="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded transition-colors">
+                                            Copy
+                                        </button>
+                                    </div>
+                                    <pre class="text-xs text-gray-300 overflow-x-auto"><code>console.log('Advanced example code here');</code></pre>
+                                </div>
+                            </div>
+                        </expandable-section>
+                    </expandable-section>
+                </expandable-section>
+            </div>
+        </div>
+
+        <!-- State Persistence Test -->
+        <div class="mb-8">
+            <h2 class="text-lg font-semibold mb-4 text-green-400">State Persistence Test</h2>
+            <p class="text-sm text-gray-400 mb-4">Toggle these sections and refresh the page to test persistence:</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <expandable-section
+                    title="Persistent Section A"
+                    subtitle="This should remember its state"
+                    icon="💾"
+                    :persist-state="true"
+                    state-key="persistent-a"
+                >
+                    <p class="text-gray-300">This section's state will be saved to localStorage.</p>
+                </expandable-section>
+                <expandable-section
+                    title="Persistent Section B"
+                    subtitle="This should also remember its state"
+                    icon="💾"
+                    :persist-state="true"
+                    state-key="persistent-b"
+                >
+                    <p class="text-gray-300">This section's state will also be saved to localStorage.</p>
+                </expandable-section>
+            </div>
+        </div>
+
+        <!-- Accessibility Test -->
+        <div class="mb-8">
+            <h2 class="text-lg font-semibold mb-4 text-yellow-400">Accessibility Test</h2>
+            <p class="text-sm text-gray-400 mb-4">Test keyboard navigation (Tab, Enter, Space):</p>
+            <expandable-section
+                title="Keyboard Accessible Section"
+                subtitle="Use Tab to focus, Enter/Space to expand"
+                icon="⌨️"
+                state-key="accessibility-test"
+            >
+                <div class="space-y-2">
+                    <p class="text-gray-300">This section is fully keyboard accessible.</p>
+                    <ul class="list-disc list-inside text-sm text-gray-400 space-y-1">
+                        <li>Tab to focus the header button</li>
+                        <li>Enter or Space to toggle expansion</li>
+                        <li>Screen readers will announce the expanded/collapsed state</li>
+                        <li>All content is properly labeled with ARIA attributes</li>
+                    </ul>
+                </div>
+            </expandable-section>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, computed, watch, nextTick } = Vue;
+
+        // Mock expandable state composable
+        function useExpandableState(key, defaultExpanded = false, persist = false) {
+            const storageKey = `expandable-state-${key}`;
+            
+            const getInitialValue = () => {
+                if (persist) {
+                    try {
+                        const stored = localStorage.getItem(storageKey);
+                        if (stored !== null) {
+                            return JSON.parse(stored);
+                        }
+                    } catch (error) {
+                        console.warn(`Failed to load expandable state for ${key}:`, error);
+                    }
+                }
+                return defaultExpanded;
+            };
+
+            const isExpanded = ref(getInitialValue());
+            
+            const saveState = (value) => {
+                if (persist) {
+                    try {
+                        localStorage.setItem(storageKey, JSON.stringify(value));
+                    } catch (error) {
+                        console.warn(`Failed to save expandable state for ${key}:`, error);
+                    }
+                }
+            };
+
+            watch(isExpanded, (newValue) => {
+                saveState(newValue);
+            }, { immediate: false });
+
+            const toggleExpansion = () => {
+                isExpanded.value = !isExpanded.value;
+            };
+
+            const setValue = (value) => {
+                isExpanded.value = value;
+            };
+
+            return {
+                isExpanded: computed(() => isExpanded.value),
+                toggleExpansion,
+                setValue
+            };
+        }
+
+        // Expandable Section Component
+        const ExpandableSection = {
+            props: {
+                title: { type: String, required: true },
+                subtitle: String,
+                icon: String,
+                badge: String,
+                disabled: { type: Boolean, default: false },
+                interactive: { type: Boolean, default: true },
+                defaultExpanded: { type: Boolean, default: false },
+                persistState: { type: Boolean, default: false },
+                stateKey: String,
+                level: { type: String, default: 'primary' },
+                variant: { type: String, default: 'default' },
+                size: { type: String, default: 'md' }
+            },
+            emits: ['toggle', 'expand', 'collapse'],
+            setup(props, { emit, slots }) {
+                const { isExpanded, toggleExpansion, setValue } = useExpandableState(
+                    props.stateKey || `expandable-${props.title}`,
+                    props.defaultExpanded,
+                    props.persistState
+                );
+
+                const contentId = computed(() => `expandable-content-${props.stateKey || props.title.replace(/\s+/g, '-').toLowerCase()}`);
+
+                const customToggle = () => {
+                    if (props.disabled) return;
+                    
+                    toggleExpansion();
+                    emit('toggle', isExpanded.value);
+                    
+                    if (isExpanded.value) {
+                        emit('expand');
+                    } else {
+                        emit('collapse');
+                    }
+                };
+
+                const buttonClass = computed(() => {
+                    const baseClass = 'flex items-center justify-between w-full p-3 text-left transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 cursor-pointer';
+                    const variantClasses = {
+                        default: 'bg-gray-800 border border-gray-700 rounded-lg hover:border-gray-600',
+                        bordered: 'border border-gray-600 rounded-lg hover:bg-gray-800/50',
+                        minimal: 'hover:bg-gray-800/20'
+                    };
+                    return `${baseClass} ${variantClasses[props.variant]}`;
+                });
+
+                const titleClass = computed(() => {
+                    const levelClasses = {
+                        primary: 'text-white text-base',
+                        secondary: 'text-gray-200 text-sm',
+                        tertiary: 'text-gray-300 text-sm'
+                    };
+                    return levelClasses[props.level];
+                });
+
+                const onEnter = (el) => {
+                    el.style.height = '0';
+                    nextTick(() => {
+                        el.style.height = el.scrollHeight + 'px';
+                    });
+                };
+
+                const onAfterEnter = (el) => {
+                    el.style.height = 'auto';
+                };
+
+                const onLeave = (el) => {
+                    el.style.height = el.scrollHeight + 'px';
+                    nextTick(() => {
+                        el.style.height = '0';
+                    });
+                };
+
+                const onAfterLeave = (el) => {
+                    el.style.height = '';
+                };
+
+                return {
+                    isExpanded,
+                    customToggle,
+                    contentId,
+                    buttonClass,
+                    titleClass,
+                    onEnter,
+                    onAfterEnter,
+                    onLeave,
+                    onAfterLeave
+                };
+            },
+            template: `
+                <div class="expandable-section">
+                    <button
+                        @click="customToggle"
+                        @keydown.enter="customToggle"
+                        @keydown.space.prevent="customToggle"
+                        :class="buttonClass"
+                        :disabled="disabled"
+                        :aria-expanded="isExpanded"
+                        :aria-controls="contentId"
+                    >
+                        <div class="flex items-center flex-1">
+                            <span v-if="icon" class="text-lg mr-3">{{ icon }}</span>
+                            <div class="flex-1">
+                                <h3 class="font-medium" :class="titleClass">
+                                    {{ title }}
+                                    <span v-if="badge" class="ml-2 px-2 py-1 text-xs rounded-full bg-blue-600 text-blue-100">
+                                        {{ badge }}
+                                    </span>
+                                </h3>
+                                <p v-if="subtitle" class="text-sm mt-1 text-gray-400">{{ subtitle }}</p>
+                            </div>
+                        </div>
+                        <div class="ml-3">
+                            <svg 
+                                class="w-5 h-5 transition-transform duration-200 text-gray-400"
+                                :class="{ 'rotate-180': isExpanded }"
+                                fill="none" 
+                                stroke="currentColor" 
+                                viewBox="0 0 24 24"
+                            >
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </div>
+                    </button>
+
+                    <transition
+                        name="expand"
+                        @enter="onEnter"
+                        @after-enter="onAfterEnter"
+                        @leave="onLeave"
+                        @after-leave="onAfterLeave"
+                    >
+                        <div
+                            v-show="isExpanded"
+                            :id="contentId"
+                            class="expandable-content overflow-hidden border-t border-gray-700"
+                            role="region"
+                        >
+                            <div class="p-4">
+                                <slot></slot>
+                            </div>
+                        </div>
+                    </transition>
+                </div>
+            `
+        };
+
+        // Create Vue app
+        createApp({
+            components: {
+                ExpandableSection
+            }
+        }).mount('#app');
+    </script>
+
+    <style>
+        .expand-enter-active,
+        .expand-leave-active {
+            transition: height 0.3s ease, opacity 0.3s ease;
+            overflow: hidden;
+        }
+
+        .expand-enter-from,
+        .expand-leave-to {
+            height: 0;
+            opacity: 0;
+        }
+
+        .expand-enter-to,
+        .expand-leave-from {
+            opacity: 1;
+        }
+
+        .expandable-section button:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+        }
+
+        .expandable-section * {
+            transition: all 0.2s ease;
+        }
+
+        .rotate-180 {
+            transform: rotate(180deg);
+        }
+    </style>
+</body>
+</html>

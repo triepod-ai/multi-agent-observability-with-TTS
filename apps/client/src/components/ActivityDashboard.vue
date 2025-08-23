@@ -14,165 +14,234 @@
             <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse mr-1"></div>
             <span class="text-green-400 text-xs font-semibold">LIVE</span>
           </div>
+          <!-- Collapse Button -->
+          <button
+            @click="toggleCollapse"
+            class="text-gray-400 hover:text-white transition-colors p-1 ml-2"
+            :title="isCollapsed ? 'Expand Activity Dashboard' : 'Collapse Activity Dashboard'"
+          >
+            <svg 
+              class="w-4 h-4 transform transition-transform duration-200"
+              :class="{ 'rotate-180': isCollapsed }"
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
         </div>
       </div>
 
-      <!-- Main Grid -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <!-- Column 1: Real-time Event Feed -->
-        <div class="bg-gray-800/50 rounded-lg border border-gray-700 p-3">
-          <div class="flex items-center justify-between mb-2">
+      <!-- Collapsed Summary View -->
+      <Transition name="fade">
+        <div v-if="isCollapsed" class="mt-3">
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <!-- Events Per Minute -->
+            <div class="bg-gray-800/50 rounded-lg border border-gray-700 p-3">
+              <div class="flex items-center space-x-2">
+                <span class="text-sm" :class="metrics.eventsPerMinute > 50 ? 'text-yellow-500' : 'text-green-500'">
+                  {{ metrics.eventsPerMinute > 50 ? '⚠️' : '📡' }}
+                </span>
+                <div>
+                  <div class="text-lg font-bold text-white">{{ metrics.eventsPerMinute }}</div>
+                  <div class="text-xs text-gray-400">events/min</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Error Rate -->
+            <div class="bg-gray-800/50 rounded-lg border border-gray-700 p-3">
+              <div class="flex items-center space-x-2">
+                <span class="text-sm" :class="metrics.errorRate > 5 ? 'text-red-500' : 'text-green-500'">
+                  {{ metrics.errorRate > 5 ? '🚨' : '✅' }}
+                </span>
+                <div>
+                  <div class="text-lg font-bold" :class="metrics.errorRate > 5 ? 'text-red-400' : 'text-white'">
+                    {{ metrics.errorRate }}%
+                  </div>
+                  <div class="text-xs text-gray-400">error rate</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Active Sessions -->
+            <div class="bg-gray-800/50 rounded-lg border border-gray-700 p-3">
+              <div class="flex items-center space-x-2">
+                <span class="text-sm text-blue-500">👥</span>
+                <div>
+                  <div class="text-lg font-bold text-white">{{ metrics.activeSessions }}</div>
+                  <div class="text-xs text-gray-400">sessions</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Total Events -->
+            <div class="bg-gray-800/50 rounded-lg border border-gray-700 p-3">
+              <div class="flex items-center space-x-2">
+                <span class="text-sm text-purple-500">📈</span>
+                <div>
+                  <div class="text-lg font-bold text-white">{{ formatNumber(metrics.totalEvents) }}</div>
+                  <div class="text-xs text-gray-400">events</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+
+      <!-- Responsive Main Grid -->
+      <Transition name="collapse">
+        <div v-show="!isCollapsed" class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <!-- Column 1: Real-time Event Feed (responsive width) -->
+        <div class="lg:col-span-4 bg-gray-800/50 rounded-lg border border-gray-700 p-3">
+          <div class="flex items-center justify-between mb-3">
             <h4 class="text-sm font-semibold text-gray-300 flex items-center">
               <span class="mr-1">📡</span>
-              Live Event Stream
+              Live Events
             </h4>
-            <span class="text-xs text-gray-500">Latest 5</span>
+            <div class="flex items-center space-x-2">
+              <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span class="text-xs text-gray-500">{{ latestEvents.length > 5 ? '5+' : latestEvents.length }}</span>
+            </div>
           </div>
           
-          <div class="relative">
-            <div class="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
+          <div class="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
             <TransitionGroup name="event-feed">
               <div
                 v-for="event in latestEvents.slice(0, 5)"
                 :key="`${event.id}-${event.timestamp}`"
-                class="flex items-center space-x-2 p-1.5 bg-gray-900/50 rounded border border-gray-700/50 hover:border-gray-600 transition-all duration-200 group"
+                class="flex items-center space-x-2 p-2 bg-gray-900/50 rounded border border-gray-700/50 hover:border-gray-600 transition-all duration-200 group"
               >
                 <!-- Event Type Icon -->
-                <div class="text-lg flex-shrink-0">
+                <div class="text-sm flex-shrink-0">
                   {{ getEventEmoji(event.hook_event_type) }}
                 </div>
                 
-                <!-- Event Details -->
+                <!-- Event Details (improved layout) -->
                 <div class="flex-1 min-w-0">
-                  <div class="flex items-center space-x-2">
+                  <div class="flex items-center justify-between">
                     <span class="text-xs font-semibold text-white truncate">
                       {{ event.hook_event_type }}
                     </span>
-                    <span class="text-xs text-gray-500">
-                      {{ getToolName(event) }}
-                    </span>
-                  </div>
-                  <div class="flex items-center space-x-2 mt-0.5">
+                    <!-- App Badge (compact) -->
                     <div 
-                      class="flex items-center space-x-1 text-xs"
-                      :title="`Session: ${event.session_id}`"
+                      class="w-5 h-5 rounded text-xs font-bold flex items-center justify-center flex-shrink-0"
+                      :style="{ 
+                        backgroundColor: getAppColor(event.source_app) + '30',
+                        color: getAppColor(event.source_app)
+                      }"
+                      :title="event.source_app"
                     >
-                      <div 
-                        class="w-2 h-2 rounded-full"
-                        :style="{ backgroundColor: getSessionColor(event.session_id) }"
-                      ></div>
-                      <span class="text-gray-400">{{ getSessionShort(event.session_id) }}</span>
+                      {{ event.source_app.charAt(0).toUpperCase() }}
                     </div>
-                    <span class="text-gray-600">•</span>
-                    <span class="text-xs text-gray-400 font-mono">
+                  </div>
+                  <div class="flex items-center space-x-2 mt-1">
+                    <div 
+                      class="w-1.5 h-1.5 rounded-full"
+                      :style="{ backgroundColor: getSessionColor(event.session_id) }"
+                    ></div>
+                    <span class="text-xs text-gray-400 font-mono truncate">
+                      {{ getSessionShort(event.session_id) }}
+                    </span>
+                    <span class="text-gray-600 text-xs">•</span>
+                    <span class="text-xs text-gray-400">
                       {{ getRelativeTime(event.timestamp) }}
                     </span>
                   </div>
                 </div>
-                
-                <!-- App Badge -->
-                <div 
-                  class="w-6 h-6 rounded flex items-center justify-center text-xs font-bold flex-shrink-0"
-                  :style="{ 
-                    backgroundColor: getAppColor(event.source_app) + '20',
-                    color: getAppColor(event.source_app)
-                  }"
-                  :title="event.source_app"
-                >
-                  {{ event.source_app.charAt(0).toUpperCase() }}
-                </div>
               </div>
             </TransitionGroup>
             
-            <div v-if="latestEvents.length === 0" class="text-center py-4 text-gray-500 text-sm">
-              No events yet...
+            <div v-if="latestEvents.length === 0" class="text-center py-8 text-gray-500 text-sm">
+              <div class="text-2xl mb-2">📡</div>
+              Waiting for events...
             </div>
-            </div>
-            <!-- Gradient fade indicator -->
-            <div v-if="latestEvents.length > 4" class="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-gray-800/50 to-transparent pointer-events-none rounded-b-lg"></div>
           </div>
         </div>
 
-        <!-- Column 2: Key Metrics -->
-        <div class="bg-gray-800/50 rounded-lg border border-gray-700 p-3">
-          <h4 class="text-sm font-semibold text-gray-300 mb-2 flex items-center">
+        <!-- Column 2: Key Metrics (adaptive grid) -->
+        <div class="lg:col-span-5 bg-gray-800/50 rounded-lg border border-gray-700 p-3">
+          <h4 class="text-sm font-semibold text-gray-300 mb-3 flex items-center">
             <span class="mr-1">📊</span>
             Key Metrics
           </h4>
           
-          <div class="grid grid-cols-2 gap-2">
+          <!-- Compact 2x3 Grid -->
+          <div class="grid grid-cols-2 gap-3">
             <!-- Events Per Minute -->
-            <div class="bg-gray-900/50 rounded-lg p-2 border border-gray-700/50">
+            <div class="bg-gray-900/50 rounded p-3 border border-gray-700/50 hover:border-gray-600 transition-colors">
               <div class="flex items-center justify-between mb-1">
                 <span class="text-xs text-gray-400">Events/min</span>
-                <span class="text-xs" :class="metrics.eventsPerMinute > 50 ? 'text-yellow-500' : 'text-green-500'">
+                <span class="text-sm" :class="metrics.eventsPerMinute > 50 ? 'text-yellow-500' : 'text-green-500'">
                   {{ metrics.eventsPerMinute > 50 ? '⚠️' : '✅' }}
                 </span>
               </div>
-              <div class="text-xl font-bold text-white">
+              <div class="text-lg font-bold text-white">
                 {{ metrics.eventsPerMinute }}
               </div>
-              <div class="text-xs text-gray-500 mt-0.5">
+              <div class="text-xs text-gray-500">
                 {{ metrics.trend }}
               </div>
             </div>
 
             <!-- Error Rate -->
-            <div class="bg-gray-900/50 rounded-lg p-2 border border-gray-700/50">
+            <div class="bg-gray-900/50 rounded p-3 border border-gray-700/50 hover:border-gray-600 transition-colors">
               <div class="flex items-center justify-between mb-1">
                 <span class="text-xs text-gray-400">Error Rate</span>
-                <span class="text-xs" :class="metrics.errorRate > 5 ? 'text-red-500' : 'text-green-500'">
+                <span class="text-sm" :class="metrics.errorRate > 5 ? 'text-red-500' : 'text-green-500'">
                   {{ metrics.errorRate > 5 ? '🚨' : '✅' }}
                 </span>
               </div>
-              <div class="text-xl font-bold" :class="metrics.errorRate > 5 ? 'text-red-400' : 'text-white'">
+              <div class="text-lg font-bold" :class="metrics.errorRate > 5 ? 'text-red-400' : 'text-white'">
                 {{ metrics.errorRate }}%
               </div>
-              <div class="text-xs text-gray-500 mt-0.5">
+              <div class="text-xs text-gray-500">
                 {{ metrics.errorCount }} errors
               </div>
             </div>
 
             <!-- Active Sessions -->
-            <div class="bg-gray-900/50 rounded-lg p-2 border border-gray-700/50">
+            <div class="bg-gray-900/50 rounded p-3 border border-gray-700/50 hover:border-gray-600 transition-colors">
               <div class="flex items-center justify-between mb-1">
                 <span class="text-xs text-gray-400">Sessions</span>
-                <span class="text-xs text-blue-500">🔗</span>
+                <span class="text-sm text-blue-500">🔗</span>
               </div>
-              <div class="text-xl font-bold text-white">
+              <div class="text-lg font-bold text-white">
                 {{ metrics.activeSessions }}
               </div>
-              <div class="text-xs text-gray-500 mt-0.5">
+              <div class="text-xs text-gray-500">
                 active now
               </div>
             </div>
 
             <!-- Total Events -->
-            <div class="bg-gray-900/50 rounded-lg p-2 border border-gray-700/50">
+            <div class="bg-gray-900/50 rounded p-3 border border-gray-700/50 hover:border-gray-600 transition-colors">
               <div class="flex items-center justify-between mb-1">
                 <span class="text-xs text-gray-400">Total Events</span>
-                <span class="text-xs text-purple-500">📈</span>
+                <span class="text-sm text-purple-500">📈</span>
               </div>
-              <div class="text-xl font-bold text-white">
+              <div class="text-lg font-bold text-white">
                 {{ formatNumber(metrics.totalEvents) }}
               </div>
-              <div class="text-xs text-gray-500 mt-0.5">
+              <div class="text-xs text-gray-500">
                 last 5 min
               </div>
             </div>
           </div>
 
-          <!-- Event Type Distribution -->
-          <div class="mt-3">
-            <div class="text-xs text-gray-400 mb-1">Event Distribution</div>
-            <div class="space-y-1">
+          <!-- Compact Event Distribution -->
+          <div class="mt-4 pt-3 border-t border-gray-700/50">
+            <div class="text-xs text-gray-400 mb-2">Top Event Types</div>
+            <div class="space-y-1.5">
               <div 
-                v-for="type in topEventTypes"
+                v-for="type in topEventTypes.slice(0, 3)"
                 :key="type.name"
                 class="flex items-center space-x-2"
               >
                 <span class="text-xs">{{ type.emoji }}</span>
-                <div class="flex-1 bg-gray-900/50 rounded-full h-4 overflow-hidden">
+                <span class="text-xs text-gray-300 flex-1 truncate">{{ type.name }}</span>
+                <div class="w-12 bg-gray-900/50 rounded-full h-2 overflow-hidden">
                   <div 
                     class="h-full transition-all duration-500"
                     :style="{ 
@@ -181,18 +250,18 @@
                     }"
                   ></div>
                 </div>
-                <span class="text-xs text-gray-400 w-10 text-right">{{ type.percentage }}%</span>
+                <span class="text-xs text-gray-400 w-8 text-right">{{ type.percentage }}%</span>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Column 3: Active Sessions -->
-        <div class="bg-gray-800/50 rounded-lg border border-gray-700 p-3">
-          <div class="flex items-center justify-between mb-2">
+        <!-- Column 3: Active Sessions (adaptive width) -->
+        <div class="lg:col-span-3 bg-gray-800/50 rounded-lg border border-gray-700 p-3">
+          <div class="flex items-center justify-between mb-3">
             <h4 class="text-sm font-semibold text-gray-300 flex items-center">
               <span class="mr-1">👥</span>
-              Active Sessions
+              Sessions
             </h4>
             <button
               @click="$emit('viewAllSessions')"
@@ -202,57 +271,54 @@
             </button>
           </div>
           
-          <div class="relative">
-            <div class="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
+          <div class="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
             <div
-              v-for="session in activeSessions.slice(0, 5)"
+              v-for="session in activeSessions.slice(0, 6)"
               :key="session.id"
-              class="flex items-center justify-between p-1.5 bg-gray-900/50 rounded border border-gray-700/50 hover:border-gray-600 transition-all duration-200 cursor-pointer group"
+              class="flex items-center justify-between p-2 bg-gray-900/50 rounded border border-gray-700/50 hover:border-gray-600 transition-all duration-200 cursor-pointer group"
               @click="$emit('selectSession', session.id)"
             >
-              <div class="flex items-center space-x-2">
-                <div 
-                  class="w-3 h-3 rounded-full"
-                  :style="{ backgroundColor: session.color }"
-                ></div>
-                <div>
-                  <div class="text-xs font-semibold text-white">
+              <div class="flex items-center space-x-2 flex-1 min-w-0">
+                <div class="flex items-center space-x-1">
+                  <div 
+                    class="w-2 h-2 rounded-full"
+                    :style="{ backgroundColor: session.color }"
+                  ></div>
+                  <div 
+                    class="w-1 h-3 rounded-full"
+                    :class="session.isActive ? 'bg-green-500 animate-pulse' : 'bg-gray-600'"
+                  ></div>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="text-xs font-semibold text-white truncate">
                     {{ session.display }}
                   </div>
-                  <div class="text-xs text-gray-500">
+                  <div class="text-xs text-gray-500 truncate">
                     {{ session.app }}
                   </div>
                 </div>
               </div>
               
-              <div class="text-right">
-                <div class="flex items-center space-x-1">
-                  <div 
-                    class="w-1 h-3 rounded-full"
-                    :class="session.isActive ? 'bg-green-500 animate-pulse' : 'bg-gray-600'"
-                  ></div>
-                  <span class="text-xs font-mono text-gray-400">
-                    {{ session.eventCount }}
-                  </span>
+              <div class="text-right text-xs">
+                <div class="text-gray-400 font-mono">
+                  {{ session.eventCount }}
                 </div>
-                <div class="text-xs text-gray-500">
+                <div class="text-gray-500">
                   {{ session.duration }}
                 </div>
               </div>
             </div>
             
-            <div v-if="activeSessions.length === 0" class="text-center py-4 text-gray-500 text-sm">
+            <div v-if="activeSessions.length === 0" class="text-center py-8 text-gray-500 text-sm">
+              <div class="text-2xl mb-2">👥</div>
               No active sessions
             </div>
-            </div>
-            <!-- Gradient fade indicator -->
-            <div v-if="activeSessions.length > 4" class="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-gray-800/50 to-transparent pointer-events-none rounded-b-lg"></div>
           </div>
           
-          <!-- Session Activity Sparkline -->
+          <!-- Mini Activity Sparkline -->
           <div class="mt-3 pt-3 border-t border-gray-700/50">
-            <div class="text-xs text-gray-400 mb-1">Session Activity (1 min)</div>
-            <div class="h-8 flex items-end space-x-0.5">
+            <div class="text-xs text-gray-400 mb-1">Activity (1m)</div>
+            <div class="h-6 flex items-end space-x-0.5">
               <div
                 v-for="(bar, index) in activitySparkline"
                 :key="index"
@@ -263,7 +329,8 @@
             </div>
           </div>
         </div>
-      </div>
+        </div>
+      </Transition>
 
       <!-- Alert Bar (if any critical events) -->
       <TransitionGroup name="alert">
@@ -308,6 +375,7 @@ const emit = defineEmits<{
 // State
 const currentTime = ref(new Date().toLocaleTimeString());
 const criticalAlert = ref<{ message: string; time: string } | null>(null);
+const isCollapsed = ref<boolean>(false);
 
 // Update time every second
 let timeInterval: number;
@@ -524,6 +592,11 @@ const dismissAlert = () => {
   criticalAlert.value = null;
 };
 
+// Toggle main component collapse
+const toggleCollapse = () => {
+  isCollapsed.value = !isCollapsed.value;
+};
+
 // Check for critical events periodically
 onMounted(() => {
   checkCriticalEvents();
@@ -577,5 +650,38 @@ onMounted(() => {
 .alert-leave-to {
   opacity: 0;
   transform: translateY(-10px);
+}
+
+/* Collapse transition for entire dashboard */
+.collapse-enter-active,
+.collapse-leave-active {
+  transition: all 0.4s ease;
+  transform-origin: top;
+}
+
+.collapse-enter-from,
+.collapse-leave-to {
+  opacity: 0;
+  transform: scaleY(0);
+  max-height: 0;
+  overflow: hidden;
+}
+
+.collapse-enter-to,
+.collapse-leave-from {
+  opacity: 1;
+  transform: scaleY(1);
+  max-height: 1000px;
+}
+
+/* Fade transition for summary */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>

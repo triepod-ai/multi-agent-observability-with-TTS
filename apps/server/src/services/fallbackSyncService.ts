@@ -179,33 +179,53 @@ class FallbackSyncService {
           break;
 
         case 'hincrby':
-          await redisClient.hIncrBy(redis_key, hash_field!, parseInt(redis_value!));
+          // FIX: Ensure increment value is properly parsed as integer
+          const incrementValue = parseInt(redis_value!, 10);
+          if (isNaN(incrementValue)) {
+            throw new Error(`Invalid increment value for hincrby: ${redis_value}`);
+          }
+          await redisClient.hIncrBy(redis_key, hash_field!, incrementValue);
           if (ttl_seconds) {
             await redisClient.expire(redis_key, ttl_seconds);
           }
           break;
 
         case 'hincrbyfloat':
-          await redisClient.hIncrByFloat(redis_key, hash_field!, parseFloat(redis_value!));
+          // FIX: Ensure increment value is properly parsed as float
+          const floatIncrementValue = parseFloat(redis_value!);
+          if (isNaN(floatIncrementValue)) {
+            throw new Error(`Invalid float increment value for hincrbyfloat: ${redis_value}`);
+          }
+          await redisClient.hIncrByFloat(redis_key, hash_field!, floatIncrementValue);
           if (ttl_seconds) {
             await redisClient.expire(redis_key, ttl_seconds);
           }
           break;
 
         case 'sadd':
-          await redisClient.sAdd(redis_key, redis_value!);
+          // FIX: Ensure member value is a string
+          const saddValue = String(redis_value!);
+          await redisClient.sAdd(redis_key, saddValue);
           if (ttl_seconds) {
             await redisClient.expire(redis_key, ttl_seconds);
           }
           break;
 
         case 'srem':
-          await redisClient.sRem(redis_key, redis_value!);
+          // FIX: Ensure member value is a string
+          const sremValue = String(redis_value!);
+          await redisClient.sRem(redis_key, sremValue);
           break;
 
         case 'zadd':
           if (redis_score !== undefined) {
-            await redisClient.zAdd(redis_key, { score: redis_score, value: redis_value! });
+            // FIX: Ensure score and value are properly typed
+            const scoreValue = Number(redis_score);
+            const memberValue = String(redis_value!);
+            if (isNaN(scoreValue)) {
+              throw new Error(`Invalid score value for zadd: ${redis_score}`);
+            }
+            await redisClient.zAdd(redis_key, { score: scoreValue, value: memberValue });
           }
           if (ttl_seconds) {
             await redisClient.expire(redis_key, ttl_seconds);
@@ -213,7 +233,13 @@ class FallbackSyncService {
           break;
 
         case 'zincrby':
-          await redisClient.zIncrBy(redis_key, parseFloat(redis_value!), hash_field!);
+          // FIX: Correct parameter order - increment, member, not member, increment
+          const zincrbyIncrement = parseFloat(redis_value!);
+          const zincrbyMember = String(hash_field!);
+          if (isNaN(zincrbyIncrement)) {
+            throw new Error(`Invalid increment value for zincrby: ${redis_value}`);
+          }
+          await redisClient.zIncrBy(redis_key, zincrbyIncrement, zincrbyMember);
           if (ttl_seconds) {
             await redisClient.expire(redis_key, ttl_seconds);
           }
@@ -228,7 +254,9 @@ class FallbackSyncService {
           break;
 
         case 'lpush':
-          await redisClient.lPush(redis_key, redis_value!);
+          // FIX: Ensure value is a string
+          const lpushValue = String(redis_value!);
+          await redisClient.lPush(redis_key, lpushValue);
           if (ttl_seconds) {
             await redisClient.expire(redis_key, ttl_seconds);
           }
@@ -366,7 +394,7 @@ class FallbackSyncService {
         return result;
       }
 
-      // Test batch operations
+      // Test batch operations with proper data types
       try {
         const testOperations: SyncOperation[] = [
           {
@@ -390,6 +418,15 @@ class FallbackSyncService {
             redis_value: 'batch-member',
             sync_status: 'pending',
             sync_attempts: 0
+          },
+          // Test fixed zincrby operation
+          {
+            operation_type: 'zincrby',
+            redis_key: `test:batch:4:${Date.now()}`,
+            redis_value: '5.5', // increment value as string
+            hash_field: 'test-member', // member name in hash_field
+            sync_status: 'pending',
+            sync_attempts: 0
           }
         ];
 
@@ -401,17 +438,20 @@ class FallbackSyncService {
         const value1 = await redisClient.get(testOperations[0].redis_key);
         const value2 = await redisClient.hGet(testOperations[1].redis_key, 'field1');
         const isMember = await redisClient.sIsMember(testOperations[2].redis_key, 'batch-member');
+        const zScore = await redisClient.zScore(testOperations[3].redis_key, 'test-member');
 
         result.batch_operation_test = 
           value1 === 'batch-value-1' && 
           value2 === 'batch-value-2' && 
-          isMember;
+          isMember &&
+          zScore === 5.5;
 
         // Clean up
         await redisClient.del([
           testOperations[0].redis_key,
           testOperations[1].redis_key,
-          testOperations[2].redis_key
+          testOperations[2].redis_key,
+          testOperations[3].redis_key
         ]);
       } catch (error) {
         result.error = `Batch operation test failed: ${error}`;

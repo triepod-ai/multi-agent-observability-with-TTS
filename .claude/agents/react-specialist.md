@@ -1,0 +1,1 @@
+/home/bryan/agentgen/agents/specialists/react-specialist-enhanced.md

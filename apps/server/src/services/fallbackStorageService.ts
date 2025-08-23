@@ -417,16 +417,17 @@ class FallbackStorageService {
         execution.progress || 0
       );
 
-      // Queue sync operation
-      await this.queueSyncOperation('hset', `agent:active:${execution.agent_id}`, JSON.stringify({
+      // Queue sync operation - FIX: Ensure agent_id is string, not object
+      const agentDataStr = JSON.stringify({
         agent_id: execution.agent_id,
         agent_name: execution.agent_name,
         start_time: new Date(execution.start_time).toISOString(),
         task_description: execution.task_description,
         tools_granted: execution.tools_granted,
         context_size: 0
-      }), undefined, undefined, 300); // 5 minute TTL
+      });
 
+      await this.queueSyncOperation('hset', `agent:active:${execution.agent_id}`, agentDataStr, undefined, undefined, 300);
       await this.queueSyncOperation('sadd', 'agents:active', execution.agent_id);
 
       return true;
@@ -461,7 +462,7 @@ class FallbackStorageService {
       const stmt = this.db!.prepare(`UPDATE agent_executions SET ${setClause}, updated_at = strftime('%s', 'now') WHERE agent_id = ?`);
       const result = stmt.run(...values, agentId);
 
-      // If completed, queue removal from active agents
+      // If completed, queue removal from active agents - FIX: Pass agentId as string
       if (updates.status === 'complete' || updates.status === 'failed') {
         await this.queueSyncOperation('srem', 'agents:active', agentId);
         await this.queueSyncOperation('del', `agent:active:${agentId}`);
@@ -608,9 +609,9 @@ class FallbackStorageService {
         }
       }
 
-      // Queue sync operations
-      await this.queueSyncOperation('hincrby', `metrics:hourly:${hourKey}`, 'execution_count', undefined, '1');
-      await this.queueSyncOperation('hincrby', `metrics:daily:${dayKey}`, 'total_executions', undefined, '1');
+      // Queue sync operations - FIX: Ensure proper parameter types and order
+      await this.queueSyncOperation('hincrby', `metrics:hourly:${hourKey}`, '1', undefined, 'execution_count');
+      await this.queueSyncOperation('hincrby', `metrics:daily:${dayKey}`, '1', undefined, 'total_executions');
 
     } catch (error) {
       console.error('Error updating metrics:', error);
@@ -645,8 +646,8 @@ class FallbackStorageService {
 
       stmt.run(toolName, dateKey, toolName, dateKey, JSON.stringify(agentsUsing));
 
-      // Queue sync operation
-      await this.queueSyncOperation('zincrby', `tools:usage:${dateKey}`, '1', toolName);
+      // Queue sync operation - FIX: Correct parameter order for zincrby
+      await this.queueSyncOperation('zincrby', `tools:usage:${dateKey}`, '1', 1.0, toolName);
     } catch (error) {
       console.error('Error updating tool usage:', error);
     }
@@ -1247,7 +1248,7 @@ class FallbackStorageService {
     }
   }
 
-  // Sync Queue Methods
+  // Sync Queue Methods - FIXED parameter handling
   private async queueSyncOperation(
     operationType: string,
     redisKey: string,
@@ -1265,7 +1266,13 @@ class FallbackStorageService {
         VALUES (?, ?, ?, ?, ?, ?)
       `);
 
-      stmt.run(operationType, redisKey, redisValue || null, redisScore || null, hashField || null, ttlSeconds || null);
+      // Ensure all parameters are properly typed
+      const sanitizedValue = redisValue ? String(redisValue) : null;
+      const sanitizedScore = redisScore !== undefined ? Number(redisScore) : null;
+      const sanitizedHashField = hashField ? String(hashField) : null;
+      const sanitizedTtl = ttlSeconds !== undefined ? Number(ttlSeconds) : null;
+
+      stmt.run(operationType, redisKey, sanitizedValue, sanitizedScore, sanitizedHashField, sanitizedTtl);
     } catch (error) {
       console.error('Error queuing sync operation:', error);
     }

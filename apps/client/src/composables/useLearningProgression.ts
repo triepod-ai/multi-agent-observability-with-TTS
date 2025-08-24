@@ -608,6 +608,83 @@ export function useLearningProgression(userId: string) {
     await saveProgression();
   };
 
+  // Record assessment result
+  const recordAssessmentResult = async (assessmentResult: {
+    assessmentId: string;
+    hookId: string;
+    score: number;
+    timeSpentSeconds: number;
+    answers: any[];
+    passed: boolean;
+  }): Promise<void> => {
+    if (!progression.value) return;
+
+    const now = Date.now();
+    const result = {
+      id: `assessment-result-${now}`,
+      assessmentId: assessmentResult.assessmentId,
+      hookId: assessmentResult.hookId,
+      userId,
+      assessmentType: 'knowledge' as const,
+      score: assessmentResult.score,
+      maxScore: 100,
+      timeSpentSeconds: assessmentResult.timeSpentSeconds,
+      answers: assessmentResult.answers.map((answer: any, index: number) => ({
+        questionId: `q${index + 1}`,
+        question: `Question ${index + 1}`, // Would be populated with actual question text
+        answer: answer,
+        isCorrect: true, // Will be calculated based on assessment data
+        timeSpentSeconds: Math.round(assessmentResult.timeSpentSeconds / assessmentResult.answers.length),
+        attempts: 1,
+        dimension: 'knowledge' as keyof CompetencyDimensions // Default to knowledge, would be dynamic
+      })),
+      competencyImpact: {
+        knowledge: Math.round(assessmentResult.score * 0.4),
+        application: Math.round(assessmentResult.score * 0.3),
+        analysis: Math.round(assessmentResult.score * 0.2),
+        synthesis: Math.round(assessmentResult.score * 0.1)
+      },
+      feedback: {
+        overallFeedback: getFeedbackForScore(assessmentResult.score),
+        dimensionFeedback: {
+          knowledge: 'Good understanding of concepts',
+          application: 'Solid practical application',
+          analysis: 'Strong analytical skills',
+          synthesis: 'Creative problem solving'
+        },
+        strengths: assessmentResult.passed ? ['Good overall performance'] : [],
+        improvementAreas: assessmentResult.passed ? [] : ['Review basic concepts'],
+        recommendedNextSteps: assessmentResult.passed ? ['Continue to next lesson'] : ['Review material and retake assessment'],
+        resourceSuggestions: []
+      },
+      difficulty: 'beginner' as const,
+      createdAt: now,
+      updatedAt: now,
+      version: 1
+    };
+
+    progression.value.assessmentResults.push(result);
+    
+    // Update analytics
+    const analytics = progression.value.analytics.metrics;
+    if (assessmentResult.passed) {
+      analytics.assessmentsPassed += 1;
+    } else {
+      analytics.assessmentsFailed += 1;
+    }
+
+    await saveProgression();
+  };
+
+  // Helper function for feedback
+  const getFeedbackForScore = (score: number): string => {
+    if (score >= 90) return 'Outstanding! You have mastered this concept.';
+    if (score >= 80) return 'Excellent work! You have a strong understanding.';
+    if (score >= 70) return 'Good job! You understand the key concepts.';
+    if (score >= 60) return 'You passed! Consider reviewing before moving on.';
+    return 'Keep studying and try again when you\'re ready.';
+  };
+
   // Generate analytics insights and recommendations
   const generateRecommendations = (): AnalyticsRecommendation[] => {
     if (!progression.value) return [];
@@ -699,6 +776,7 @@ export function useLearningProgression(userId: string) {
     // Actions
     updateCompetency,
     recordActivity,
+    recordAssessmentResult,
     loadProgression,
     saveProgression,
     

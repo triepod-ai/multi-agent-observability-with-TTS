@@ -501,7 +501,7 @@
             <span class="mr-2">⚡</span>
             Quick Actions
           </h3>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
             <button
               @click="activeTab = 'flow'"
               class="flex items-center justify-center px-3 py-2 bg-blue-900/30 border border-blue-600 text-blue-400 rounded-md text-xs hover:bg-blue-900/50 transition-colors"
@@ -522,6 +522,13 @@
             >
               <span class="mr-2">📚</span>
               <span>Read Full Guide</span>
+            </button>
+            <button
+              @click="handleStartAssessment('session_start')"
+              class="flex items-center justify-center px-3 py-2 bg-yellow-900/30 border border-yellow-600 text-yellow-400 rounded-md text-xs hover:bg-yellow-900/50 transition-colors"
+            >
+              <span class="mr-2">🎯</span>
+              <span>Take Assessment</span>
             </button>
           </div>
         </div>
@@ -652,6 +659,30 @@
         </div>
       </div>
     </div>
+
+    <!-- Assessment Modal -->
+    <div v-if="showAssessment && currentAssessment" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div class="bg-gray-900 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div class="p-6">
+          <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-bold text-white">📝 Assessment</h2>
+            <button
+              @click="showAssessment = false"
+              class="text-gray-400 hover:text-white text-2xl"
+            >
+              ×
+            </button>
+          </div>
+          
+          <HookAssessment
+            :assessment-data="currentAssessment"
+            @completed="handleAssessmentCompleted"
+            @retake="handleAssessmentRetake"
+            @continue="handleAssessmentContinue"
+          />
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -670,6 +701,7 @@ import LearningProgressTracker from './LearningProgressTracker.vue';
 import LearningPath from './LearningPath.vue';
 import PrerequisiteGate from './PrerequisiteGate.vue';
 import PromptTester from './PromptTester.vue';
+import HookAssessment from './HookAssessment.vue';
 import { hookExamples, configurationExamples } from '../data/hookExamples';
 import { beginnerFundamentalsPath } from '../data/learningPaths';
 import phase3Integration from '../services/phase3Integration';
@@ -695,6 +727,7 @@ const {
   progression: userProgression, 
   updateCompetency, 
   recordActivity,
+  recordAssessmentResult,
   overallProgress: progressionProgress,
   recommendations,
   strongestAreas,
@@ -712,6 +745,75 @@ const integrationHealth = ref(phase3Integration.healthCheck());
 // Learning Path State
 const currentLearningStep = ref<string>('');
 const currentStepProgress = ref(0);
+
+// Assessment State
+const showAssessment = ref(false);
+const currentAssessment = ref<any>(null);
+const completedLessons = ref<Set<string>>(new Set());
+const assessmentResults = ref<Map<string, any>>(new Map());
+
+// Sample Assessment Data for Hook Testing
+const sampleAssessments: Record<string, any> = {
+  session_start: {
+    id: 'session-start-assessment',
+    title: 'Session Start Hook Assessment',
+    description: 'Test your understanding of session initialization and context loading',
+    hookId: 'session_start',
+    difficulty: 'beginner' as const,
+    timeLimit: 300, // 5 minutes
+    passingScore: 70,
+    questions: [
+      {
+        id: 'q1',
+        question: 'What is the primary purpose of the Session Start hook?',
+        type: 'multiple-choice' as const,
+        options: [
+          'To initialize the Claude Code session and load project context',
+          'To validate user permissions',
+          'To start the application server',
+          'To backup the current session'
+        ],
+        correctAnswer: 0,
+        explanation: 'The Session Start hook initializes each new Claude Code session by loading project context, git status, and setting up the environment for AI assistance.',
+        competencyDimension: 'knowledge' as const,
+        difficulty: 'easy' as const,
+        points: 10
+      },
+      {
+        id: 'q2',
+        question: 'When does the Session Start hook execute?',
+        type: 'multiple-choice' as const,
+        options: [
+          'After every tool use',
+          'At the beginning of each new Claude Code session',
+          'When the user submits a prompt',
+          'Only during debugging sessions'
+        ],
+        correctAnswer: 1,
+        explanation: 'The Session Start hook executes at the very beginning of each new Claude Code session, before any user interaction.',
+        competencyDimension: 'application' as const,
+        difficulty: 'medium' as const,
+        points: 15
+      },
+      {
+        id: 'q3',
+        question: 'What happens if the Session Start hook returns a non-zero exit code?',
+        type: 'multiple-choice' as const,
+        options: [
+          'The session continues normally',
+          'Claude Code shows a warning but continues',
+          'The session initialization fails',
+          'The hook is automatically retried'
+        ],
+        correctAnswer: 2,
+        explanation: 'A non-zero exit code from any hook, including Session Start, indicates failure and can prevent the session from initializing properly.',
+        competencyDimension: 'analysis' as const,
+        difficulty: 'hard' as const,
+        points: 20
+      }
+    ]
+  }
+};
 
 // Sample Prerequisites Gate for Demo
 const samplePrerequisiteGate = computed((): PrerequisiteGateType => {
@@ -1171,9 +1273,54 @@ const handleHookSelected = (hookId: string) => {
   });
 };
 
-const handleStartAssessment = () => {
-  console.log('Starting assessment');
+const handleStartAssessment = (hookId: string = 'session_start') => {
+  console.log('Starting assessment for:', hookId);
+  const assessment = sampleAssessments[hookId];
+  if (assessment) {
+    currentAssessment.value = assessment;
+    showAssessment.value = true;
+    recordActivity('assessment');
+  }
+};
+
+const handleAssessmentCompleted = async (results: any) => {
+  console.log('Assessment completed:', results);
+  if (currentAssessment.value) {
+    const hookId = currentAssessment.value.hookId;
+    const passed = results.score >= currentAssessment.value.passingScore;
+    
+    assessmentResults.value.set(hookId, results);
+    
+    // Record the assessment result in the progression system
+    await recordAssessmentResult({
+      assessmentId: currentAssessment.value.id,
+      hookId: hookId,
+      score: results.score,
+      timeSpentSeconds: results.timeSpent,
+      answers: [], // Would contain actual answer data in real implementation
+      passed: passed
+    });
+    
+    // Mark lesson as completed if passed
+    if (passed) {
+      completedLessons.value.add(hookId);
+    }
+    
+    recordActivity('assessment');
+  }
+  showAssessment.value = false;
+  currentAssessment.value = null;
+};
+
+const handleAssessmentRetake = () => {
+  // Assessment will be reset, just track the activity
   recordActivity('assessment');
+};
+
+const handleAssessmentContinue = () => {
+  showAssessment.value = false;
+  currentAssessment.value = null;
+  // Could navigate to next lesson or show congratulations
 };
 
 const handleStartStep = (step: LearningPathStep) => {

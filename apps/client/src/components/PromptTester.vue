@@ -144,10 +144,15 @@
       
       <!-- Monaco Editor Container -->
       <div class="border border-gray-600 rounded-lg overflow-hidden">
-        <div 
-          ref="editorContainer" 
-          class="h-80 bg-gray-950"
-        ></div>
+        <VueMonacoEditor
+          v-model:value="currentCode"
+          :language="selectedLanguage"
+          theme="vs-dark"
+          :height="320"
+          :options="editorOptions"
+          @change="onCodeChange"
+          class="monaco-editor-container"
+        />
       </div>
       
       <!-- Code Editor Footer -->
@@ -298,6 +303,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
+import { VueMonacoEditor } from '@guolao/vue-monaco-editor'
 import { testScenarios, scenarioCategories, scenarioDifficulties } from '../data/testScenarios';
 import { hookTestRunner } from '../services/hookTestRunner';
 import { codeValidator } from '../utils/codeValidator';
@@ -322,9 +328,21 @@ const currentEnvironment = ref<SandboxEnvironment | null>(null);
 const executionTime = ref(0);
 const executionError = ref('');
 
-// Editor references
-const editorContainer = ref<HTMLElement>();
-let monacoEditor: any = null;
+// Monaco Editor configuration
+const editorOptions = ref({
+  fontSize: 14,
+  fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
+  minimap: { enabled: false },
+  scrollBeyondLastLine: false,
+  automaticLayout: true,
+  tabSize: 2,
+  insertSpaces: true,
+  wordWrap: 'on' as const,
+  lineNumbers: 'on' as const,
+  theme: 'vs-dark',
+  contextmenu: false,
+  selectOnLineNumbers: true
+});
 
 // Computed properties
 const categories = computed(() => scenarioCategories);
@@ -381,16 +399,16 @@ const getRiskIcon = (riskLevel: string) => {
 };
 
 // Event handlers
+const onCodeChange = (value: string) => {
+  currentCode.value = value;
+  // Clear validation when code changes
+  validationResult.value = null;
+};
+
 const selectScenario = (scenario: TestScenario) => {
   selectedScenario.value = scenario;
   selectedLanguage.value = scenario.language;
   currentCode.value = scenario.code;
-  
-  // Update Monaco editor
-  if (monacoEditor) {
-    monacoEditor.setValue(scenario.code);
-    monacoEditor.setModelLanguage(monacoEditor.getModel(), scenario.language);
-  }
   
   // Clear previous results
   validationResult.value = null;
@@ -519,43 +537,7 @@ const handleEnvironmentStatusChange = (environmentId: string, status: string) =>
   }
 };
 
-// Monaco Editor setup
-const initializeMonacoEditor = async () => {
-  if (!editorContainer.value) return;
-  
-  try {
-    // For now, use a simple textarea as Monaco Editor requires additional setup
-    const textarea = document.createElement('textarea');
-    textarea.className = 'w-full h-full bg-gray-950 text-green-300 p-4 font-mono text-sm border-none outline-none resize-none';
-    textarea.placeholder = showCustomEditor.value 
-      ? 'Enter your custom hook code here...' 
-      : 'Select a test scenario to see the code';
-    textarea.value = currentCode.value;
-    
-    textarea.addEventListener('input', (e) => {
-      currentCode.value = (e.target as HTMLTextAreaElement).value;
-      // Clear validation when code changes
-      validationResult.value = null;
-    });
-    
-    editorContainer.value.innerHTML = '';
-    editorContainer.value.appendChild(textarea);
-    
-    monacoEditor = {
-      setValue: (value: string) => {
-        textarea.value = value;
-        currentCode.value = value;
-      },
-      setModelLanguage: () => {
-        // Mock implementation
-      },
-      getModel: () => ({})
-    };
-    
-  } catch (error) {
-    console.error('Failed to initialize editor:', error);
-  }
-};
+// Monaco Editor is now handled by VueMonacoEditor component
 
 // Watchers
 watch(showCustomEditor, (newValue) => {
@@ -565,19 +547,10 @@ watch(showCustomEditor, (newValue) => {
     validationResult.value = null;
     executionResult.value = null;
   }
-  initializeMonacoEditor();
-});
-
-watch(selectedLanguage, () => {
-  if (monacoEditor && showCustomEditor.value) {
-    monacoEditor.setModelLanguage(monacoEditor.getModel(), selectedLanguage.value);
-  }
 });
 
 // Lifecycle
 onMounted(() => {
-  initializeMonacoEditor();
-  
   // Select first scenario by default
   if (filteredScenarios.value.length > 0) {
     selectScenario(filteredScenarios.value[0]);
@@ -632,5 +605,23 @@ textarea::-webkit-scrollbar-thumb {
 
 textarea::-webkit-scrollbar-thumb:hover {
   background: #9ca3af;
+}
+
+/* Monaco Editor container styling */
+.monaco-editor-container {
+  border-radius: 0.5rem;
+}
+
+/* Dark theme enhancements for Monaco Editor */
+:deep(.monaco-editor) {
+  background: #030712 !important;
+}
+
+:deep(.monaco-editor .margin) {
+  background: #111827 !important;
+}
+
+:deep(.monaco-editor .current-line) {
+  border: 1px solid #374151 !important;
 }
 </style>

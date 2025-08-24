@@ -39,6 +39,11 @@ import {
   broadcastHookCoverage,
   getHookCoverageAPI
 } from './services/hookCoverageService';
+import {
+  calculateEnhancedHookContext,
+  calculatePerformanceMetrics,
+  getRecentHookEvents
+} from './services/enhancedHookService';
 import { redisConnectivity } from './services/redisConnectivityService';
 import { fallbackStorage } from './services/fallbackStorageService';
 import { fallbackSync } from './services/fallbackSyncService';
@@ -771,6 +776,108 @@ const server = Bun.serve({
       } catch (error) {
         console.error('Error getting hook coverage:', error);
         return new Response(JSON.stringify({ error: 'Failed to get hook coverage' }), {
+          status: 500,
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    // Enhanced Hook API endpoints
+    // GET /api/hooks/:hookType/context - Get enhanced context for a specific hook
+    if (url.pathname.startsWith('/api/hooks/') && url.pathname.endsWith('/context') && req.method === 'GET') {
+      try {
+        const pathParts = url.pathname.split('/');
+        const hookType = pathParts[3]; // /api/hooks/:hookType/context
+        
+        const db = getDatabase();
+        const context = calculateEnhancedHookContext(db, hookType);
+        
+        return new Response(JSON.stringify(context), {
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        console.error('Error getting hook context:', error);
+        return new Response(JSON.stringify({ error: 'Failed to get hook context' }), {
+          status: 500,
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    // GET /api/hooks/:hookType/events - Get recent events for a specific hook
+    if (url.pathname.startsWith('/api/hooks/') && url.pathname.endsWith('/events') && req.method === 'GET') {
+      try {
+        const pathParts = url.pathname.split('/');
+        const hookType = pathParts[3]; // /api/hooks/:hookType/events
+        
+        const urlParams = new URLSearchParams(url.search);
+        const limit = parseInt(urlParams.get('limit') || '50');
+        
+        const db = getDatabase();
+        const events = getRecentHookEvents(db, hookType, limit);
+        
+        return new Response(JSON.stringify(events), {
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        console.error('Error getting hook events:', error);
+        return new Response(JSON.stringify({ error: 'Failed to get hook events' }), {
+          status: 500,
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    // GET /api/hooks/:hookType/metrics - Get performance metrics for a specific hook
+    if (url.pathname.startsWith('/api/hooks/') && url.pathname.endsWith('/metrics') && req.method === 'GET') {
+      try {
+        const pathParts = url.pathname.split('/');
+        const hookType = pathParts[3]; // /api/hooks/:hookType/metrics
+        
+        const db = getDatabase();
+        const metrics = calculatePerformanceMetrics(db, hookType);
+        
+        return new Response(JSON.stringify(metrics), {
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        console.error('Error getting hook metrics:', error);
+        return new Response(JSON.stringify({ error: 'Failed to get hook metrics' }), {
+          status: 500,
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
+    // GET /api/hooks/:hookType/execution-context - Get execution context for a specific hook
+    if (url.pathname.startsWith('/api/hooks/') && url.pathname.endsWith('/execution-context') && req.method === 'GET') {
+      try {
+        const pathParts = url.pathname.split('/');
+        const hookType = pathParts[3]; // /api/hooks/:hookType/execution-context
+        
+        const db = getDatabase();
+        const context = calculateEnhancedHookContext(db, hookType);
+        
+        // Return a subset of the context focused on execution details
+        const executionContext = {
+          sourceApps: context.sourceApps,
+          activeSessions: context.activeSessions,
+          sessionDepthRange: context.sessionDepthRange,
+          executionEnvironments: context.executionEnvironments,
+          userContext: context.userContext,
+          toolUsage: context.toolUsage,
+          agentActivity: context.agentActivity,
+          sessionContext: context.sessionContext,
+          recentErrors: context.recentErrors,
+          systemContext: context.systemContext
+        };
+        
+        return new Response(JSON.stringify(executionContext), {
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        console.error('Error getting hook execution context:', error);
+        return new Response(JSON.stringify({ error: 'Failed to get hook execution context' }), {
           status: 500,
           headers: { ...headers, 'Content-Type': 'application/json' }
         });

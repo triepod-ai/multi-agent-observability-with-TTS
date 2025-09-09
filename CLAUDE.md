@@ -364,3 +364,5 @@ This project is fundamentally about **creating and monitoring AI agents** with c
 - **Agent Creation & Monitoring**: Core functionality for creating observable AI agents with TTS and event tracking
 - **KISS Hook Architecture**: 4 focused scripts (context loader, startup notifier, resume detector, event tracker)
 - **TTS Integration**: Enterprise text-to-speech system with intelligent voice selection and cost optimization
+- **Multi-Agent TTS Testing**: Validated testing workflow with 6 priority levels and 3-layer coordination system
+- **TTS Testing Script**: `apps/client/test-tts-priorities.sh` - Reference implementation for TTS validation

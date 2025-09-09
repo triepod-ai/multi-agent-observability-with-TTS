@@ -1,15 +1,15 @@
 <template>
-  <div class="space-y-6">
+  <div class="space-y-4 md:space-y-6">
     <!-- Assessment Header -->
-    <div class="bg-gradient-to-r from-blue-700 to-purple-700 rounded-lg p-6 text-white">
-      <div class="flex items-center justify-between">
-        <div>
-          <h2 class="text-xl font-bold mb-2">🎯 {{ assessment.title }}</h2>
-          <p class="text-blue-100 text-sm">{{ assessment.description }}</p>
+    <div class="bg-gradient-to-r from-blue-700 to-purple-700 rounded-lg p-4 md:p-6 text-white">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div class="flex-1">
+          <h2 class="text-lg md:text-xl font-bold mb-2">🎯 {{ assessment.title }}</h2>
+          <p class="text-blue-100 text-xs md:text-sm">{{ assessment.description }}</p>
         </div>
-        <div class="text-right">
-          <div class="text-sm text-blue-100 mb-1">Progress</div>
-          <div class="text-2xl font-bold">{{ currentQuestionIndex + 1 }}/{{ assessment.questions.length }}</div>
+        <div class="text-center md:text-right">
+          <div class="text-xs md:text-sm text-blue-100 mb-1">Progress</div>
+          <div class="text-xl md:text-2xl font-bold">{{ currentQuestionIndex + 1 }}/{{ assessment.questions.length }}</div>
         </div>
       </div>
       
@@ -25,7 +25,7 @@
     </div>
 
     <!-- Current Question -->
-    <div v-if="!isCompleted" class="bg-gray-800 border border-gray-700 rounded-lg p-6">
+    <div v-if="!isCompleted" class="bg-gray-800 border border-gray-700 rounded-lg p-4 md:p-6">
       <AssessmentQuestion
         :question="currentQuestion"
         :question-number="currentQuestionIndex + 1"
@@ -37,39 +37,39 @@
     </div>
 
     <!-- Assessment Results -->
-    <div v-else class="bg-gray-800 border border-gray-700 rounded-lg p-6">
-      <div class="text-center mb-6">
-        <div class="text-6xl mb-4">
+    <div v-else class="bg-gray-800 border border-gray-700 rounded-lg p-4 md:p-6">
+      <div class="text-center mb-4 md:mb-6">
+        <div class="text-4xl md:text-6xl mb-3 md:mb-4">
           {{ results.score >= 80 ? '🎉' : results.score >= 60 ? '👍' : '📚' }}
         </div>
-        <h3 class="text-2xl font-bold text-white mb-2">Assessment Complete!</h3>
-        <div class="text-lg">
-          <span class="text-2xl font-bold" :class="getScoreColor(results.score)">
+        <h3 class="text-xl md:text-2xl font-bold text-white mb-2">Assessment Complete!</h3>
+        <div class="text-base md:text-lg">
+          <span class="text-xl md:text-2xl font-bold" :class="getScoreColor(results.score)">
             {{ results.score }}%
           </span>
         </div>
-        <p class="text-gray-400 text-sm mt-2">
+        <p class="text-gray-400 text-xs md:text-sm mt-2 px-2">
           {{ getScoreMessage(results.score) }}
         </p>
       </div>
 
       <!-- Score Breakdown -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div class="bg-gray-900 border border-gray-600 rounded-lg p-4 text-center">
-          <div class="text-2xl font-bold text-green-400">{{ results.correct }}</div>
-          <div class="text-sm text-gray-400">Correct</div>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-4 md:mb-6">
+        <div class="bg-gray-900 border border-gray-600 rounded-lg p-3 md:p-4 text-center">
+          <div class="text-lg md:text-2xl font-bold text-green-400">{{ results.correct }}</div>
+          <div class="text-xs md:text-sm text-gray-400">Correct</div>
         </div>
-        <div class="bg-gray-900 border border-gray-600 rounded-lg p-4 text-center">
-          <div class="text-2xl font-bold text-red-400">{{ results.incorrect }}</div>
-          <div class="text-sm text-gray-400">Incorrect</div>
+        <div class="bg-gray-900 border border-gray-600 rounded-lg p-3 md:p-4 text-center">
+          <div class="text-lg md:text-2xl font-bold text-red-400">{{ results.incorrect }}</div>
+          <div class="text-xs md:text-sm text-gray-400">Incorrect</div>
         </div>
-        <div class="bg-gray-900 border border-gray-600 rounded-lg p-4 text-center">
-          <div class="text-2xl font-bold text-blue-400">{{ formatTime(results.timeSpent) }}</div>
-          <div class="text-sm text-gray-400">Time</div>
+        <div class="bg-gray-900 border border-gray-600 rounded-lg p-3 md:p-4 text-center">
+          <div class="text-lg md:text-2xl font-bold text-blue-400">{{ formatTime(results.timeSpent) }}</div>
+          <div class="text-xs md:text-sm text-gray-400">Time</div>
         </div>
-        <div class="bg-gray-900 border border-gray-600 rounded-lg p-4 text-center">
-          <div class="text-2xl font-bold text-purple-400">{{ results.competencyGain }}</div>
-          <div class="text-sm text-gray-400">XP Gained</div>
+        <div class="bg-gray-900 border border-gray-600 rounded-lg p-3 md:p-4 text-center">
+          <div class="text-lg md:text-2xl font-bold text-purple-400">{{ results.competencyGain }}</div>
+          <div class="text-xs md:text-sm text-gray-400">XP Gained</div>
         </div>
       </div>
 
@@ -92,17 +92,17 @@
       </div>
 
       <!-- Action Buttons -->
-      <div class="flex justify-center space-x-4">
+      <div class="flex flex-col md:flex-row justify-center gap-3 md:gap-4">
         <button
           @click="retakeAssessment"
-          class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center transition-colors"
+          class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg flex items-center justify-center transition-colors text-sm md:text-base touch-target"
         >
           <span class="mr-2">🔄</span>
           Retake Assessment
         </button>
         <button
           @click="continueToNextLesson"
-          class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg flex items-center transition-colors"
+          class="bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-3 rounded-lg flex items-center justify-center transition-colors text-sm md:text-base touch-target"
           :disabled="results.score < 60"
         >
           <span class="mr-2">➡️</span>
@@ -112,8 +112,8 @@
     </div>
 
     <!-- Assessment Timer (if active) -->
-    <div v-if="!isCompleted && assessment.timeLimit" class="fixed top-4 right-4 bg-gray-800 border border-gray-600 rounded-lg p-3 z-50">
-      <div class="flex items-center text-sm text-white">
+    <div v-if="!isCompleted && assessment.timeLimit" class="fixed top-2 right-2 md:top-4 md:right-4 bg-gray-800 border border-gray-600 rounded-lg p-2 md:p-3 z-50 shadow-lg">
+      <div class="flex items-center text-xs md:text-sm text-white">
         <span class="mr-2">⏰</span>
         <span class="font-mono">{{ formatTime(timeRemaining) }}</span>
       </div>

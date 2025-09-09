@@ -250,7 +250,16 @@ const agentSessions = computed(() => {
     sessionGroups.get(event.session_id)!.push(event);
   });
   
-  const agentSessions = [];
+  const agentSessions: Array<{
+    sessionId: string;
+    startTime: number;
+    endTime?: number;
+    duration?: number;
+    success: boolean;
+    toolsUsed: string[];
+    agentType: string;
+    events: HookEvent[];
+  }> = [];
   sessionGroups.forEach((sessionEvents, sessionId) => {
     if (detectAgentSession(sessionEvents)) {
       sessionEvents.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
@@ -343,7 +352,7 @@ const mostUsedAgentType = computed(() => {
 // Trend calculations (mock data for demonstration)
 const executionTrend = computed(() => Math.floor(Math.random() * 30) - 10);
 const successRateTrend = computed(() => Math.floor(Math.random() * 20) - 5);
-const executionTimeTrend = computed(() => (Math.random() * 2 - 1).toFixed(1));
+const executionTimeTrend = computed(() => Math.round((Math.random() * 2 - 1) * 10) / 10);
 
 const timelineData = computed(() => {
   const now = Date.now();
@@ -428,7 +437,7 @@ const topTools = computed(() => {
   const toolMap = new Map<string, { count: number; agents: Set<string> }>();
   
   agentSessions.value.forEach(session => {
-    session.toolsUsed.forEach(tool => {
+    session.toolsUsed.forEach((tool: string) => {
       const existing = toolMap.get(tool) || { count: 0, agents: new Set() };
       existing.count += 1;
       existing.agents.add(session.sessionId);

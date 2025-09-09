@@ -1,0 +1,28 @@
+{
+  "name": "simple-mcp-test-server",
+  "version": "1.0.0",
+  "description": "Simple MCP test server for evaluator validation",
+  "type": "module",
+  "main": "simple-mcp-server.js",
+  "scripts": {
+    "start": "node simple-mcp-server.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.0"
+  },
+  "mcp": {
+    "name": "simple-test-server",
+    "version": "1.0.0",
+    "description": "A simple MCP server for testing",
+    "transport": "stdio",
+    "tools": [
+      "echo",
+      "calculate",
+      "get_time"
+    ],
+    "resources": [
+      "test://readme",
+      "test://config"
+    ]
+  }
+}

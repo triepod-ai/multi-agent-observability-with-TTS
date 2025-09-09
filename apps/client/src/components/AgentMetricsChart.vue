@@ -45,8 +45,8 @@
       <!-- Line Chart for Timeline -->
       <div v-if="chartType === 'timeline'" class="h-48">
         <AgentTimelineChart
-          :timeline-data="timelineData"
-          :selected-time-range="selectedTimeRange"
+          :timeline-data="timelineData || []"
+          :selected-time-range="selectedTimeRange || '1h'"
           @point-hover="handlePointHover"
           @point-click="handlePointClick"
         />
@@ -55,7 +55,7 @@
       <!-- Bar Chart for Agent Types -->
       <div v-else-if="chartType === 'agent-types'" class="h-48">
         <AgentTypeChart
-          :type-data="agentTypeData"
+          :type-data="agentTypeData || []"
           @type-filter="handleTypeFilter"
           @type-hover="handleTypeHover"
         />
@@ -64,7 +64,7 @@
       <!-- Pie Chart for Tool Usage -->
       <div v-else-if="chartType === 'tool-usage'" class="h-48">
         <ToolUsageChart
-          :tool-data="toolUsageData"
+          :tool-data="toolUsageData || []"
           @tool-click="handleToolClick"
           @tool-hover="handleToolHover"
         />

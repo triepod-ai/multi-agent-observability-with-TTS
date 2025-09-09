@@ -39,14 +39,16 @@ export function useMediaQuery() {
       windowWidth.value = window.innerWidth;
 
       // Set up media query listener for better performance
-      mediaQuery = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
+      if (typeof window.matchMedia === 'function') {
+        mediaQuery = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
       
-      // Use the newer addEventListener if available, fallback to addListener
-      if (mediaQuery.addEventListener) {
-        mediaQuery.addEventListener('change', handleMediaQueryChange);
-      } else {
-        // Fallback for older browsers
-        mediaQuery.addListener(handleMediaQueryChange);
+        // Use the newer addEventListener if available, fallback to addListener
+        if (mediaQuery.addEventListener) {
+          mediaQuery.addEventListener('change', handleMediaQueryChange);
+        } else {
+          // Fallback for older browsers
+          mediaQuery.addListener(handleMediaQueryChange);
+        }
       }
 
       // Also listen to resize events as backup

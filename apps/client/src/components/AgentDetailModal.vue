@@ -347,7 +347,7 @@ function formatReturnData(data: any): string {
   return String(data);
 }
 
-function getToolUsageCount(toolName: string): number {
+function getToolUsageCount(_toolName: string): number {
   // This is a placeholder - in a real implementation, you'd count actual usage
   return 1;
 }

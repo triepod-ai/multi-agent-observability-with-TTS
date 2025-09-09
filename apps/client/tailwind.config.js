@@ -9,6 +9,8 @@ export default {
     extend: {
       screens: {
         'mobile': {'max': '699px'}, // Custom mobile breakpoint for < 700px
+        'xs': '475px', // Extra small devices
+        'touch': {'raw': '(hover: none) and (pointer: coarse)'}, // Touch devices
       },
       colors: {
         // Theme-aware colors using CSS custom properties
@@ -49,6 +51,19 @@ export default {
       transitionProperty: {
         'theme': 'var(--theme-transition)',
         'theme-fast': 'var(--theme-transition-fast)',
+      },
+      spacing: {
+        'touch': '44px', // Minimum touch target size
+        'safe-top': 'env(safe-area-inset-top)',
+        'safe-bottom': 'env(safe-area-inset-bottom)',
+        'safe-left': 'env(safe-area-inset-left)',
+        'safe-right': 'env(safe-area-inset-right)',
+      },
+      minHeight: {
+        'touch': '44px', // Touch-friendly minimum height
+      },
+      minWidth: {
+        'touch': '44px', // Touch-friendly minimum width
       }
     },
   },

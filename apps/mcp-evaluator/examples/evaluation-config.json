@@ -1,0 +1,75 @@
+{
+  "evaluation": {
+    "runStatic": true,
+    "runRuntime": true,
+    "weights": {
+      "static": 0.4,
+      "runtime": 0.6
+    },
+    "passThreshold": 70,
+    "failThreshold": 40,
+    "sendToObservability": true,
+    "observabilityUrl": "http://localhost:3456",
+    "generateReport": true,
+    "outputFormat": "markdown"
+  },
+  "runtime": {
+    "timeout": 30000,
+    "transport": "stdio",
+    "testCategories": {
+      "tools": true,
+      "resources": true,
+      "prompts": true,
+      "errors": true,
+      "performance": true,
+      "security": true
+    },
+    "performanceTests": {
+      "iterations": 10,
+      "warmup": 2
+    },
+    "securityTests": {
+      "promptInjection": true,
+      "pathTraversal": true,
+      "commandInjection": true
+    }
+  },
+  "static": {
+    "hooksPath": ".claude/hooks",
+    "pythonExecutable": "python3",
+    "requirements": [
+      {
+        "name": "functionality-match",
+        "enabled": true,
+        "weight": 0.25
+      },
+      {
+        "name": "prompt-injection",
+        "enabled": true,
+        "weight": 0.25
+      },
+      {
+        "name": "tool-naming",
+        "enabled": true,
+        "weight": 0.15
+      },
+      {
+        "name": "working-examples",
+        "enabled": true,
+        "weight": 0.20
+      },
+      {
+        "name": "error-handling",
+        "enabled": true,
+        "weight": 0.15
+      }
+    ]
+  },
+  "reporting": {
+    "includeDetails": true,
+    "includeTiming": true,
+    "includeRecommendations": true,
+    "outputPath": "./evaluation-report.md",
+    "formats": ["json", "markdown", "html"]
+  }
+}

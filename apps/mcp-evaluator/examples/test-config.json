@@ -1,0 +1,72 @@
+{
+  "name": "example-mcp-server",
+  "description": "Example MCP server for testing",
+  "command": "node",
+  "args": ["server.js"],
+  "transport": "stdio",
+  "env": {
+    "NODE_ENV": "test"
+  },
+  "tools": [
+    {
+      "name": "search",
+      "description": "Search for information",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Search query"
+          },
+          "limit": {
+            "type": "number",
+            "description": "Maximum results",
+            "default": 10
+          }
+        },
+        "required": ["query"]
+      },
+      "examples": [
+        {
+          "arguments": {
+            "query": "test search",
+            "limit": 5
+          }
+        }
+      ]
+    },
+    {
+      "name": "calculate",
+      "description": "Perform calculations",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "expression": {
+            "type": "string",
+            "description": "Math expression"
+          }
+        },
+        "required": ["expression"]
+      },
+      "examples": [
+        {
+          "arguments": {
+            "expression": "2 + 2"
+          }
+        }
+      ]
+    }
+  ],
+  "resources": [
+    {
+      "uri": "memory://data",
+      "name": "In-memory data store",
+      "description": "Access to in-memory data"
+    },
+    {
+      "uri": "config://settings",
+      "name": "Configuration settings",
+      "description": "Server configuration"
+    }
+  ]
+}

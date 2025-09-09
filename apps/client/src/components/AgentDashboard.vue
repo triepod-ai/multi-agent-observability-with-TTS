@@ -534,7 +534,7 @@ function detectAgentSession(events: HookEvent[]): boolean {
   
   const hasMultipleTools = toolsUsed.size >= 3;
   const hasAgentPatterns = Array.from(toolsUsed).some(tool => 
-    ['Read', 'Write', 'Edit', 'MultiEdit', 'Grep', 'Glob'].includes(tool)
+    tool && ['Read', 'Write', 'Edit', 'MultiEdit', 'Grep', 'Glob'].includes(tool)
   );
   
   // Return true if any high/medium confidence strategy matches
@@ -762,8 +762,8 @@ function classifyAgentType(agentName: string, events: HookEvent[]): string {
     .filter(tool => tool);
   
   const hasRead = toolsUsed.includes('Read');
-  const hasWrite = toolsUsed.some(tool => ['Write', 'Edit', 'MultiEdit'].includes(tool));
-  const hasSearch = toolsUsed.some(tool => ['Grep', 'Glob'].includes(tool));
+  const hasWrite = toolsUsed.some(tool => tool && ['Write', 'Edit', 'MultiEdit'].includes(tool));
+  const hasSearch = toolsUsed.some(tool => tool && ['Grep', 'Glob'].includes(tool));
   const hasBash = toolsUsed.includes('Bash');
   
   if (hasRead && hasWrite && hasSearch) return 'developer';

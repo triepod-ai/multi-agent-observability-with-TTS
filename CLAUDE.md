@@ -24,6 +24,27 @@ This project is fundamentally about **creating and monitoring AI agents** with c
 
 ## Recent Documentation Updates
 
+### MCP Server Evaluation System (NEW - 2025-01-04)
+- **[docs/MCP_EVALUATOR_APPLICATION.md](./docs/MCP_EVALUATOR_APPLICATION.md)** - **Complete MCP Server evaluation application combining static analysis with runtime testing** ⭐⭐⭐ (Created: 2025-01-04)
+  - **Dual Testing Approach**: Combines existing evaluation hooks (static analysis) with MCP Inspector runtime testing
+  - **Multiple Interfaces**: CLI tool, interactive dashboard, and programmatic API
+  - **Real-time Monitoring**: WebSocket-based progress tracking and live test execution
+  - **Comprehensive Scoring**: Unified scoring system combining static + runtime results
+  - **CI/CD Integration**: Automated evaluation with configurable fail thresholds
+  - **Observability Integration**: Full integration with the multi-agent observability system
+  - **Developer Tools**: Individual tool testing, performance monitoring, and detailed reporting
+- **[docs/MCP_EVALUATOR_QUICK_REFERENCE.md](./docs/MCP_EVALUATOR_QUICK_REFERENCE.md)** - **Quick reference guide for MCP evaluation commands and criteria** ⭐⭐ (Created: 2025-01-04)
+  - **Command Reference**: Common commands for evaluation, testing, and CI/CD integration
+  - **Evaluation Checklist**: Quick validation against Anthropic's 5 core requirements
+  - **Score Interpretation**: Understanding evaluation results and recommended actions
+  - **Troubleshooting Guide**: Common issues and quick fixes
+  - **Configuration Templates**: Ready-to-use config files for different scenarios
+- **[docs/MCP_EVALUATION_HOOKS.md](./docs/MCP_EVALUATION_HOOKS.md)** - **Static analysis hooks system (foundation component)** ⭐⭐⭐ (Created: 2025-09-03)
+  - **5 Core Requirements**: Functionality match, prompt injection prevention, clear tool names, working examples, error handling
+  - **Installation System**: `bin/install-mcp-hooks.sh` for easy deployment to any MCP project
+  - **Standalone Usage**: Can be used independently or as part of the full evaluator application
+  - **CI/CD Integration**: Automated testing pipelines and batch evaluation support
+
 ### Session Relationship Implementation (NEW - 2025-08-22)
 - **[docs/SESSION_RELATIONSHIP_IMPLEMENTATION.md](./docs/SESSION_RELATIONSHIP_IMPLEMENTATION.md)** - **Complete documentation for session relationships system implementation and fixes** ⭐⭐⭐ (Created: 2025-08-22)
   - **Automatic Session Management**: Auto-creation from SubagentStart/Stop events with constraint violation fixes
@@ -38,6 +59,7 @@ This project is fundamentally about **creating and monitoring AI agents** with c
 
 ### Educational Dashboard Implementation Status (UPDATED - 2025-08-24)
 - **[EDUCATIONAL_DASHBOARD_STATUS.md](./EDUCATIONAL_DASHBOARD_STATUS.md)** - **Complete status tracking for Educational Dashboard implementation showing what works, what's in-progress, and what needs fixing** ⭐⭐⭐ (Created: 2025-08-24)
+- **[EDUCATIONAL_DASHBOARD_IMPLEMENTATION_TRACKING.md](./EDUCATIONAL_DASHBOARD_IMPLEMENTATION_TRACKING.md)** - **Comprehensive implementation roadmap with intelligent agent assignments for completing Educational Dashboard from 75% to 100%** ⭐⭐⭐ (Created: 2025-08-24)
   - **Core Achievement**: Fixed lesson completion - users can now complete full learning cycles
   - **Assessment System**: Complete quiz functionality with Monaco Editor integration
   - **Progress Tracking**: Competency updates, badge earning, and persistent learning data
@@ -266,6 +288,29 @@ This project is fundamentally about **creating and monitoring AI agents** with c
   - **Smart Retrieval**: Timestamp-based latest handoff detection with fallback to file-based exports
   - **Performance**: Direct Redis access bypasses MCP complexity for fast context loading
   - **Integration**: Works with all existing KISS hook architecture without modification
+
+### Hook Coverage Modal Fix Documentation (NEW - 2025-01-03)
+- **[docs/HOOK_COVERAGE_MODAL_FIX.md](./docs/HOOK_COVERAGE_MODAL_FIX.md)** - **Comprehensive technical documentation for Hook Coverage Modal fix** ⭐⭐⭐ (Added: 2025-01-03)
+  - **Problem Resolution**: Fixed critical issue where only 1 of 4 modal tabs displayed data
+  - **Root Cause Analysis**: Database mixed naming conventions (CamelCase vs snake_case) causing API queries to miss 50% of events
+  - **Solution Implementation**: Enhanced `getEventTypesForHook` function to support dual naming patterns
+  - **Impact**: Restored 100% functionality to all 4 tabs with complete access to 17,169 hook events
+  - **Technical Details**: Code examples, API testing, verification procedures, and prevention strategies
+- **[docs/API_HOOK_ENDPOINTS.md](./docs/API_HOOK_ENDPOINTS.md)** - **Complete API documentation for all hook-related endpoints** ⭐⭐⭐ (Added: 2025-01-03)
+  - **9 Hook Types**: Comprehensive documentation for all Claude Code hooks with dual naming convention support
+  - **4 Main Endpoints**: Hook coverage, enhanced context, performance metrics, and recent events
+  - **Request/Response Examples**: Complete cURL and JavaScript examples with error handling
+  - **Integration Notes**: Frontend integration patterns, WebSocket updates, and performance considerations
+- **[docs/TROUBLESHOOTING_GUIDE.md](./docs/TROUBLESHOOTING_GUIDE.md)** - **Complete system troubleshooting guide** ⭐⭐⭐ (Added: 2025-01-03)
+  - **Hook Data Issues**: Diagnostic procedures for data display problems and API endpoint failures
+  - **Database Issues**: Connection failures, performance problems, and consistency checks
+  - **Frontend Issues**: Modal display problems, data binding issues, and debugging procedures
+  - **System Integration**: Hook installation, service communication, and performance optimization
+  - **Emergency Procedures**: Complete system reset and data recovery protocols
+- **[CHANGELOG.md](./CHANGELOG.md)** - **Project changelog with Hook Coverage Modal fix details** ⭐ (Added: 2025-01-03)
+  - **Version 1.2.1**: Comprehensive fix documentation with technical details and impact assessment
+  - **Developer Impact**: Database access restoration, modal functionality, and system observability improvements
+  - **Data Recovery**: Before/after statistics showing 100% event accessibility restoration
 
 ## Quick Navigation
 - **Session Handoff System**: Enhanced session-start-hook with Redis handoff integration for seamless project continuity

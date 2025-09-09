@@ -668,14 +668,14 @@ function safeExec(command) {
 }
 
 function analyzeProject() {
-    const cwd = process.cwd();
-    const projectName = path.basename(cwd);
+    const cwd = typeof process !== 'undefined' ? process.cwd() : '/browser-environment';
+    const projectName = cwd.split('/').pop() || 'unknown-project';
     
     console.log('🚀 JavaScript Session Starting');
     console.log('==============================');
     console.log(\`📁 Project: \${projectName}\`);
     console.log(\`📂 Directory: \${cwd}\`);
-    console.log(\`⚡ Node.js: \${process.version}\`);
+    console.log(\`⚡ Environment: \${typeof process !== 'undefined' ? process.version : 'Browser'}\`);
     
     // Package.json analysis
     if (fs.existsSync('package.json')) {

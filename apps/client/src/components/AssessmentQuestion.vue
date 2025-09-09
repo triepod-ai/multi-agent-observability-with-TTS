@@ -21,14 +21,72 @@
       </div>
     </div>
 
-    <!-- Code Block (if question contains code) -->
-    <div v-if="hasCodeBlock" class="bg-gray-950 border border-gray-700 rounded-lg p-4">
+    <!-- Interactive Code Editor (for code-execution questions) -->
+    <div v-if="question.type === 'code-execution'" class="mb-6">
+      <SecureCodeEditor
+        :initial-code="question.starterCode || ''"
+        :language="question.language || 'python'"
+        :readonly="false"
+        @code-executed="handleCodeExecution"
+        @code-change="handleCodeChange"
+      />
+      
+      <!-- Expected Output Display -->
+      <div v-if="question.expectedOutput" class="mt-4 bg-gray-800 border border-gray-600 rounded-lg p-3">
+        <div class="text-sm font-medium text-gray-300 mb-2">Expected Output:</div>
+        <pre class="text-green-300 text-sm font-mono">{{ question.expectedOutput }}</pre>
+      </div>
+    </div>
+
+    <!-- Code Block (if question contains code for analysis) -->
+    <div v-else-if="hasCodeBlock" class="bg-gray-950 border border-gray-700 rounded-lg p-4">
       <div class="text-xs text-gray-400 mb-2">Code Example:</div>
       <pre class="text-green-300 text-sm font-mono overflow-x-auto"><code>{{ extractCodeBlock(question.question) }}</code></pre>
     </div>
 
-    <!-- Answer Options -->
-    <div class="space-y-3">
+    <!-- Code Execution Results (for code-execution questions) -->
+    <div v-if="question.type === 'code-execution' && codeExecutionResult" class="mb-6">
+      <div class="bg-gray-800 border border-gray-600 rounded-lg p-4">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-sm font-medium text-gray-300">Execution Result:</span>
+          <div class="flex items-center text-xs space-x-2">
+            <span :class="codeExecutionResult.success ? 'text-green-400' : 'text-red-400'">
+              {{ codeExecutionResult.success ? '✅ Success' : '❌ Error' }}
+            </span>
+            <span v-if="outputMatchScore !== null" class="text-blue-400">
+              Match: {{ Math.round(outputMatchScore * 100) }}%
+            </span>
+          </div>
+        </div>
+        
+        <!-- Automatic Scoring for Code Execution -->
+        <div v-if="question.type === 'code-execution'" class="space-y-3">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+            <div class="bg-gray-900 border border-gray-700 rounded p-2">
+              <div class="text-gray-400 mb-1">Correctness</div>
+              <div :class="getCorrectnessColor(outputMatchScore || 0)">
+                {{ getCorrectnessScore(outputMatchScore || 0) }}%
+              </div>
+            </div>
+            <div class="bg-gray-900 border border-gray-700 rounded p-2">
+              <div class="text-gray-400 mb-1">Efficiency</div>
+              <div :class="getEfficiencyColor(codeExecutionResult.metrics.executionTimeMs)">
+                {{ getEfficiencyScore(codeExecutionResult.metrics.executionTimeMs) }}%
+              </div>
+            </div>
+            <div class="bg-gray-900 border border-gray-700 rounded p-2">
+              <div class="text-gray-400 mb-1">Style</div>
+              <div class="text-blue-400">
+                {{ getStyleScore(userCode) }}%
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Answer Options (for non-code-execution questions) -->
+    <div v-if="question.type !== 'code-execution'" class="space-y-3">
       <div
         v-for="(option, index) in question.options"
         :key="index"
@@ -119,17 +177,28 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import SecureCodeEditor from './SecureCodeEditor.vue';
+import type { ExecutionResult } from '../services/wasiRuntimeManager';
 
 interface QuestionData {
   id: string;
   question: string;
-  type: 'multiple-choice' | 'true-false' | 'code-analysis';
+  type: 'multiple-choice' | 'true-false' | 'code-analysis' | 'code-execution';
   options: string[];
   correctAnswer: number;
   explanation: string;
   competencyDimension: 'knowledge' | 'application' | 'analysis' | 'synthesis';
   difficulty: 'easy' | 'medium' | 'hard';
   points: number;
+  
+  // Code execution specific fields
+  starterCode?: string;
+  language?: 'python' | 'javascript' | 'typescript';
+  expectedOutput?: string;
+  testCases?: Array<{
+    input: string[];
+    expectedOutput: string;
+  }>;
 }
 
 // Props
@@ -151,6 +220,9 @@ const emit = defineEmits<{
 const selectedAnswer = ref<number | null>(null);
 const showExplanation = ref(false);
 const confidence = ref(0);
+const codeExecutionResult = ref<ExecutionResult | null>(null);
+const userCode = ref('');
+const outputMatchScore = ref<number | null>(null);
 
 // Computed
 const isLastQuestion = computed(() => props.questionNumber === props.totalQuestions);
@@ -205,6 +277,136 @@ const extractCodeBlock = (text: string): string => {
     return codeMatch[0].replace(/```/g, '').trim();
   }
   return '';
+};
+
+// Code execution handlers
+const handleCodeExecution = (result: ExecutionResult) => {
+  codeExecutionResult.value = result;
+  
+  if (result.success && props.question.expectedOutput) {
+    outputMatchScore.value = calculateOutputMatch(result.output, props.question.expectedOutput);
+    
+    // Auto-select answer based on execution results for code-execution questions
+    if (props.question.type === 'code-execution') {
+      const score = calculateOverallScore();
+      // Convert score to answer index (0-based)
+      const answerIndex = score >= 80 ? 0 : score >= 60 ? 1 : 2; // Assuming 3 score ranges
+      selectedAnswer.value = answerIndex;
+      emit('answerSelected', answerIndex);
+    }
+  }
+};
+
+const handleCodeChange = (code: string) => {
+  userCode.value = code;
+};
+
+// Scoring functions for code execution
+const calculateOutputMatch = (actual: string, expected: string): number => {
+  if (!actual || !expected) return 0;
+  
+  // Normalize outputs (trim whitespace, normalize line endings)
+  const normalizeOutput = (output: string) => output.trim().replace(/\r\n/g, '\n');
+  
+  const actualNorm = normalizeOutput(actual);
+  const expectedNorm = normalizeOutput(expected);
+  
+  if (actualNorm === expectedNorm) return 1.0;
+  
+  // Calculate similarity using simple character-based comparison
+  const maxLength = Math.max(actualNorm.length, expectedNorm.length);
+  if (maxLength === 0) return 1.0;
+  
+  let matchingChars = 0;
+  const minLength = Math.min(actualNorm.length, expectedNorm.length);
+  
+  for (let i = 0; i < minLength; i++) {
+    if (actualNorm[i] === expectedNorm[i]) {
+      matchingChars++;
+    }
+  }
+  
+  return matchingChars / maxLength;
+};
+
+const calculateOverallScore = (): number => {
+  if (!codeExecutionResult.value || !codeExecutionResult.value.success) return 0;
+  
+  const correctnessScore = getCorrectnessScore(outputMatchScore.value || 0);
+  const efficiencyScore = getEfficiencyScore(codeExecutionResult.value.metrics.executionTimeMs);
+  const styleScore = getStyleScore(userCode.value);
+  
+  // Weighted average: 60% correctness, 25% efficiency, 15% style
+  return Math.round(correctnessScore * 0.6 + efficiencyScore * 0.25 + styleScore * 0.15);
+};
+
+const getCorrectnessScore = (matchScore: number): number => {
+  return Math.round(matchScore * 100);
+};
+
+const getCorrectnessColor = (matchScore: number): string => {
+  const score = matchScore * 100;
+  if (score >= 90) return 'text-green-400';
+  if (score >= 70) return 'text-yellow-400';
+  return 'text-red-400';
+};
+
+const getEfficiencyScore = (executionTimeMs: number): number => {
+  // Efficiency based on execution time (assumes reasonable time is < 1000ms)
+  if (executionTimeMs <= 100) return 100;
+  if (executionTimeMs <= 500) return 90;
+  if (executionTimeMs <= 1000) return 80;
+  if (executionTimeMs <= 2000) return 70;
+  if (executionTimeMs <= 5000) return 60;
+  return 50;
+};
+
+const getEfficiencyColor = (executionTimeMs: number): string => {
+  const score = getEfficiencyScore(executionTimeMs);
+  if (score >= 90) return 'text-green-400';
+  if (score >= 70) return 'text-yellow-400';
+  return 'text-red-400';
+};
+
+const getStyleScore = (code: string): number => {
+  if (!code.trim()) return 0;
+  
+  let score = 100;
+  const lines = code.split('\n');
+  
+  // Check for basic style issues
+  let hasComments = false;
+  let hasProperIndentation = true;
+  let hasDescriptiveNames = true;
+  let lineCount = lines.filter(line => line.trim()).length;
+  
+  for (const line of lines) {
+    // Check for comments
+    if (line.includes('#') || line.includes('//') || line.includes('/*')) {
+      hasComments = true;
+    }
+    
+    // Basic indentation check
+    if (line.length > line.trimLeft().length) {
+      const indent = line.length - line.trimLeft().length;
+      if (indent % 2 !== 0 && indent % 4 !== 0) {
+        hasProperIndentation = false;
+      }
+    }
+    
+    // Check for single-letter variable names (basic check)
+    if (/\b[a-z]\s*=/.test(line) && !line.includes('for') && !line.includes('in')) {
+      hasDescriptiveNames = false;
+    }
+  }
+  
+  // Apply penalties
+  if (!hasComments && lineCount > 5) score -= 15;
+  if (!hasProperIndentation) score -= 20;
+  if (!hasDescriptiveNames) score -= 15;
+  if (lineCount > 50) score -= 10; // Penalty for overly long solutions
+  
+  return Math.max(score, 50); // Minimum 50% for working code
 };
 </script>
 

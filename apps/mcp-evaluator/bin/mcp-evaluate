@@ -1,0 +1,309 @@
+#!/usr/bin/env node
+
+/**
+ * MCP Evaluate CLI
+ * Command-line interface for evaluating MCP servers
+ */
+
+import { program } from 'commander';
+import chalk from 'chalk';
+import ora from 'ora';
+import MCPEvaluator from '../src/evaluator.js';
+import fs from 'fs/promises';
+import path from 'path';
+
+program
+  .name('mcp-evaluate')
+  .description('Evaluate MCP servers against Anthropic directory requirements')
+  .version('1.0.0');
+
+program
+  .argument('[server-path]', 'Path to MCP server', '.')
+  .option('-t, --transport <type>', 'Transport type (stdio, sse, http)', 'stdio')
+  .option('-s, --static-only', 'Run static analysis only')
+  .option('-r, --runtime-only', 'Run runtime tests only')
+  .option('--report <file>', 'Save report to file')
+  .option('--json', 'Output results as JSON')
+  .option('--ci', 'CI mode - fail on errors')
+  .option('--fail-threshold <score>', 'Minimum score to pass (0-100)', '80')
+  .option('--hooks-path <path>', 'Path to hooks directory', '.claude/hooks')
+  .option('--no-observability', 'Disable sending to observability system')
+  .option('--verbose', 'Verbose output')
+  .action(async (serverPath, options) => {
+    const spinner = ora('Starting evaluation').start();
+
+    try {
+      // Create evaluator
+      const evaluator = new MCPEvaluator({
+        serverPath: path.resolve(serverPath),
+        transport: options.transport,
+        runStatic: !options.runtimeOnly,
+        runRuntime: !options.staticOnly,
+        hooksPath: options.hooksPath,
+        observabilityUrl: options.observability ? 'http://localhost:3456' : null
+      });
+
+      // Setup event listeners for progress
+      if (options.verbose) {
+        setupVerboseLogging(evaluator, spinner);
+      } else {
+        setupNormalLogging(evaluator, spinner);
+      }
+
+      // Run evaluation
+      const results = await evaluator.evaluate();
+
+      // Handle output
+      if (options.json) {
+        spinner.stop();
+        console.log(JSON.stringify(results, null, 2));
+      } else {
+        spinner.succeed(`Evaluation complete - Score: ${results.score.toFixed(1)}%`);
+        
+        // Print report
+        const report = evaluator.generateReport();
+        console.log('\n' + report);
+      }
+
+      // Save report if requested
+      if (options.report) {
+        const reportPath = path.resolve(options.report);
+        const report = options.json ? 
+          JSON.stringify(results, null, 2) : 
+          evaluator.generateReport();
+        
+        await fs.writeFile(reportPath, report);
+        console.log(chalk.green(`✓ Report saved to ${reportPath}`));
+      }
+
+      // CI mode - exit with error if below threshold
+      if (options.ci) {
+        const threshold = parseFloat(options.failThreshold);
+        if (results.score < threshold) {
+          console.error(chalk.red(`✗ Score ${results.score.toFixed(1)}% is below threshold ${threshold}%`));
+          process.exit(1);
+        }
+      }
+
+      // Show summary
+      if (!options.json) {
+        showSummary(results);
+      }
+
+    } catch (error) {
+      spinner.fail('Evaluation failed');
+      console.error(chalk.red(error.message));
+      
+      if (options.verbose) {
+        console.error(error.stack);
+      }
+      
+      if (options.ci) {
+        process.exit(1);
+      }
+    }
+  });
+
+// Interactive mode command
+program
+  .command('interactive')
+  .description('Run evaluation in interactive mode with real-time feedback')
+  .option('-p, --port <port>', 'Dashboard port', '3457')
+  .action(async (options) => {
+    console.log(chalk.cyan('Starting interactive evaluation dashboard...'));
+    
+    try {
+      // Import and start dashboard
+      const { startDashboard } = await import('../src/dashboard/server.js');
+      await startDashboard({ port: options.port });
+      
+      console.log(chalk.green(`✓ Dashboard running at http://localhost:${options.port}`));
+      console.log(chalk.gray('Press Ctrl+C to stop'));
+    } catch (error) {
+      console.error(chalk.red('Failed to start dashboard:'), error.message);
+      process.exit(1);
+    }
+  });
+
+// Test specific tool command
+program
+  .command('test-tool <server-path> <tool-name>')
+  .description('Test a specific MCP tool')
+  .option('-a, --args <json>', 'Tool arguments as JSON')
+  .action(async (serverPath, toolName, options) => {
+    const spinner = ora(`Testing tool: ${toolName}`).start();
+    
+    try {
+      const evaluator = new MCPEvaluator({
+        serverPath: path.resolve(serverPath),
+        runStatic: false,
+        runRuntime: true
+      });
+
+      // Start Inspector
+      await evaluator.inspector.startInspector({
+        command: 'node',
+        args: [serverPath]
+      });
+
+      // Test specific tool
+      const args = options.args ? JSON.parse(options.args) : {};
+      const result = await evaluator.inspector.sendCommand('tool.call', {
+        name: toolName,
+        arguments: args
+      });
+
+      spinner.succeed(`Tool ${toolName} tested successfully`);
+      console.log('\nResult:');
+      console.log(JSON.stringify(result, null, 2));
+
+      await evaluator.inspector.stop();
+    } catch (error) {
+      spinner.fail(`Tool ${toolName} test failed`);
+      console.error(chalk.red(error.message));
+      process.exit(1);
+    }
+  });
+
+// List requirements command
+program
+  .command('requirements')
+  .description('Show MCP Directory requirements')
+  .action(() => {
+    console.log(chalk.cyan('\nMCP Directory Requirements:\n'));
+    
+    const requirements = [
+      {
+        name: 'Functionality Match',
+        description: 'Implementation does exactly what it claims, no extra/missing features'
+      },
+      {
+        name: 'No Prompt Injections',
+        description: 'No unexpected messages or prompts to publish to social media'
+      },
+      {
+        name: 'Clear Tool Names',
+        description: 'Unique, non-conflicting names that clearly indicate function'
+      },
+      {
+        name: 'Working Examples',
+        description: 'At least 3 functional example prompts demonstrating core features'
+      },
+      {
+        name: 'Error Handling',
+        description: 'Graceful error responses with helpful feedback'
+      }
+    ];
+
+    requirements.forEach((req, index) => {
+      console.log(chalk.yellow(`${index + 1}. ${req.name}`));
+      console.log(chalk.gray(`   ${req.description}\n`));
+    });
+  });
+
+/**
+ * Setup verbose logging
+ */
+function setupVerboseLogging(evaluator, spinner) {
+  evaluator.on('evaluation:started', (data) => {
+    spinner.text = `Evaluating ${data.serverPath}`;
+  });
+
+  evaluator.on('static:started', () => {
+    spinner.text = 'Running static analysis...';
+  });
+
+  evaluator.on('hook:running', (data) => {
+    spinner.text = `Running hook: ${data.hook}`;
+  });
+
+  evaluator.on('hook:completed', (data) => {
+    console.log(chalk.green(`  ✓ ${data.hook}: ${data.status}`));
+  });
+
+  evaluator.on('hook:failed', (data) => {
+    console.log(chalk.red(`  ✗ ${data.hook}: ${data.error}`));
+  });
+
+  evaluator.on('runtime:started', () => {
+    spinner.text = 'Running runtime tests...';
+  });
+
+  evaluator.on('tool:testing', (data) => {
+    spinner.text = `Testing tool: ${data.tool}`;
+  });
+
+  evaluator.on('tool:passed', (data) => {
+    console.log(chalk.green(`  ✓ Tool ${data.tool} passed`));
+  });
+
+  evaluator.on('tool:failed', (data) => {
+    console.log(chalk.red(`  ✗ Tool ${data.tool} failed`));
+  });
+
+  evaluator.on('resource:testing', (data) => {
+    spinner.text = `Testing resource: ${data.resource}`;
+  });
+
+  evaluator.on('inspector:output', (data) => {
+    console.log(chalk.gray(`  [Inspector] ${data.message}`));
+  });
+}
+
+/**
+ * Setup normal logging
+ */
+function setupNormalLogging(evaluator, spinner) {
+  let staticCount = 0;
+  let runtimeCount = 0;
+
+  evaluator.on('static:started', () => {
+    spinner.text = 'Running static analysis...';
+  });
+
+  evaluator.on('hook:completed', () => {
+    staticCount++;
+    spinner.text = `Static analysis: ${staticCount}/5 hooks completed`;
+  });
+
+  evaluator.on('runtime:started', () => {
+    spinner.text = 'Running runtime tests...';
+  });
+
+  evaluator.on('tool:tested', () => {
+    runtimeCount++;
+    spinner.text = `Runtime tests: ${runtimeCount} tests completed`;
+  });
+}
+
+/**
+ * Show evaluation summary
+ */
+function showSummary(results) {
+  console.log('\n' + chalk.cyan('Evaluation Summary:'));
+  console.log(chalk.cyan('─'.repeat(40)));
+  
+  // Score with color
+  const scoreColor = results.score >= 80 ? 'green' : 
+                     results.score >= 60 ? 'yellow' : 'red';
+  console.log(`Overall Score: ${chalk[scoreColor](results.score.toFixed(1) + '%')}`);
+  
+  // Requirements summary
+  console.log('\nRequirements:');
+  for (const [req, result] of Object.entries(results.combined || {})) {
+    const icon = result.score === 1 ? '✅' : 
+                 result.score > 0 ? '⚠️' : '❌';
+    console.log(`  ${icon} ${req}`);
+  }
+  
+  // Top recommendations
+  if (results.recommendations && results.recommendations.length > 0) {
+    console.log('\nTop Recommendations:');
+    results.recommendations.slice(0, 3).forEach(rec => {
+      console.log(`  • ${rec}`);
+    });
+  }
+}
+
+// Parse and run
+program.parse(process.argv);

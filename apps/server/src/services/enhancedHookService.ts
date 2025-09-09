@@ -81,15 +81,20 @@ export interface PerformanceMetrics {
 // Get event types that correspond to a specific hook type
 function getEventTypesForHook(hookType: string): string[] {
   const hookMappings: Record<string, string[]> = {
-    'session_start': ['SessionStart'],
-    'user_prompt_submit': ['UserPromptSubmit'],
-    'pre_tool_use': ['PreToolUse'],
-    'post_tool_use': ['PostToolUse'],
-    'subagent_stop': ['SubagentStop'],
-    'stop': ['Stop'],
-    'notification': ['Notification'],
-    'precompact': ['PreCompact']
+    'session_start': ['SessionStart', 'session_start'],
+    'user_prompt_submit': ['UserPromptSubmit', 'user_prompt_submit'],
+    'pre_tool_use': ['PreToolUse', 'pre_tool_use'],
+    'post_tool_use': ['PostToolUse', 'post_tool_use'],
+    'subagent_stop': ['SubagentStop', 'subagent_stop'],
+    'stop': ['Stop', 'stop'],
+    'notification': ['Notification', 'notification'],
+    'precompact': ['PreCompact', 'precompact']
   };
+  
+  // Also handle SubagentStart which appears in the database
+  if (hookType === 'subagent_start') {
+    return ['SubagentStart', 'subagent_start'];
+  }
   
   return hookMappings[hookType] || [];
 }

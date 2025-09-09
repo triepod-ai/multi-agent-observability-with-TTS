@@ -26,6 +26,21 @@ describe('Post Tool Use Display Regression Tests', () => {
     vi.clearAllMocks();
     // Mock console.warn to avoid noise in tests
     vi.spyOn(console, 'warn').mockImplementation(() => {});
+    
+    // Mock window.matchMedia for useMediaQuery composable
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: vi.fn().mockImplementation(query => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(), // deprecated
+        removeListener: vi.fn(), // deprecated
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }))
+    });
   });
 
   afterEach(() => {
@@ -55,7 +70,8 @@ describe('Post Tool Use Display Regression Tests', () => {
           isOpen: true,
           event: writeEvent,
           sessionColorClass: 'bg-blue-500',
-          appHexColor: '#3B82F6'
+          appHexColor: '#3B82F6',
+          disableTeleport: true
         }
       });
 
@@ -88,7 +104,8 @@ describe('Post Tool Use Display Regression Tests', () => {
           isOpen: true,
           event: writeEvent,
           sessionColorClass: 'bg-green-500',
-          appHexColor: '#10B981'
+          appHexColor: '#10B981',
+          disableTeleport: true
         }
       });
 
@@ -118,7 +135,8 @@ describe('Post Tool Use Display Regression Tests', () => {
           isOpen: true,
           event: readEvent,
           sessionColorClass: 'bg-yellow-500',
-          appHexColor: '#F59E0B'
+          appHexColor: '#F59E0B',
+          disableTeleport: true
         }
       });
 
@@ -151,7 +169,8 @@ describe('Post Tool Use Display Regression Tests', () => {
           isOpen: true,
           event: editEvent,
           sessionColorClass: 'bg-purple-500',
-          appHexColor: '#8B5CF6'
+          appHexColor: '#8B5CF6',
+          disableTeleport: true
         }
       });
 
@@ -200,7 +219,10 @@ describe('Post Tool Use Display Regression Tests', () => {
           props: {
             event,
             appHexColor: '#3B82F6',
-            gradientClass: 'bg-gradient-to-r from-blue-500 to-blue-600'
+            gradientClass: 'bg-gradient-to-r from-blue-500 to-blue-600',
+            colorClass: 'bg-blue-500',
+            appGradientClass: 'bg-gradient-to-r from-blue-500 to-blue-600',
+            appColorClass: 'bg-blue-500'
           }
         });
 
@@ -220,7 +242,7 @@ describe('Post Tool Use Display Regression Tests', () => {
       const eventWithTimeoutContent: HookEvent = {
         id: 8,
         source_app: 'claude-code',
-        session_id: 'timeout-content-test',
+        session_id: 'normal-content-test',
         hook_event_type: 'PostToolUse',
         payload: {
           tool_name: 'Read',
@@ -236,7 +258,10 @@ describe('Post Tool Use Display Regression Tests', () => {
         props: {
           event: eventWithTimeoutContent,
           appHexColor: '#10B981',
-          gradientClass: 'bg-gradient-to-r from-green-500 to-green-600'
+          gradientClass: 'bg-gradient-to-r from-green-500 to-green-600',
+          colorClass: 'bg-green-500',
+          appGradientClass: 'bg-gradient-to-r from-green-500 to-green-600',
+          appColorClass: 'bg-green-500'
         }
       });
 
@@ -383,7 +408,8 @@ describe('Post Tool Use Display Regression Tests', () => {
             isOpen: true,
             event,
             sessionColorClass: 'bg-blue-500',
-            appHexColor: '#3B82F6'
+            appHexColor: '#3B82F6',
+            disableTeleport: true
           }
         });
 
@@ -422,7 +448,8 @@ describe('Post Tool Use Display Regression Tests', () => {
           isOpen: true,
           event: screenshotScenario,
           sessionColorClass: 'bg-green-500',
-          appHexColor: '#10B981'
+          appHexColor: '#10B981',
+          disableTeleport: true
         }
       });
 
@@ -456,7 +483,10 @@ describe('Post Tool Use Display Regression Tests', () => {
           props: {
             event,
             appHexColor: '#3B82F6',
-            gradientClass: 'bg-gradient-to-r from-blue-500 to-blue-600'
+            gradientClass: 'bg-gradient-to-r from-blue-500 to-blue-600',
+            colorClass: 'bg-blue-500',
+            appGradientClass: 'bg-gradient-to-r from-blue-500 to-blue-600',
+            appColorClass: 'bg-blue-500'
           }
         });
 

@@ -1,0 +1,324 @@
+#!/usr/bin/env node
+
+/**
+ * MCP Evaluate CLI - Unified Evaluator
+ * Command-line interface for comprehensive MCP server evaluation
+ */
+
+import { Command } from 'commander';
+import chalk from 'chalk';
+import ora from 'ora';
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import UnifiedEvaluator from '../src/unified-evaluator.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const packageJson = JSON.parse(await fs.readFile(path.join(__dirname, '../package.json'), 'utf-8'));
+
+// Create CLI program
+const program = new Command();
+
+program
+  .name('mcp-evaluate')
+  .description('Comprehensive MCP server evaluation tool')
+  .version(packageJson.version)
+  .argument('<server-path>', 'Path to MCP server directory')
+  .option('-c, --config <path>', 'Path to evaluation configuration file')
+  .option('-o, --output <path>', 'Output path for report')
+  .option('-f, --format <type>', 'Output format (json|markdown|html)', 'json')
+  .option('--no-static', 'Skip static analysis')
+  .option('--no-runtime', 'Skip runtime testing')
+  .option('--static-weight <weight>', 'Weight for static analysis (0-1)', '0.4')
+  .option('--runtime-weight <weight>', 'Weight for runtime testing (0-1)', '0.6')
+  .option('--pass-threshold <score>', 'Minimum score to pass (0-100)', '70')
+  .option('--fail-threshold <score>', 'Score below which is failure (0-100)', '40')
+  .option('--fail-under <score>', 'Exit with error if score is below this value')
+  .option('--no-observability', 'Skip sending results to observability system')
+  .option('--observability-url <url>', 'Observability system URL', 'http://localhost:3456')
+  .option('-v, --verbose', 'Verbose output')
+  .option('--debug', 'Debug mode with detailed logging')
+  .action(async (serverPath, options) => {
+    const spinner = ora('Initializing evaluator...').start();
+
+    try {
+      // Load configuration if provided
+      let config = {};
+      if (options.config) {
+        spinner.text = 'Loading configuration...';
+        const configContent = await fs.readFile(options.config, 'utf-8');
+        config = JSON.parse(configContent);
+      }
+
+      // Merge CLI options with config
+      const evaluatorConfig = {
+        runStatic: options.static !== false,
+        runRuntime: options.runtime !== false,
+        weights: {
+          static: parseFloat(options.staticWeight || config.evaluation?.weights?.static || 0.4),
+          runtime: parseFloat(options.runtimeWeight || config.evaluation?.weights?.runtime || 0.6)
+        },
+        passThreshold: parseInt(options.passThreshold || config.evaluation?.passThreshold || 70),
+        failThreshold: parseInt(options.failThreshold || config.evaluation?.failThreshold || 40),
+        sendToObservability: options.observability !== false,
+        observabilityUrl: options.observabilityUrl || config.evaluation?.observabilityUrl,
+        generateReport: true,
+        outputFormat: options.format || config.reporting?.outputFormat || 'json',
+        ...config.evaluation
+      };
+
+      // Validate weights sum to 1.0
+      const weightSum = evaluatorConfig.weights.static + evaluatorConfig.weights.runtime;
+      if (Math.abs(weightSum - 1.0) > 0.01) {
+        spinner.fail('Error: Static and runtime weights must sum to 1.0');
+        process.exit(1);
+      }
+
+      // Create evaluator
+      spinner.text = 'Creating evaluator...';
+      const evaluator = new UnifiedEvaluator(serverPath, evaluatorConfig);
+
+      // Setup event handlers for verbose mode
+      if (options.verbose || options.debug) {
+        setupEventHandlers(evaluator, spinner, options);
+      }
+
+      // Run evaluation
+      spinner.text = 'Starting evaluation...';
+      const report = await evaluator.evaluate();
+
+      spinner.succeed(`Evaluation completed with score: ${report.combined.score}/100`);
+
+      // Display results
+      displayResults(report);
+
+      // Save report if output path provided
+      if (options.output) {
+        await saveReport(report, options.output, options.format);
+        console.log(chalk.green(`✓ Report saved to ${options.output}`));
+      }
+
+      // Check fail-under threshold
+      if (options.failUnder) {
+        const threshold = parseInt(options.failUnder);
+        if (report.combined.score < threshold) {
+          console.error(chalk.red(`✗ Score ${report.combined.score} is below required threshold ${threshold}`));
+          process.exit(1);
+        }
+      }
+
+    } catch (error) {
+      spinner.fail(`Evaluation failed: ${error.message}`);
+      if (options.debug) {
+        console.error(error.stack);
+      }
+      process.exit(1);
+    }
+  });
+
+// Setup event handlers for verbose output
+function setupEventHandlers(evaluator, spinner, options) {
+  // Static analysis events
+  evaluator.on('static:started', () => {
+    if (options.verbose) console.log(chalk.blue('\n→ Starting static analysis...'));
+  });
+
+  evaluator.on('hook:running', (data) => {
+    spinner.text = `Running hook: ${data.hook}`;
+  });
+
+  evaluator.on('hook:completed', (data) => {
+    if (options.verbose) {
+      const icon = data.status === 'pass' ? '✓' : 
+                  data.status === 'partial' ? '⚠' : '✗';
+      console.log(chalk.gray(`  ${icon} ${data.hook}: ${data.score}/100`));
+    }
+  });
+
+  // Runtime testing events
+  evaluator.on('runtime:started', () => {
+    if (options.verbose) console.log(chalk.blue('\n→ Starting runtime testing...'));
+  });
+
+  evaluator.on('server:ready', () => {
+    spinner.text = 'Server ready, starting tests...';
+  });
+
+  evaluator.on('capabilities:discovered', (data) => {
+    if (options.verbose) {
+      console.log(chalk.gray(`  Found ${data.tools?.length || 0} tools, ${data.resources?.length || 0} resources`));
+    }
+  });
+
+  evaluator.on('tool:testing', (data) => {
+    spinner.text = `Testing tool: ${data.name}`;
+  });
+
+  evaluator.on('tool:tested', (data) => {
+    if (options.debug) {
+      const icon = data.status === 'passed' ? '✓' : '✗';
+      console.log(chalk.gray(`  ${icon} Tool ${data.name}: ${data.status}`));
+    }
+  });
+
+  evaluator.on('security:testing', () => {
+    spinner.text = 'Running security tests...';
+  });
+
+  evaluator.on('performance:testing', () => {
+    spinner.text = 'Running performance tests...';
+  });
+
+  // Observability events
+  evaluator.on('observability:sent', () => {
+    if (options.verbose) console.log(chalk.gray('  → Results sent to observability system'));
+  });
+
+  evaluator.on('observability:error', (data) => {
+    if (options.verbose) console.log(chalk.yellow(`  ⚠ Observability error: ${data.error}`));
+  });
+}
+
+// Display results in console
+function displayResults(report) {
+  console.log('\n' + chalk.bold('📊 Evaluation Results'));
+  console.log('─'.repeat(50));
+
+  // Overall score with color
+  const scoreColor = report.combined.score >= 70 ? 'green' : 
+                    report.combined.score >= 40 ? 'yellow' : 'red';
+  console.log(chalk.bold('Overall Score: ') + 
+              chalk[scoreColor].bold(`${report.combined.score}/100`) + 
+              chalk.gray(` (${report.combined.status.toUpperCase()})`));
+
+  // Certification level
+  const certEmoji = {
+    'gold': '🏆',
+    'silver': '🥈',
+    'bronze': '🥉',
+    'none': '❌'
+  };
+  console.log(chalk.bold('Certification: ') + 
+              `${certEmoji[report.combined.certification]} ${report.combined.certification.toUpperCase()}`);
+
+  console.log('\n' + chalk.bold('Score Breakdown:'));
+  console.log(`  • Static Analysis: ${report.static.score}/100 (${Math.round(report.combined.breakdown.static.contribution)}% of total)`);
+  console.log(`  • Runtime Testing: ${report.runtime.score}/100 (${Math.round(report.combined.breakdown.runtime.contribution)}% of total)`);
+
+  // Static results summary
+  if (report.static.summary) {
+    console.log('\n' + chalk.bold('Static Analysis:'));
+    console.log(`  ✓ Passed: ${report.static.summary.passed || 0}`);
+    console.log(`  ⚠ Partial: ${report.static.summary.partial || 0}`);
+    console.log(`  ✗ Failed: ${report.static.summary.failed || 0}`);
+  }
+
+  // Runtime results summary
+  if (report.runtime.summary) {
+    console.log('\n' + chalk.bold('Runtime Testing:'));
+    const summary = report.runtime.summary;
+    console.log(`  • Tools: ${summary.tools?.passed || 0}/${summary.tools?.total || 0} passed`);
+    console.log(`  • Resources: ${summary.resources?.passed || 0}/${summary.resources?.total || 0} passed`);
+    console.log(`  • Security: ${summary.security?.passed || 0}/${summary.security?.total || 0} passed`);
+    console.log(`  • Error Handling: ${summary.errors?.handled || 0}/${summary.errors?.total || 0} handled`);
+    
+    // Performance metrics
+    if (summary.performance) {
+      console.log('\n' + chalk.bold('Performance:'));
+      for (const [test, metrics] of Object.entries(summary.performance)) {
+        console.log(`  • ${test}: ${metrics.avg}ms avg (${metrics.min}-${metrics.max}ms)`);
+      }
+    }
+  }
+
+  // Recommendations
+  if (report.combined.recommendations && report.combined.recommendations.length > 0) {
+    console.log('\n' + chalk.bold('📋 Top Recommendations:'));
+    const topRecs = report.combined.recommendations
+      .slice(0, 5)
+      .sort((a, b) => {
+        const priority = { 'critical': 0, 'high': 1, 'medium': 2, 'low': 3 };
+        return priority[a.priority] - priority[b.priority];
+      });
+
+    for (const rec of topRecs) {
+      const icon = rec.priority === 'critical' ? '🚨' :
+                  rec.priority === 'high' ? '❗' :
+                  rec.priority === 'medium' ? '⚠️' : 'ℹ️';
+      console.log(`  ${icon} [${rec.priority.toUpperCase()}] ${rec.requirement}`);
+      console.log(chalk.gray(`     ${rec.recommendation}`));
+    }
+  }
+
+  console.log('\n' + '─'.repeat(50));
+}
+
+// Save report to file
+async function saveReport(report, outputPath, format) {
+  let content;
+  
+  switch (format) {
+    case 'markdown':
+      // Generate markdown if not already
+      if (typeof report === 'string' && report.startsWith('#')) {
+        content = report;
+      } else {
+        content = generateMarkdownReport(report);
+      }
+      break;
+    
+    case 'html':
+      if (typeof report === 'string' && report.startsWith('<!DOCTYPE')) {
+        content = report;
+      } else {
+        content = generateHtmlReport(report);
+      }
+      break;
+    
+    case 'json':
+    default:
+      content = JSON.stringify(report, null, 2);
+      break;
+  }
+
+  await fs.writeFile(outputPath, content, 'utf-8');
+}
+
+// Simple markdown report generator
+function generateMarkdownReport(report) {
+  let md = `# MCP Server Evaluation Report\n\n`;
+  md += `**Date:** ${new Date(report.metadata.timestamp).toLocaleString()}\n`;
+  md += `**Duration:** ${report.metadata.duration}ms\n\n`;
+  md += `## Overall Score: ${report.combined.score}/100 (${report.combined.status.toUpperCase()})\n\n`;
+  md += `**Certification Level:** ${report.combined.certification.toUpperCase()}\n\n`;
+  
+  // Add more sections as needed
+  
+  return md;
+}
+
+// Simple HTML report generator
+function generateHtmlReport(report) {
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <title>MCP Evaluation Report</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 1200px; margin: 0 auto; }
+    .score { font-size: 48px; font-weight: bold; }
+    .passed { color: #4CAF50; }
+    .failed { color: #F44336; }
+    .partial { color: #FF9800; }
+  </style>
+</head>
+<body>
+  <h1>MCP Server Evaluation Report</h1>
+  <div class="score ${report.combined.status}">${report.combined.score}/100</div>
+  <p>Status: ${report.combined.status.toUpperCase()}</p>
+  <pre>${JSON.stringify(report, null, 2)}</pre>
+</body>
+</html>`;
+}
+
+// Parse arguments
+program.parse(process.argv);

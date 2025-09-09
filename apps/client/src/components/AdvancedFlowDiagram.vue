@@ -335,7 +335,6 @@ const {
   zoomIn,
   zoomOut,
   resetView,
-  selectNode: selectNodeDiagram,
   startSimulation,
   stopSimulation,
   updateViewBox
@@ -454,8 +453,8 @@ const handlePanning = (event: MouseEvent) => {
   const deltaX = event.clientX - lastMousePos.value.x;
   const deltaY = event.clientY - lastMousePos.value.y;
   
-  viewBox.value.x -= deltaX / zoom.value;
-  viewBox.value.y -= deltaY / zoom.value;
+  viewBox.x -= deltaX / zoom.value;
+  viewBox.y -= deltaY / zoom.value;
   
   lastMousePos.value = { x: event.clientX, y: event.clientY };
 };

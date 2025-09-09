@@ -9,7 +9,7 @@
             <div class="flex items-center space-x-2">
               <h2 class="text-xl font-bold text-white">Applications Overview</h2>
               <span v-if="hasActiveFilters" class="inline-flex items-center px-2 py-1 bg-blue-900/30 border border-blue-700/50 rounded-full text-xs text-blue-300">
-                🔍 Filtered View
+                🔍 Filtered
               </span>
             </div>
             <div class="flex items-center space-x-2">
@@ -45,18 +45,67 @@
       </div>
       
       <!-- Quick Filter Actions (when filters are active) -->
-      <div v-if="hasActiveFilters" class="mt-4 p-2 bg-gray-800/30 border border-gray-700/50 rounded-lg">
+      <div v-if="hasActiveFilters" class="mt-4 p-3 bg-gray-800/30 border border-gray-700/50 rounded-lg">
+        <!-- Filter Count Indicator -->
+        <div class="mb-2">
+          <span class="text-xs text-blue-400">
+            Showing {{ Object.keys(groupedByApplication).length }} of {{ totalApplicationCount }} applications
+          </span>
+        </div>
+
+        <!-- Active Filter Chips -->
+        <div class="mb-3">
+          <div class="text-xs text-gray-300 mb-2">Active Filters:</div>
+          <div class="flex items-center flex-wrap gap-2">
+            <!-- App Filter Chip -->
+            <div v-if="activeFilters?.sourceApp" class="flex items-center bg-blue-900/40 border border-blue-600/50 rounded-full px-3 py-1">
+              <span class="text-xs text-blue-300">{{ activeFilters.sourceApp }}</span>
+              <button 
+                @click="clearAppFilter"
+                data-testid="clear-app-filter"
+                class="ml-2 text-blue-400 hover:text-blue-200 text-xs"
+              >
+                ×
+              </button>
+            </div>
+
+            <!-- Tool Filter Chip -->
+            <div v-if="activeFilters?.toolName" class="flex items-center bg-green-900/40 border border-green-600/50 rounded-full px-3 py-1">
+              <span class="text-xs mr-1">{{ getToolIcon(activeFilters.toolName) }}</span>
+              <span class="text-xs text-green-300">{{ activeFilters.toolName }}</span>
+              <button 
+                @click="clearToolFilter"
+                class="ml-2 text-green-400 hover:text-green-200 text-xs"
+              >
+                ×
+              </button>
+            </div>
+
+            <!-- Session Filter Chip -->
+            <div v-if="activeFilters?.sessionId" class="flex items-center bg-purple-900/40 border border-purple-600/50 rounded-full px-3 py-1">
+              <span class="text-xs text-purple-300">{{ formatSessionId(activeFilters.sessionId) }}</span>
+              <button 
+                @click="clearSessionFilter"
+                class="ml-2 text-purple-400 hover:text-purple-200 text-xs"
+              >
+                ×
+              </button>
+            </div>
+
+            <!-- Clear All Button -->
+            <button 
+              @click="clearAllFilters"
+              class="text-xs text-blue-400 hover:text-blue-300 transition-colors bg-gray-800/50 px-3 py-1 rounded-full border border-gray-600/50"
+            >
+              Clear All Filters
+            </button>
+          </div>
+        </div>
+
         <div class="flex items-center justify-between">
           <div class="flex items-center space-x-2">
-            <span class="text-xs text-gray-400">Viewing filtered applications • Use the filter bar above to adjust filters</span>
+            <span class="text-xs text-gray-400">Use the filter bar above to adjust filters</span>
           </div>
-          
-          <button 
-            @click="clearAllFilters"
-            class="text-xs text-blue-400 hover:text-blue-300 transition-colors"
-          >
-            View All Applications
-          </button>
         </div>
       </div>
     </div>
@@ -146,7 +195,7 @@
             <!-- Recent Tool Usage -->
             <div class="flex flex-col min-h-0">
               <div class="flex items-center justify-between mb-2">
-                <h4 class="text-sm font-medium text-gray-300">Recent Tools</h4>
+                <h4 class="text-sm font-medium text-gray-300">Recent Tool Usage</h4>
                 <button
                   @click="viewAllSessions(appName)"
                   class="text-xs text-blue-400 hover:text-blue-300 transition-colors"
@@ -156,7 +205,7 @@
               </div>
               <div class="flex-grow overflow-y-auto custom-scrollbar space-y-1">
                 <div
-                  v-for="tool in getRecentToolUsage(appEvents).slice(0, 3)"
+                  v-for="tool in getRecentToolUsage(appEvents).slice(0, 5)"
                   :key="tool.name"
                   class="flex items-center justify-between p-2 bg-gray-900/30 rounded text-xs cursor-pointer hover:bg-gray-900/50 transition-colors"
                   @click="filterByTool(appName, tool.name)"
@@ -174,7 +223,7 @@
                     <span class="text-gray-300 font-medium">{{ tool.name }}</span>
                   </div>
                   <div class="flex items-center space-x-2">
-                    <span class="text-gray-500">{{ tool.count }}</span>
+                    <span class="text-gray-500">{{ tool.count }} uses</span>
                     <span class="text-gray-600">{{ tool.timeAgo }}</span>
                   </div>
                 </div>
@@ -239,10 +288,10 @@ interface Props {
   getSessionColor: (sessionId: string) => string;
   allEvents?: HookEvent[]; // Unfiltered events for total count
   activeFilters?: {
-    sourceApps?: string[];
-    sessionIds?: string[];
-    eventTypes?: string[];
-    toolNames?: string[];
+    sourceApp?: string;
+    sessionId?: string;
+    eventType?: string;
+    toolName?: string;
     search?: string;
   };
 }
@@ -294,10 +343,10 @@ const uniqueSessions = computed(() => {
 const hasActiveFilters = computed(() => {
   const filters = props.activeFilters;
   return !!(
-    (filters?.sourceApps && filters.sourceApps.length > 0) || 
-    (filters?.sessionIds && filters.sessionIds.length > 0) || 
-    (filters?.eventTypes && filters.eventTypes.length > 0) || 
-    (filters?.toolNames && filters.toolNames.length > 0) ||
+    filters?.sourceApp || 
+    filters?.sessionId || 
+    filters?.eventType || 
+    filters?.toolName ||
     filters?.search
   );
 });

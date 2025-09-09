@@ -1,0 +1,26 @@
+{
+  "evaluator": {
+    "runStatic": true,
+    "runRuntime": true,
+    "weights": {
+      "static": 0.4,
+      "runtime": 0.6
+    },
+    "passThreshold": 70,
+    "failThreshold": 40,
+    "timeout": 30000
+  },
+  "inspector": {
+    "serverPort": 3000,
+    "clientPort": 5173,
+    "startupDelay": 3000
+  },
+  "hooks": {
+    "path": ".claude/hooks",
+    "python": "python3"
+  },
+  "output": {
+    "format": "json",
+    "reportsDir": "./reports"
+  }
+}

@@ -247,7 +247,7 @@ const eventBadgeClasses = computed(() => {
 
 const borderColorClass = computed(() => {
   // Convert bg-color-500 to border-color-500
-  return props.colorClass.replace('bg-', 'border-');
+  return props.colorClass ? props.colorClass.replace('bg-', 'border-') : 'border-gray-500';
 });
 
 

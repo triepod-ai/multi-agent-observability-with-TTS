@@ -15,7 +15,7 @@
             <button
               v-for="mode in viewModes"
               :key="mode.id"
-              @click="currentViewMode = mode.id"
+              @click="currentViewMode = mode.id as typeof currentViewMode.value"
               class="px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200"
               :class="currentViewMode === mode.id 
                 ? 'bg-[var(--theme-primary)] text-white shadow-md' 
@@ -170,7 +170,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import type { HookEvent } from '../types';
-import { useEventEmojis } from '../composables/useEventEmojis';
 import { useEventColors } from '../composables/useEventColors';
 
 const props = defineProps<{
@@ -182,7 +181,7 @@ const props = defineProps<{
   };
 }>();
 
-const emit = defineEmits<{
+defineEmits<{
   selectSession: [sessionId: string];
   selectTimeRange: [start: number, end: number];
 }>();
@@ -234,8 +233,7 @@ const timeRanges = [
   { value: '1h', label: '1h', seconds: 3600 }
 ];
 
-const { getEmojiForEventType } = useEventEmojis();
-const { getColorForSession, getHexColorForSession } = useEventColors();
+const { getColorForSession } = useEventColors();
 
 // Computed
 const filteredEvents = computed(() => {
@@ -434,12 +432,13 @@ const renderStackedChart = () => {
   const sortedBuckets = Array.from(buckets.entries()).sort((a, b) => a[0] - b[0]);
   
   eventTypes.forEach(type => {
+    if (!ctx.value) return;
     ctx.value.fillStyle = colors[type as keyof typeof colors] || '#666';
     ctx.value.globalAlpha = 0.8;
     ctx.value.beginPath();
     
     let prevY = height;
-    sortedBuckets.forEach(([time, typeCounts], index) => {
+    sortedBuckets.forEach(([, typeCounts], index) => {
       const x = (index / (sortedBuckets.length - 1)) * width;
       
       // Calculate y position for this type
@@ -455,25 +454,29 @@ const renderStackedChart = () => {
       });
       
       if (index === 0) {
-        ctx.value.moveTo(x, y);
+        ctx.value?.moveTo(x, y);
       } else {
         // Smooth curve
         const prevX = ((index - 1) / (sortedBuckets.length - 1)) * width;
         const cpx = (prevX + x) / 2;
-        ctx.value.quadraticCurveTo(cpx, prevY, x, y);
+        ctx.value?.quadraticCurveTo(cpx, prevY, x, y);
       }
       
       prevY = y;
     });
     
     // Complete the area
-    ctx.value.lineTo(width, height);
-    ctx.value.lineTo(0, height);
-    ctx.value.closePath();
-    ctx.value.fill();
+    if (ctx.value) {
+      ctx.value.lineTo(width, height);
+      ctx.value.lineTo(0, height);
+      ctx.value.closePath();
+      ctx.value.fill();
+    }
   });
   
-  ctx.value.globalAlpha = 1;
+  if (ctx.value) {
+    ctx.value.globalAlpha = 1;
+  }
 };
 
 const renderTimelineChart = () => {
@@ -524,7 +527,7 @@ const handleMouseLeave = () => {
   tooltip.value.visible = false;
 };
 
-const handleChartClick = (event: MouseEvent) => {
+const handleChartClick = (_event: MouseEvent) => {
   // Handle click events for drilling down into data
 };
 

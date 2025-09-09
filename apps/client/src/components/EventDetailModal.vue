@@ -1,5 +1,5 @@
 <template>
-  <Teleport to="body">
+  <Teleport to="body" :disabled="disableTeleport">
     <Transition name="modal">
       <div 
         v-if="isOpen && event" 
@@ -85,7 +85,7 @@
                     </div>
                     <div v-if="toolInfo">
                       <h4 class="text-sm font-semibold text-[var(--theme-text-secondary)] mb-1">Tool</h4>
-                      <p class="text-base text-[var(--theme-text-primary)]">{{ toolInfo.tool }}</p>
+                      <p class="text-base text-[var(--theme-text-primary)]" data-testid="tool-name">{{ toolInfo.tool }}</p>
                     </div>
                     <div v-if="event.summary">
                       <h4 class="text-sm font-semibold text-[var(--theme-text-secondary)] mb-1">Summary</h4>
@@ -255,13 +255,16 @@ import { ref, computed, watch } from 'vue';
 import type { HookEvent } from '../types';
 import { useEventTypeColors } from '../composables/useEventTypeColors';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   isOpen: boolean;
   event: HookEvent | null;
   allEvents?: HookEvent[];
   sessionColorClass?: string;
   appHexColor?: string;
-}>();
+  disableTeleport?: boolean;
+}>(), {
+  disableTeleport: false
+});
 
 const emit = defineEmits<{
   close: [];

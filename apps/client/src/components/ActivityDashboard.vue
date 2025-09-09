@@ -367,7 +367,7 @@ const props = defineProps<{
   getAppColor: (appName: string) => string;
 }>();
 
-const emit = defineEmits<{
+defineEmits<{
   selectSession: [sessionId: string];
   viewAllSessions: [];
 }>();
@@ -549,11 +549,6 @@ const checkCriticalEvents = () => {
 // Helper functions
 const getEventEmoji = (type: string) => eventEmojis[type] || '❓';
 
-const getToolName = (event: HookEvent) => {
-  if (event.payload?.tool_name) return event.payload.tool_name;
-  if (event.hook_event_type === 'UserPromptSubmit') return 'User Input';
-  return '';
-};
 
 const getSessionShort = (sessionId: string) => {
   const parts = sessionId.split('_');

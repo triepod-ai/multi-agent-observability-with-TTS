@@ -759,11 +759,18 @@ class FallbackStorageService {
         success_count: acc.success_count + metric.success_count
       }), { total_executions: 0, total_tokens: 0, total_cost: 0, total_duration_ms: 0, success_count: 0 });
 
-      // Get active agents count from agent executions
-      const activeAgentsStmt = this.db!.prepare(
-        'SELECT COUNT(*) as count FROM agent_executions WHERE status = ?'
+      // Clean up stale agents (older than 1 hour)
+      const cleanupStaleAgentsStmt = this.db!.prepare(
+        'UPDATE agent_executions SET status = ? WHERE status = ? AND start_time < ?'
       );
-      const activeAgents = activeAgentsStmt.get('active') as any;
+      const oneHourAgo = Date.now() - (60 * 60 * 1000);
+      cleanupStaleAgentsStmt.run('timeout', 'active', oneHourAgo);
+
+      // Get active agents count from agent executions (only recent ones)
+      const activeAgentsStmt = this.db!.prepare(
+        'SELECT COUNT(*) as count FROM agent_executions WHERE status = ? AND start_time >= ?'
+      );
+      const activeAgents = activeAgentsStmt.get('active', oneHourAgo) as any;
 
       return {
         active_agents: activeAgents?.count || 0,
@@ -962,6 +969,18 @@ class FallbackStorageService {
       const agentId = `ag_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       const now = Date.now();
 
+      // Clean up stale agents periodically (10% chance on each new agent start)
+      if (Math.random() < 0.1) {
+        const cleanupStmt = this.db!.prepare(
+          'UPDATE agent_executions SET status = ? WHERE status = ? AND start_time < ?'
+        );
+        const oneHourAgo = now - (60 * 60 * 1000);
+        const result = cleanupStmt.run('timeout', 'active', oneHourAgo);
+        if (result.changes > 0) {
+          console.log(`🧹 Cleaned up ${result.changes} stale agents`);
+        }
+      }
+
       // Create agent execution record
       const execution = {
         agent_id: agentId,
@@ -1151,9 +1170,16 @@ class FallbackStorageService {
     if (!this.db) await this.initialize();
 
     try {
-      // Get active agents
-      const activeStmt = this.db!.prepare('SELECT * FROM terminal_status WHERE status = ? ORDER BY start_time DESC');
-      const activeRows = activeStmt.all('active') as any[];
+      // Clean up stale entries from terminal_status
+      const oneHourAgo = Date.now() - (60 * 60 * 1000);
+      const cleanupTerminalStmt = this.db!.prepare(
+        'UPDATE terminal_status SET status = ? WHERE status = ? AND start_time < ?'
+      );
+      cleanupTerminalStmt.run('timeout', 'active', oneHourAgo);
+
+      // Get active agents (only recent ones)
+      const activeStmt = this.db!.prepare('SELECT * FROM terminal_status WHERE status = ? AND start_time >= ? ORDER BY start_time DESC');
+      const activeRows = activeStmt.all('active', oneHourAgo) as any[];
 
       // Get recent completions
       const completedStmt = this.db!.prepare('SELECT * FROM terminal_status WHERE status = ? ORDER BY start_time DESC LIMIT 5');

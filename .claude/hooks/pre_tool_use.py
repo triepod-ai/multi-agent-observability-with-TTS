@@ -18,6 +18,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any
 
+# Add session helpers for Phase 3 integration
+sys.path.append(os.path.join(os.path.dirname(__file__), 'utils'))
+from session_helpers import get_stored_session_id, get_project_name
+
 # Import observability system for event logging
 try:
     from utils.tts.observability import should_speak_event_coordinated, EventCategory, EventPriority
@@ -490,12 +494,17 @@ def log_tool_event(tool: str, parameters: Dict[str, Any], should_notify_result: 
         # Create daily log file
         log_file = LOG_DIR / f"pre_tool_use_{datetime.now().strftime('%Y%m%d')}.jsonl"
         
+        # Get project name and stored session_id (NEW)
+        project_name = get_project_name()
+        session_id = get_stored_session_id(project_name)
+
         log_entry = {
             "tool": tool,
             "parameters": parameters,
             "should_notify": should_notify_result,
             "timestamp": datetime.now().isoformat(),
-            "project": "multi-agent-observability-system",
+            "project": project_name,
+            "session_id": session_id,
             "user": os.getenv("USER", "unknown"),
         }
         

@@ -11,9 +11,11 @@ Each function has a single, clear responsibility.
 """
 
 import subprocess
+import tempfile
+import os
 from pathlib import Path
 from typing import Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 def get_project_name() -> str:
@@ -120,11 +122,166 @@ def format_git_summary(git_info: Dict[str, Any]) -> str:
     modified_count = git_info["modified_count"]
     recent_count = len(git_info["recent_commits"])
     branch = git_info["branch"]
-    
+
     parts = [f"Branch: {branch}"]
     if modified_count > 0:
         parts.append(f"{modified_count} modified files")
     if recent_count > 0:
         parts.append(f"{recent_count} recent commits")
-    
+
     return " | ".join(parts)
+
+
+# ============================================
+# Phase 1: Core Session Storage Functions
+# ============================================
+
+def store_session_id(session_id: str, project_name: str) -> bool:
+    """
+    Atomically store session_id for project using temp file approach.
+
+    Args:
+        session_id: Claude session ID to store
+        project_name: Project name for scoping
+
+    Returns:
+        bool: True if stored successfully, False on error
+    """
+    try:
+        session_file = Path(f"/tmp/claude_session_{project_name}")
+
+        # Create temporary file in same directory for atomic operation
+        with tempfile.NamedTemporaryFile(
+            mode='w',
+            dir='/tmp',
+            prefix=f'claude_session_{project_name}_',
+            suffix='.tmp',
+            delete=False
+        ) as tmp_file:
+            # Write session_id and timestamp
+            timestamp = datetime.now().isoformat()
+            tmp_file.write(f"{session_id}\n{timestamp}\n")
+            tmp_file.flush()
+            os.fsync(tmp_file.fileno())  # Force write to disk
+            tmp_path = tmp_file.name
+
+        # Set proper permissions (600 - owner read/write only)
+        os.chmod(tmp_path, 0o600)
+
+        # Atomic move to final location
+        os.rename(tmp_path, session_file)
+
+        return True
+
+    except Exception as e:
+        # Clean up temp file if it exists
+        try:
+            if 'tmp_path' in locals():
+                Path(tmp_path).unlink(missing_ok=True)
+        except:
+            pass
+        print(f"Error storing session_id: {e}")
+        return False
+
+
+def get_stored_session_id(project_name: str) -> str:
+    """
+    Retrieve session_id with staleness check (24-hour TTL).
+
+    Args:
+        project_name: Project name for scoping
+
+    Returns:
+        str: session_id if found and fresh, "unknown" otherwise
+    """
+    try:
+        session_file = Path(f"/tmp/claude_session_{project_name}")
+
+        if not session_file.exists():
+            return "unknown"
+
+        content = session_file.read_text().strip()
+        lines = content.split('\n')
+
+        if len(lines) < 2:
+            return "unknown"
+
+        session_id = lines[0]
+        timestamp_str = lines[1]
+
+        # Check staleness (24-hour TTL)
+        try:
+            stored_time = datetime.fromisoformat(timestamp_str)
+            current_time = datetime.now()
+
+            if current_time - stored_time > timedelta(hours=24):
+                # Stale session, clean up file
+                session_file.unlink(missing_ok=True)
+                return "unknown"
+
+            return session_id
+
+        except ValueError:
+            # Invalid timestamp format
+            return "unknown"
+
+    except Exception as e:
+        print(f"Error retrieving session_id: {e}")
+        return "unknown"
+
+
+def cleanup_stale_sessions() -> int:
+    """
+    Clean up session files older than 24 hours.
+
+    Returns:
+        int: Number of stale sessions cleaned up
+    """
+    cleanup_count = 0
+
+    try:
+        tmp_dir = Path("/tmp")
+        current_time = datetime.now()
+
+        # Find all claude_session_* files
+        for session_file in tmp_dir.glob("claude_session_*"):
+            try:
+                # Skip if not a regular file
+                if not session_file.is_file():
+                    continue
+
+                # Skip temporary files (they have .tmp suffix)
+                if session_file.suffix == '.tmp':
+                    continue
+
+                content = session_file.read_text().strip()
+                lines = content.split('\n')
+
+                if len(lines) < 2:
+                    # Invalid format, clean up
+                    session_file.unlink(missing_ok=True)
+                    cleanup_count += 1
+                    continue
+
+                timestamp_str = lines[1]
+
+                try:
+                    stored_time = datetime.fromisoformat(timestamp_str)
+
+                    if current_time - stored_time > timedelta(hours=24):
+                        session_file.unlink(missing_ok=True)
+                        cleanup_count += 1
+
+                except ValueError:
+                    # Invalid timestamp, clean up
+                    session_file.unlink(missing_ok=True)
+                    cleanup_count += 1
+
+            except Exception as e:
+                print(f"Error processing {session_file}: {e}")
+                continue
+
+    except Exception as e:
+        print(f"Error during cleanup: {e}")
+
+    return cleanup_count

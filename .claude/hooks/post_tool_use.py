@@ -23,6 +23,8 @@ from typing import Any, Dict, Optional, Tuple
 
 from utils.constants import ensure_session_log_dir
 from utils.http_client import send_tool_use_event
+# Add to imports (similar to PreToolUse)
+from utils.session_helpers import get_stored_session_id, get_project_name
 
 # Import observability system for event logging
 try:
@@ -824,8 +826,12 @@ def main():
         hook_input = sys.stdin.read()
         input_data = json.loads(hook_input)
         
-        # Extract session_id (required for both logging and server)
-        session_id = input_data.get('session_id', 'unknown')
+        # Get session_id from stored file instead of input_data (NEW)
+        project_name = get_project_name()
+        session_id = get_stored_session_id(project_name)
+
+        # Update input_data with retrieved session_id for compatibility
+        input_data['session_id'] = session_id
         
         # Log to local file (existing functionality)
         local_logged = log_tool_use(session_id, input_data)

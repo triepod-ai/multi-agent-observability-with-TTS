@@ -25,7 +25,7 @@ from datetime import datetime
 # Add utils to path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'utils'))
 
-from session_helpers import get_project_name, get_project_status, get_git_status
+from session_helpers import get_project_name, get_project_status, get_git_status, store_session_id
 from constants import ensure_session_log_dir
 from http_client import send_event_to_server
 
@@ -58,7 +58,10 @@ def main():
         
         # Get project name
         project_name = get_project_name()
-        
+
+        # Store session_id for tool hooks (NEW)
+        store_session_id(session_id, project_name)
+
         # Create and send tracking event
         event = create_session_event(session_id, source, project_name)
         send_event_to_server(event)

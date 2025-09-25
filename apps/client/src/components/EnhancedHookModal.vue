@@ -228,7 +228,11 @@ async function fetchRecentEvents(hook: HookStatus) {
   try {
     const response = await fetch(`/api/hooks/${hook.type}/events?limit=50`);
     if (response.ok) {
-      recentEvents.value = await response.json();
+      const data = await response.json();
+      console.log(`Fetched events for ${hook.type}:`, data); // Debug log
+      recentEvents.value = data;
+    } else {
+      console.error(`Failed to fetch events: HTTP ${response.status}`);
     }
   } catch (error) {
     console.error('Failed to fetch recent events:', error);

@@ -187,15 +187,15 @@
               <div class="hierarchy-stats">
                 <div class="hierarchy-stat">
                   <span class="hierarchy-label">Max Depth:</span>
-                  <span class="hierarchy-value">{{ context.sessionDepthRange.max }}</span>
+                  <span class="hierarchy-value">{{ context.sessionContext?.maxDepth || context.sessionDepthRange?.max || 0 }}</span>
                 </div>
                 <div class="hierarchy-stat">
                   <span class="hierarchy-label">Parent Sessions:</span>
-                  <span class="hierarchy-value">{{ context.parentSessions || 0 }}</span>
+                  <span class="hierarchy-value">{{ context.sessionContext?.parentSessions || 0 }}</span>
                 </div>
                 <div class="hierarchy-stat">
                   <span class="hierarchy-label">Child Sessions:</span>
-                  <span class="hierarchy-value">{{ context.childSessions || 0 }}</span>
+                  <span class="hierarchy-value">{{ context.sessionContext?.childSessions || 0 }}</span>
                 </div>
               </div>
             </div>

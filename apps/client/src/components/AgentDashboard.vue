@@ -226,10 +226,20 @@
     </div>
 
     <!-- Enhanced Empty State -->
-    <div v-if="agentMetrics.metrics.value.totalExecutions === 0" class="text-center py-16">
+    <div v-if="agentMetrics.metrics.value.totalExecutions === 0 || (agentMetrics.metrics.value.totalExecutions > 0 && agentSessions.length === 0)" class="text-center py-16">
       <div class="text-8xl mb-6">🤖</div>
-      <h3 class="text-xl font-semibold text-white mb-2">No Agent Activity</h3>
-      <p class="text-gray-400 mb-6">Start monitoring your AI agents with realtime performance insights</p>
+      <h3 class="text-xl font-semibold text-white mb-2">
+        <template v-if="agentMetrics.metrics.value.totalExecutions === 0">No Agent Activity</template>
+        <template v-else>Agent Display Temporarily Unavailable</template>
+      </h3>
+      <p class="text-gray-400 mb-6">
+        <template v-if="agentMetrics.metrics.value.totalExecutions === 0">
+          Start monitoring your AI agents with realtime performance insights
+        </template>
+        <template v-else>
+          {{ agentMetrics.metrics.value.totalExecutions }} agent executions detected today. Session details are being processed...
+        </template>
+      </p>
       
       <!-- Run Test Agent Button -->
       <button
@@ -281,7 +291,7 @@
     </div>
 
     <!-- Agent Session Cards (for backward compatibility) -->
-    <div v-if="agentMetrics.metrics.value.totalExecutions > 0 && agentSessions.length > 0" class="mb-6">
+    <div v-if="agentSessions.length > 0" class="mb-6">
       <h3 class="text-lg font-semibold text-white mb-4">Recent Agent Executions</h3>
       <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
         <TransitionGroup name="agent-card">
@@ -448,49 +458,88 @@ const agentSessions = computed((): AgentSessionData[] => {
   // The main analytics are now handled by the useAgentMetrics composable
   const sessionGroups = new Map<string, HookEvent[]>();
   
-  // Only process recent events for display
-  const recentEvents = props.events.slice(-100); // Last 100 events
+  // Process more events for display (increased from 100 to 1000)
+  const recentEvents = props.events.slice(-1000); // Last 1000 events
+
+  // DEBUG: Log some information
+  console.log('AgentDashboard Debug:', {
+    totalEvents: props.events.length,
+    recentEvents: recentEvents.length,
+    sessionGroups: 0, // Will be updated below
+    firstEvent: props.events[0],
+    lastEvent: props.events[props.events.length - 1]
+  });
   
+  // Group events by base session ID (UUID part only)
   recentEvents.forEach(event => {
-    if (!sessionGroups.has(event.session_id)) {
-      sessionGroups.set(event.session_id, []);
+    // Extract base session ID (UUID part before first underscore)
+    const baseSessionId = event.session_id.split('_')[0] || event.session_id;
+
+    if (!sessionGroups.has(baseSessionId)) {
+      sessionGroups.set(baseSessionId, []);
     }
-    sessionGroups.get(event.session_id)!.push(event);
+    sessionGroups.get(baseSessionId)!.push(event);
   });
   
   const agentSessions: AgentSessionData[] = [];
   
-  sessionGroups.forEach((sessionEvents, sessionId) => {
+  // DEBUG: Update session groups count
+  console.log('AgentDashboard Debug - Sessions found:', sessionGroups.size);
+
+  sessionGroups.forEach((sessionEvents, baseSessionId) => {
     sessionEvents.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
-    
-    if (detectAgentSession(sessionEvents)) {
-      const agentData = analyzeAgentSession(sessionId, sessionEvents);
+
+    const isAgent = detectAgentSession(sessionEvents);
+    console.log(`Session ${baseSessionId.substring(0, 12)}...: ${sessionEvents.length} events, isAgent: ${isAgent}`, {
+      eventTypes: sessionEvents.map(e => e.hook_event_type),
+      hasPreToolUse: sessionEvents.some(e => e.hook_event_type === 'PreToolUse')
+    });
+
+    if (isAgent) {
+      // Use the first event's full session ID for display purposes
+      const displaySessionId = sessionEvents[0]?.session_id || baseSessionId;
+      const agentData = analyzeAgentSession(displaySessionId, sessionEvents);
       agentSessions.push(agentData);
+      console.log('Added agent session:', agentData.agentName);
     }
   });
-  
+
+  console.log('Final agent sessions count:', agentSessions.length);
+  console.log('=== AGENT CARDS FIX VERIFICATION ===');
+  console.log('Total events received:', props.events.length);
+  console.log('Session groups found:', sessionGroups.size);
+  console.log('Agent sessions detected:', agentSessions.length);
+  console.log('Agent names:', agentSessions.map(s => s.agentName));
+  console.log('=====================================');
+
   return agentSessions.sort((a, b) => b.startTime - a.startTime).slice(0, 12); // Limit to 12 recent sessions
 });
 
 // Helper functions
 function detectAgentSession(events: HookEvent[]): boolean {
   // Enhanced agent detection - multiple detection strategies:
-  
+
   // Strategy 1: Direct SubagentStop events (highest confidence)
-  const hasSubagentStop = events.some(event => 
+  const hasSubagentStop = events.some(event =>
     event.hook_event_type === 'SubagentStop'
   );
-  
+
   // Strategy 1b: Direct SubagentStart events (high confidence)
-  const hasSubagentStart = events.some(event => 
+  const hasSubagentStart = events.some(event =>
     event.hook_event_type === 'SubagentStart'
   );
-  
+
   // Strategy 2: Task tool usage (high confidence)
-  const hasTaskTool = events.some(event => 
-    event.hook_event_type === 'PreToolUse' && 
-    event.payload.tool_name === 'Task'
+  const hasTaskTool = events.some(event =>
+    event.hook_event_type === 'PreToolUse' &&
+    event.payload?.tool_name === 'Task'
   );
+
+  // Strategy 2b: Any multiple tool usage in a session (LOWERED THRESHOLD)
+  const toolUsageCount = events.filter(event =>
+    event.hook_event_type === 'PreToolUse' || event.hook_event_type === 'PostToolUse'
+  ).length;
+  const hasSignificantToolUsage = toolUsageCount >= 2; // Lowered from 3 to 2
   
   // Strategy 3: Agent file operations (medium confidence)
   const hasAgentFileOps = events.some(event => {
@@ -537,12 +586,38 @@ function detectAgentSession(events: HookEvent[]): boolean {
     tool && ['Read', 'Write', 'Edit', 'MultiEdit', 'Grep', 'Glob'].includes(tool)
   );
   
+  // Strategy 7: Sessions with varied tool usage patterns (NEW - for better detection)
+  const hasVariedToolUsage = toolsUsed.size >= 2 && events.length >= 3;
+
+  // Strategy 8: Sessions with investigation patterns (NEW)
+  const hasInvestigativePattern = events.some(event => {
+    if (event.hook_event_type !== 'PreToolUse') return false;
+    const toolName = event.payload.tool_name;
+    const toolInput = event.payload.tool_input;
+
+    // Look for investigation-style commands
+    if (toolName === 'Bash' && toolInput?.command) {
+      const cmd = toolInput.command.toLowerCase();
+      return cmd.includes('curl') || cmd.includes('grep') || cmd.includes('find') ||
+             cmd.includes('ls') || cmd.includes('jq') || cmd.includes('cat');
+    }
+
+    return toolName === 'Grep' || toolName === 'Glob' || toolName === 'Read';
+  });
+
+  // TEMP: More permissive detection for debugging - any session with tools is considered an agent session
+  const hasAnyToolUsage = events.some(event => event.hook_event_type === 'PreToolUse');
+
   // Return true if any high/medium confidence strategy matches
-  return hasSubagentStop || 
+  return hasSubagentStop ||
          hasSubagentStart ||
-         hasTaskTool || 
-         hasAgentFileOps || 
-         hasAgentMentions || 
+         hasTaskTool ||
+         hasSignificantToolUsage ||  // Now detects sessions with 2+ tool uses
+         hasAgentFileOps ||
+         hasAgentMentions ||
+         hasVariedToolUsage ||       // NEW: Sessions with 2+ different tools
+         hasInvestigativePattern ||  // NEW: Sessions with investigation commands
+         hasAnyToolUsage ||          // TEMP: Show any session with tool usage
          (hasAgentKeywords && hasMultipleTools) ||
          (hasMultipleTools && hasAgentPatterns && hasAgentKeywords);
 }
@@ -552,8 +627,8 @@ function analyzeAgentSession(sessionId: string, events: HookEvent[]): AgentSessi
   const lastEvent = events[events.length - 1];
   
   // Enhanced agent name and type extraction
-  let agentName = 'Unknown Agent';
-  let agentType = 'generic';
+  let agentName = 'Investigation Session';
+  let agentType = 'analyzer';
   
   // Strategy 1: Check SubagentStop events first (most reliable)
   const subagentStopEvents = events.filter(event => event.hook_event_type === 'SubagentStop');
@@ -580,11 +655,11 @@ function analyzeAgentSession(sessionId: string, events: HookEvent[]): AgentSessi
   }
   
   // Strategy 2: Look for agent name in Task tool usage
-  if (agentName === 'Unknown Agent') {
-    const taskEvents = events.filter(event => 
+  if (agentName === 'Investigation Session') {
+    const taskEvents = events.filter(event =>
       event.hook_event_type === 'PreToolUse' && event.payload.tool_name === 'Task'
     );
-    
+
     // Strategy 3: Look in all events for agent patterns
     let bestDescription = '';
     for (const event of events) {
@@ -596,11 +671,31 @@ function analyzeAgentSession(sessionId: string, events: HookEvent[]): AgentSessi
         bestDescription = taskEvents[0].payload.tool_input.description;
       }
     }
-    
+
     // Extract agent name from best available description
     if (bestDescription) {
       agentName = extractAgentName(bestDescription);
       agentType = classifyAgentType(agentName, events);
+    } else {
+      // Strategy 4: Classify based on tool usage patterns when no description available
+      const toolsUsed = events
+        .filter(event => event.hook_event_type === 'PreToolUse')
+        .map(event => event.payload.tool_name)
+        .filter(tool => tool);
+
+      if (toolsUsed.includes('Bash')) {
+        agentName = 'System Investigator';
+        agentType = 'system';
+      } else if (toolsUsed.includes('Grep') || toolsUsed.includes('Glob')) {
+        agentName = 'Code Analyzer';
+        agentType = 'analyzer';
+      } else if (toolsUsed.includes('Write') || toolsUsed.includes('Edit')) {
+        agentName = 'Code Assistant';
+        agentType = 'developer';
+      } else if (toolsUsed.length > 0) {
+        agentName = `Tool User (${toolsUsed[0]})`;
+        agentType = 'generic';
+      }
     }
   }
   
@@ -610,24 +705,32 @@ function analyzeAgentSession(sessionId: string, events: HookEvent[]): AgentSessi
   const duration = endTime ? (endTime - startTime) / 1000 : undefined;
   
   // Enhanced status determination
-  let status: 'running' | 'completed' | 'failed' = 'running';
-  
+  let status: 'running' | 'completed' | 'failed' = 'completed'; // Default to completed for investigation sessions
+
   // Check for errors in PostToolUse events
-  const hasError = events.some(event => 
+  const hasError = events.some(event =>
     event.hook_event_type === 'PostToolUse' && (
       event.payload.tool_output?.error ||
       event.payload.error ||
       event.error
     )
   );
-  
+
   // Check if session has SubagentStop (indicates completion)
   const hasCompletion = subagentStopEvents.length > 0;
+
+  // Better status logic for investigation sessions
+  const lastEventAge = Date.now() - (lastEvent.timestamp || 0);
+  const isRecentSession = lastEventAge < 5 * 60 * 1000; // Less than 5 minutes old
   
   if (hasError) {
     status = 'failed';
-  } else if (hasCompletion || (endTime && duration !== undefined && duration > 1)) {
+  } else if (hasCompletion) {
     status = 'completed';
+  } else if (isRecentSession) {
+    status = 'running';
+  } else {
+    status = 'completed'; // Older sessions are considered completed
   }
   
   // Extract comprehensive tool usage

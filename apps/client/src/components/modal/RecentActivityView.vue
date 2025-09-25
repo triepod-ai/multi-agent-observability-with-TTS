@@ -87,6 +87,28 @@
                   {{ formatDuration(event.duration) }}
                 </span>
                 <span v-if="event.error" class="error-badge">ERROR</span>
+
+                <!-- Expand/Collapse Button -->
+                <button
+                  @click="toggleExpanded(event)"
+                  class="expand-btn"
+                  :aria-label="isExpanded(event) ? 'Collapse details' : 'Expand details'"
+                >
+                  <svg
+                    class="expand-icon"
+                    :class="{ 'expanded': isExpanded(event) }"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </button>
               </div>
               
               <div class="event-details">
@@ -148,6 +170,141 @@
                   <span class="summary-text">{{ truncateText(event.summary, 120) }}</span>
                 </div>
               </div>
+
+              <!-- Expanded Details Section -->
+              <Transition name="expand-slide">
+                <div v-if="isExpanded(event)" class="expanded-details">
+                  <!-- Full Tool Information -->
+                  <div v-if="event.payload?.tool_name" class="expanded-section">
+                    <div class="expanded-header">
+                      <span class="expanded-icon">🔧</span>
+                      <h4 class="expanded-title">Tool Execution Details</h4>
+                    </div>
+                    <div class="expanded-content">
+                      <div class="tool-command">
+                        <div class="command-header">
+                          <span class="command-label">Tool:</span>
+                          <code class="command-name">{{ event.payload.tool_name }}</code>
+                          <button
+                            @click="copyToClipboard(event.payload.tool_name)"
+                            class="copy-btn"
+                            title="Copy tool name"
+                          >
+                            📋
+                          </button>
+                        </div>
+
+                        <!-- Tool Input Parameters -->
+                        <div v-if="event.payload.tool_input" class="parameter-section">
+                          <div class="parameter-header">
+                            <span class="parameter-label">Input Parameters:</span>
+                            <button
+                              @click="copyToClipboard(formatFullToolInput(event.payload.tool_input))"
+                              class="copy-btn"
+                              title="Copy input parameters"
+                            >
+                              📋
+                            </button>
+                          </div>
+                          <pre class="parameter-content">{{ formatFullToolInput(event.payload.tool_input) }}</pre>
+                        </div>
+
+                        <!-- Tool Output -->
+                        <div v-if="event.payload.tool_output" class="parameter-section">
+                          <div class="parameter-header">
+                            <span class="parameter-label">Output:</span>
+                            <button
+                              @click="copyToClipboard(formatFullToolOutput(event.payload.tool_output))"
+                              class="copy-btn"
+                              title="Copy output"
+                            >
+                              📋
+                            </button>
+                          </div>
+                          <pre class="parameter-content">{{ formatFullToolOutput(event.payload.tool_output) }}</pre>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Execution Context -->
+                  <div class="expanded-section">
+                    <div class="expanded-header">
+                      <span class="expanded-icon">🌍</span>
+                      <h4 class="expanded-title">Execution Context</h4>
+                    </div>
+                    <div class="expanded-content">
+                      <div class="context-grid">
+                        <div v-if="event.payload?.metadata?.user" class="context-item">
+                          <span class="context-label">User:</span>
+                          <span class="context-value">{{ event.payload.metadata.user }}</span>
+                        </div>
+                        <div v-if="event.payload?.metadata?.hostname" class="context-item">
+                          <span class="context-label">Host:</span>
+                          <span class="context-value">{{ event.payload.metadata.hostname }}</span>
+                        </div>
+                        <div v-if="event.payload?.metadata?.environment" class="context-item">
+                          <span class="context-label">Environment:</span>
+                          <span class="context-value">{{ event.payload.metadata.environment }}</span>
+                        </div>
+                        <div class="context-item">
+                          <span class="context-label">Session ID:</span>
+                          <span class="context-value">{{ event.session_id }}</span>
+                        </div>
+                        <div v-if="event.parent_session_id" class="context-item">
+                          <span class="context-label">Parent Session:</span>
+                          <span class="context-value">{{ event.parent_session_id }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Performance Metrics -->
+                  <div v-if="event.duration || event.payload?.tokens || event.payload?.memory_usage" class="expanded-section">
+                    <div class="expanded-header">
+                      <span class="expanded-icon">⚡</span>
+                      <h4 class="expanded-title">Performance Metrics</h4>
+                    </div>
+                    <div class="expanded-content">
+                      <div class="metrics-grid">
+                        <div v-if="event.duration" class="metric-item">
+                          <span class="metric-icon">⏱️</span>
+                          <span class="metric-label">Duration:</span>
+                          <span class="metric-value">{{ formatDuration(event.duration) }}</span>
+                        </div>
+                        <div v-if="event.payload?.tokens || event.payload?.token_count" class="metric-item">
+                          <span class="metric-icon">🪙</span>
+                          <span class="metric-label">Tokens:</span>
+                          <span class="metric-value">{{ formatNumber(event.payload.tokens || event.payload.token_count || 0) }}</span>
+                        </div>
+                        <div v-if="event.payload?.memory_usage" class="metric-item">
+                          <span class="metric-icon">💾</span>
+                          <span class="metric-label">Memory:</span>
+                          <span class="metric-value">{{ formatMemory(event.payload.memory_usage) }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Raw Event Data -->
+                  <div class="expanded-section">
+                    <div class="expanded-header">
+                      <span class="expanded-icon">📊</span>
+                      <h4 class="expanded-title">Raw Event Data</h4>
+                      <button
+                        @click="copyToClipboard(JSON.stringify(event, null, 2))"
+                        class="copy-btn"
+                        title="Copy raw event data"
+                      >
+                        📋
+                      </button>
+                    </div>
+                    <div class="expanded-content">
+                      <pre class="raw-data">{{ JSON.stringify(event, null, 2) }}</pre>
+                    </div>
+                  </div>
+                </div>
+              </Transition>
             </div>
           </div>
         </div>
@@ -179,6 +336,9 @@ const props = defineProps<Props>();
 const selectedApp = ref('');
 const selectedAgentType = ref('');
 const displayLimit = ref(20);
+
+// Expandable state - track which timeline items are expanded
+const expandedItems = ref(new Set<string>());
 
 // Computed properties
 const uniqueSourceApps = computed(() => 
@@ -279,10 +439,10 @@ function getMarkerClass(event: HookEvent): string {
 
 function summarizeToolInput(input: any): string {
   if (!input || typeof input !== 'object') return '';
-  
+
   const keys = Object.keys(input);
   if (keys.length === 0) return '';
-  
+
   // Show first few key-value pairs
   const summary = keys.slice(0, 2).map(key => {
     const value = input[key];
@@ -290,8 +450,63 @@ function summarizeToolInput(input: any): string {
     const truncatedValue = stringValue.length > 30 ? stringValue.slice(0, 30) + '...' : stringValue;
     return `${key}: ${truncatedValue}`;
   }).join(', ');
-  
+
   return keys.length > 2 ? `${summary}...` : summary;
+}
+
+// Expandable functionality methods
+function getEventId(event: HookEvent): string {
+  return event.id?.toString() || `${event.timestamp}-${event.session_id}`;
+}
+
+function isExpanded(event: HookEvent): boolean {
+  return expandedItems.value.has(getEventId(event));
+}
+
+function toggleExpanded(event: HookEvent): void {
+  const eventId = getEventId(event);
+  if (expandedItems.value.has(eventId)) {
+    expandedItems.value.delete(eventId);
+  } else {
+    expandedItems.value.add(eventId);
+  }
+}
+
+function formatFullToolInput(input: any): string {
+  if (!input || typeof input !== 'object') return 'No parameters';
+
+  try {
+    return JSON.stringify(input, null, 2);
+  } catch {
+    return String(input);
+  }
+}
+
+function formatFullToolOutput(output: any): string {
+  if (!output) return 'No output available';
+
+  if (typeof output === 'string') return output;
+
+  try {
+    return JSON.stringify(output, null, 2);
+  } catch {
+    return String(output);
+  }
+}
+
+async function copyToClipboard(text: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (err) {
+    console.warn('Failed to copy to clipboard:', err);
+    // Fallback for older browsers
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    document.body.appendChild(textArea);
+    textArea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textArea);
+  }
 }
 </script>
 
@@ -487,30 +702,232 @@ function summarizeToolInput(input: any): string {
   @apply px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors;
 }
 
+/* Expand/Collapse Button */
+.expand-btn {
+  @apply ml-auto p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors;
+}
+
+.expand-icon {
+  @apply w-4 h-4 transition-transform duration-200;
+}
+
+.expand-icon.expanded {
+  @apply rotate-180;
+}
+
+/* Expanded Details */
+.expanded-details {
+  @apply mt-4 space-y-4 border-t border-gray-700 pt-4;
+}
+
+.expanded-section {
+  @apply bg-gray-800/30 border border-gray-700 rounded-lg overflow-hidden;
+}
+
+.expanded-header {
+  @apply flex items-center justify-between p-3 bg-gray-800/50 border-b border-gray-700;
+}
+
+.expanded-icon {
+  @apply text-lg mr-2;
+}
+
+.expanded-title {
+  @apply text-sm font-semibold text-white flex-1;
+}
+
+.expanded-content {
+  @apply p-3;
+}
+
+/* Tool Command Styling */
+.tool-command {
+  @apply space-y-3;
+}
+
+.command-header {
+  @apply flex items-center space-x-2 text-sm;
+}
+
+.command-label {
+  @apply text-gray-400 font-medium;
+}
+
+.command-name {
+  @apply bg-gray-900 text-green-300 px-2 py-1 rounded font-mono text-sm flex-1;
+}
+
+.copy-btn {
+  @apply p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors text-sm;
+}
+
+/* Parameter Sections */
+.parameter-section {
+  @apply space-y-2;
+}
+
+.parameter-header {
+  @apply flex items-center justify-between;
+}
+
+.parameter-label {
+  @apply text-gray-400 font-medium text-sm;
+}
+
+.parameter-content {
+  @apply bg-gray-900 text-gray-300 p-3 rounded font-mono text-xs overflow-x-auto whitespace-pre-wrap;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* Context Grid */
+.context-grid {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-3;
+}
+
+.context-item {
+  @apply flex items-center space-x-2 text-sm;
+}
+
+.context-label {
+  @apply text-gray-400 font-medium min-w-0 flex-shrink-0;
+}
+
+.context-value {
+  @apply text-gray-200 break-all font-mono text-xs;
+}
+
+/* Metrics Grid */
+.metrics-grid {
+  @apply flex flex-wrap gap-4;
+}
+
+.metric-item {
+  @apply flex items-center space-x-2 text-sm bg-gray-900/50 px-3 py-2 rounded;
+}
+
+.metric-icon {
+  @apply text-base;
+}
+
+.metric-label {
+  @apply text-gray-400 font-medium;
+}
+
+.metric-value {
+  @apply text-gray-200 font-semibold;
+}
+
+/* Raw Data */
+.raw-data {
+  @apply bg-gray-900 text-gray-300 p-3 rounded font-mono text-xs overflow-auto;
+  max-height: 400px;
+}
+
+/* Transition Animations */
+.expand-slide-enter-active,
+.expand-slide-leave-active {
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.expand-slide-enter-from,
+.expand-slide-leave-to {
+  opacity: 0;
+  max-height: 0;
+  transform: translateY(-10px);
+}
+
+.expand-slide-enter-to,
+.expand-slide-leave-from {
+  opacity: 1;
+  max-height: 2000px;
+  transform: translateY(0);
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .activity-filters {
     @apply flex-col space-y-3;
   }
-  
+
   .filter-group {
     @apply flex-col items-start space-y-1 space-x-0;
   }
-  
+
   .timeline-item {
     @apply flex-col space-x-0 space-y-3;
   }
-  
+
   .timeline-marker {
     @apply flex-row items-center space-y-0 space-x-3;
   }
-  
+
   .event-header {
     @apply flex-col items-start gap-1;
   }
-  
+
   .performance-details {
     @apply flex-col gap-1;
+  }
+
+  /* Mobile styles for expanded content */
+  .expanded-details {
+    @apply space-y-3;
+  }
+
+  .expanded-header {
+    @apply flex-col items-start space-y-2 p-3;
+  }
+
+  .expanded-title {
+    @apply text-sm;
+  }
+
+  .command-header {
+    @apply flex-col items-start space-x-0 space-y-2;
+  }
+
+  .command-name {
+    @apply text-xs;
+  }
+
+  .parameter-content {
+    @apply text-xs p-2;
+    max-height: 200px;
+  }
+
+  .context-grid {
+    @apply grid-cols-1 gap-2;
+  }
+
+  .context-item {
+    @apply flex-col items-start space-x-0 space-y-1;
+  }
+
+  .context-label {
+    @apply text-xs;
+  }
+
+  .context-value {
+    @apply text-xs break-all;
+  }
+
+  .metrics-grid {
+    @apply flex-col gap-2;
+  }
+
+  .metric-item {
+    @apply text-xs px-2 py-1;
+  }
+
+  .raw-data {
+    @apply text-xs p-2;
+    max-height: 250px;
+  }
+
+  .copy-btn {
+    @apply p-1 text-xs;
   }
 }
 </style>

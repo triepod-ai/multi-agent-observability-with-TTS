@@ -1,4 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
+import { waitForDashboardReady, enableEducationalMode } from "../../utils/test-helpers";
 
 /**
  * Visual Regression Testing Across Browsers
@@ -15,7 +16,7 @@ test.describe('Visual Regression - Cross-Browser', () => {
 
   test('should maintain consistent layout across browsers', async ({ browserName }) => {
     await page.goto('/');
-    await page.waitForSelector('[data-testid="educational-dashboard"]', { timeout: 10000 });
+    await waitForDashboardReady(page);
     
     // Wait for any animations to complete
     await page.waitForTimeout(2000);
@@ -37,7 +38,7 @@ test.describe('Visual Regression - Cross-Browser', () => {
 
   test('should maintain tab layout consistency', async ({ browserName }) => {
     await page.goto('/');
-    await page.waitForSelector('[data-testid="educational-dashboard"]');
+    await waitForDashboardReady(page);
     
     const tabs = ['guide', 'flow', 'examples', 'sandbox', 'scenarios', 'reference'];
     
@@ -69,7 +70,7 @@ test.describe('Visual Regression - Cross-Browser', () => {
     for (const viewport of viewports) {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await page.goto('/');
-      await page.waitForSelector('[data-testid="educational-dashboard"]');
+      await waitForDashboardReady(page);
       await page.waitForTimeout(1500);
       
       const screenshot = await page.screenshot({ 
@@ -87,7 +88,7 @@ test.describe('Visual Regression - Cross-Browser', () => {
 
   test('should display Monaco Editor consistently', async ({ browserName }) => {
     await page.goto('/');
-    await page.waitForSelector('[data-testid="educational-dashboard"]');
+    await waitForDashboardReady(page);
     
     await page.click('[data-testid="tab-sandbox"]');
     await page.waitForSelector('[data-testid="sandbox-content"]');
@@ -123,7 +124,7 @@ function testFunction() {
 
   test('should display assessment modal consistently', async ({ browserName }) => {
     await page.goto('/');
-    await page.waitForSelector('[data-testid="educational-dashboard"]');
+    await waitForDashboardReady(page);
     
     // Try to trigger assessment modal
     await page.click('[data-testid="tab-sandbox"]');
@@ -152,7 +153,7 @@ function testFunction() {
 
   test('should display hover states consistently', async ({ browserName }) => {
     await page.goto('/');
-    await page.waitForSelector('[data-testid="educational-dashboard"]');
+    await waitForDashboardReady(page);
     
     // Test hover states on tabs
     const tabs = await page.locator('[data-testid^="tab-"]').all();
@@ -177,7 +178,7 @@ function testFunction() {
 
   test('should display focus states consistently', async ({ browserName }) => {
     await page.goto('/');
-    await page.waitForSelector('[data-testid="educational-dashboard"]');
+    await waitForDashboardReady(page);
     
     // Focus on the first interactive element
     await page.keyboard.press('Tab');
@@ -215,7 +216,7 @@ function testFunction() {
     }
     
     // Wait for full load
-    await page.waitForSelector('[data-testid="educational-dashboard"]');
+    await waitForDashboardReady(page);
     console.log(`✅ ${browserName}: Loading state test completed`);
   });
 
@@ -226,7 +227,7 @@ function testFunction() {
     });
     
     await page.goto('/');
-    await page.waitForSelector('[data-testid="educational-dashboard"]');
+    await waitForDashboardReady(page);
     await page.waitForTimeout(2000);
     
     // Look for error indicators
@@ -247,7 +248,7 @@ function testFunction() {
 
   test('should handle animations consistently', async ({ browserName }) => {
     await page.goto('/');
-    await page.waitForSelector('[data-testid="educational-dashboard"]');
+    await waitForDashboardReady(page);
     
     // Test tab switching animation
     await page.click('[data-testid="tab-flow"]');
@@ -271,7 +272,7 @@ test.describe('High DPI Visual Testing', () => {
     await page.setViewportSize({ width: 1920, height: 1080 });
     
     await page.goto('/');
-    await page.waitForSelector('[data-testid="educational-dashboard"]');
+    await waitForDashboardReady(page);
     await page.waitForTimeout(2000);
     
     const hidpiScreenshot = await page.screenshot({ 
@@ -293,7 +294,7 @@ test.describe('Dark Mode Visual Testing', () => {
     await page.emulateMedia({ colorScheme: 'dark' });
     
     await page.goto('/');
-    await page.waitForSelector('[data-testid="educational-dashboard"]');
+    await waitForDashboardReady(page);
     await page.waitForTimeout(2000);
     
     const darkModeScreenshot = await page.screenshot({ 

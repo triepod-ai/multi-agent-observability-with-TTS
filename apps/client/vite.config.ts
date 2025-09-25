@@ -12,7 +12,17 @@ export default defineConfig({
   },
   server: {
     port: 8543,
-    host: true
+    host: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:4000',
+        changeOrigin: true
+      },
+      '/ws': {
+        target: 'ws://localhost:4000',
+        ws: true
+      }
+    }
   },
   define: {
     // Provide global process object for browser compatibility

@@ -1,4 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
+import { waitForDashboardReady } from '../../utils/test-helpers';
 
 /**
  * Monaco Editor Cross-Browser Compatibility Tests
@@ -11,9 +12,9 @@ test.describe('Monaco Editor - Cross-Browser Compatibility', () => {
   test.beforeEach(async ({ browser }) => {
     const context = await browser.newContext();
     page = await context.newPage();
-    
+
     await page.goto('/');
-    await page.waitForSelector('[data-testid="educational-dashboard"]');
+    await waitForDashboardReady(page);
     
     // Navigate to sandbox tab where Monaco Editor is used
     await page.click('[data-testid="tab-sandbox"]');

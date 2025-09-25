@@ -1,4 +1,5 @@
 import { test, expect, Page, BrowserContext } from '@playwright/test';
+import { waitForDashboardReady } from '../../utils/test-helpers';
 
 /**
  * Core Educational Dashboard Cross-Browser Tests
@@ -12,15 +13,13 @@ test.describe('Educational Dashboard - Core Features', () => {
   test.beforeEach(async ({ browser, browserName }) => {
     context = await browser.newContext();
     page = await context.newPage();
-    
+
     // Navigate to the application
     await page.goto('/');
-    
-    // Wait for the dashboard to load
-    await page.waitForSelector('[data-testid="educational-dashboard"]', { 
-      timeout: 10000 
-    });
-    
+
+    // Enable educational mode and wait for the dashboard to load
+    await waitForDashboardReady(page, 10000);
+
     console.log(`Testing on ${browserName}`);
   });
 
@@ -157,7 +156,7 @@ test.describe('Educational Dashboard - Core Features', () => {
 test.describe('Educational Dashboard - Expert/Educational Mode Toggle', () => {
   test('should toggle between educational and expert modes', async ({ page, browserName }) => {
     await page.goto('/');
-    await page.waitForSelector('[data-testid="educational-dashboard"]');
+    await waitForDashboardReady(page);
 
     // Look for mode toggle
     const modeToggle = page.locator('[data-testid="mode-toggle"]');
@@ -193,9 +192,9 @@ test.describe('Educational Dashboard - Responsive Design', () => {
   test('should display correctly on mobile devices', async ({ page, browserName }) => {
     // Set mobile viewport
     await page.setViewportSize({ width: 375, height: 667 });
-    
+
     await page.goto('/');
-    await page.waitForSelector('[data-testid="educational-dashboard"]');
+    await waitForDashboardReady(page);
 
     // Verify mobile layout
     const dashboard = page.locator('[data-testid="educational-dashboard"]');
@@ -216,9 +215,9 @@ test.describe('Educational Dashboard - Responsive Design', () => {
   test('should display correctly on tablet devices', async ({ page, browserName }) => {
     // Set tablet viewport
     await page.setViewportSize({ width: 768, height: 1024 });
-    
+
     await page.goto('/');
-    await page.waitForSelector('[data-testid="educational-dashboard"]');
+    await waitForDashboardReady(page);
 
     // Verify tablet layout
     const dashboard = page.locator('[data-testid="educational-dashboard"]');

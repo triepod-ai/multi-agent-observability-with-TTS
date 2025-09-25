@@ -1,4 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
+import { waitForDashboardReady, enableEducationalMode } from "../../utils/test-helpers";
 
 /**
  * WebAssembly Performance Testing Across Browsers
@@ -13,7 +14,7 @@ test.describe('WebAssembly Performance - Cross-Browser', () => {
     page = await context.newPage();
     
     await page.goto('/');
-    await page.waitForSelector('[data-testid="educational-dashboard"]');
+    await waitForDashboardReady(page);
     
     // Navigate to sandbox where WebAssembly is used
     await page.click('[data-testid="tab-sandbox"]');

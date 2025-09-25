@@ -11,10 +11,13 @@ test.describe('Educational Dashboard - Accessibility Compliance', () => {
   test.beforeEach(async ({ browser }) => {
     const context = await browser.newContext();
     page = await context.newPage();
-    
+
     // Inject axe-core for accessibility testing
     await page.goto('/');
     await page.addScriptTag({ url: 'https://unpkg.com/axe-core@4.8.0/axe.min.js' });
+
+    // Enable educational mode by clicking the toggle button
+    await page.click('[title="Switch to Educational Mode"]');
     await page.waitForSelector('[data-testid="educational-dashboard"]');
   });
 

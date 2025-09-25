@@ -22,18 +22,44 @@ export interface AccessibilityViolation {
 }
 
 /**
- * Wait for educational dashboard to be fully loaded
+ * Enable educational mode by clicking the toggle button
+ */
+export async function enableEducationalMode(page: Page): Promise<void> {
+  try {
+    const educationalToggle = page.locator('[title="Switch to Educational Mode"]');
+    if (await educationalToggle.isVisible()) {
+      await educationalToggle.click();
+      // Wait a moment for the toggle to take effect
+      await page.waitForTimeout(500);
+    }
+  } catch (error) {
+    console.warn('Could not enable educational mode:', error);
+  }
+}
+
+/**
+ * Enable educational mode and wait for dashboard to be fully loaded
  */
 export async function waitForDashboardReady(page: Page, timeout: number = 10000): Promise<void> {
+  // First ensure we're in educational mode by clicking the toggle if not already enabled
+  try {
+    const educationalToggle = page.locator('[title="Switch to Educational Mode"]');
+    if (await educationalToggle.isVisible()) {
+      await educationalToggle.click();
+    }
+  } catch {
+    // Toggle might not be visible or educational mode already enabled
+  }
+
   await page.waitForSelector('[data-testid="educational-dashboard"]', { timeout });
-  
+
   // Wait for any initial loading states to complete
   try {
     await page.waitForSelector('[data-testid="loading"]', { state: 'detached', timeout: 3000 });
   } catch {
     // Loading indicator might not exist, that's ok
   }
-  
+
   // Ensure main content is visible
   await page.waitForSelector('[data-testid^="tab-content-"]', { timeout: 5000 });
 }
@@ -199,10 +225,13 @@ export async function testWebAssembly(page: Page, browserName: string): Promise<
  * Test responsive design at different viewports
  */
 export async function testResponsiveDesign(page: Page, viewports: Array<{width: number, height: number}>): Promise<boolean> {
+  // Ensure educational mode is enabled first
+  await enableEducationalMode(page);
+
   for (const viewport of viewports) {
     await page.setViewportSize(viewport);
     await page.waitForTimeout(1000); // Let layout adjust
-    
+
     // Check if dashboard is still visible and functional
     const dashboardVisible = await page.locator('[data-testid="educational-dashboard"]').isVisible();
     if (!dashboardVisible) {

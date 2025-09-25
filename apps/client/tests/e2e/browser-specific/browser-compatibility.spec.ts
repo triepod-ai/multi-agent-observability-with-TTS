@@ -1,4 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
+import { waitForDashboardReady, enableEducationalMode } from "../../utils/test-helpers";
 
 /**
  * Browser-Specific Compatibility Tests
@@ -15,7 +16,7 @@ test.describe('Browser-Specific Features', () => {
 
   test('should handle browser-specific JavaScript APIs', async ({ browserName }) => {
     await page.goto('/');
-    await page.waitForSelector('[data-testid="educational-dashboard"]');
+    await waitForDashboardReady(page);
     
     // Test browser-specific API availability
     const apiSupport = await page.evaluate(() => {
@@ -61,7 +62,7 @@ test.describe('Browser-Specific Features', () => {
 
   test('should handle CSS feature support correctly', async ({ browserName }) => {
     await page.goto('/');
-    await page.waitForSelector('[data-testid="educational-dashboard"]');
+    await waitForDashboardReady(page);
     
     const cssSupport = await page.evaluate(() => {
       const testElement = document.createElement('div');
@@ -98,7 +99,7 @@ test.describe('Browser-Specific Features', () => {
     await page.setViewportSize({ width: 375, height: 667 });
     
     await page.goto('/');
-    await page.waitForSelector('[data-testid="educational-dashboard"]');
+    await waitForDashboardReady(page);
     
     const touchSupport = await page.evaluate(() => {
       return {
@@ -126,7 +127,7 @@ test.describe('Browser-Specific Features', () => {
 
   test('should handle file handling correctly', async ({ browserName }) => {
     await page.goto('/');
-    await page.waitForSelector('[data-testid="educational-dashboard"]');
+    await waitForDashboardReady(page);
     
     const fileSupport = await page.evaluate(() => {
       return {
@@ -149,7 +150,7 @@ test.describe('Browser-Specific Features', () => {
 
   test('should handle canvas and graphics correctly', async ({ browserName }) => {
     await page.goto('/');
-    await page.waitForSelector('[data-testid="educational-dashboard"]');
+    await waitForDashboardReady(page);
     
     const graphicsSupport = await page.evaluate(() => {
       const canvas = document.createElement('canvas');
@@ -182,7 +183,7 @@ test.describe('Browser-Specific Features', () => {
 
   test('should handle network requests correctly', async ({ browserName }) => {
     await page.goto('/');
-    await page.waitForSelector('[data-testid="educational-dashboard"]');
+    await waitForDashboardReady(page);
     
     const networkSupport = await page.evaluate(async () => {
       const support = {
@@ -219,7 +220,7 @@ test.describe('Browser-Specific Workarounds', () => {
     }
     
     await page.goto('/');
-    await page.waitForSelector('[data-testid="educational-dashboard"]');
+    await waitForDashboardReady(page);
     await page.click('[data-testid="tab-sandbox"]');
     
     // Safari has specific WebAssembly loading characteristics
@@ -249,7 +250,7 @@ test.describe('Browser-Specific Workarounds', () => {
     }
     
     await page.goto('/');
-    await page.waitForSelector('[data-testid="educational-dashboard"]');
+    await waitForDashboardReady(page);
     await page.click('[data-testid="tab-sandbox"]');
     
     // Firefox can have different Monaco Editor behavior
@@ -274,7 +275,7 @@ test.describe('Browser-Specific Workarounds', () => {
     }
     
     await page.goto('/');
-    await page.waitForSelector('[data-testid="educational-dashboard"]');
+    await waitForDashboardReady(page);
     
     // Chrome-specific performance API
     const perfSupport = await page.evaluate(() => {
@@ -305,7 +306,7 @@ test.describe('Browser-Specific Workarounds', () => {
     }
     
     await page.goto('/');
-    await page.waitForSelector('[data-testid="educational-dashboard"]');
+    await waitForDashboardReady(page);
     
     // Edge-specific feature detection
     const edgeSupport = await page.evaluate(() => {
@@ -339,7 +340,7 @@ test.describe('Cross-Browser Error Handling', () => {
       pageErrors.push(error.message);
     });
     
-    await page.waitForSelector('[data-testid="educational-dashboard"]');
+    await waitForDashboardReady(page);
     
     // Navigate through the app to trigger any potential errors
     const tabs = ['guide', 'flow', 'examples', 'sandbox'];
@@ -377,7 +378,7 @@ test.describe('Cross-Browser Error Handling', () => {
     const errors: string[] = [];
     page.on('pageerror', error => errors.push(error.message));
     
-    await page.waitForSelector('[data-testid="educational-dashboard"]');
+    await waitForDashboardReady(page);
     await page.waitForTimeout(3000); // Let any network requests complete/fail
     
     // App should still function despite network issues

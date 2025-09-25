@@ -250,3 +250,4 @@ multi-agent-observability-system.code-workspace
 .claude/backup-*/
 apps/mcp-evaluator/.claude/
 apps/mcp-evaluator/dist/
+todo-list.md

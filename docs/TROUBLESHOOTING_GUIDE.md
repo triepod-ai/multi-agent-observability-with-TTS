@@ -6,6 +6,88 @@ This guide provides comprehensive troubleshooting procedures for common issues i
 
 ## Hook Data Issues
 
+### Session ID Correlation Issues (NEW)
+
+**Symptoms:**
+- Tool events show session_id="unknown" in dashboard
+- Cannot correlate tool usage with specific sessions
+- Session timeline incomplete or fragmented
+- Missing tool events in session analysis
+
+**Root Cause:**
+Tool hooks (PreToolUse, PostToolUse) cannot access session context directly and must retrieve session_id from file persistence system.
+
+**Diagnostic Steps:**
+
+1. **Check Session File Existence:**
+```bash
+# Check if session files exist for your project
+ls -la /tmp/claude_session_*
+
+# Check specific project session (replace project name)
+cat /tmp/claude_session_multi-agent-observability-system
+```
+
+2. **Verify Session File Format:**
+```bash
+# Should show session_id on first line, timestamp on second line
+head -2 /tmp/claude_session_your-project-name
+
+# Example output:
+# ses_01HN123ABC789XYZ
+# 2025-01-24T10:30:15.123456
+```
+
+3. **Check File Permissions:**
+```bash
+# Should show 600 permissions (owner read/write only)
+ls -la /tmp/claude_session_* | grep "^-rw-------"
+```
+
+4. **Test Session ID Functions:**
+```bash
+# Test session storage (should return True)
+echo '{"session_id": "test123", "project_name": "test"}' | python3 -c "
+import json, sys
+from pathlib import Path
+sys.path.append('/path/to/.claude/hooks/utils')
+from session_helpers import store_session_id, get_stored_session_id
+data = json.load(sys.stdin)
+result = store_session_id(data['session_id'], data['project_name'])
+print('Storage:', result)
+retrieved = get_stored_session_id(data['project_name'])
+print('Retrieved:', retrieved)
+"
+```
+
+**Solutions:**
+
+1. **Manual Session File Creation:**
+```bash
+# Create session file manually for testing
+echo -e "ses_test123\n$(date -Iseconds)" > /tmp/claude_session_your-project
+chmod 600 /tmp/claude_session_your-project
+```
+
+2. **Hook Installation Check:**
+```bash
+# Verify hooks are using updated versions with session persistence
+grep -r "get_stored_session_id" .claude/hooks/
+# Should find references in pre_tool_use.py and post_tool_use.py
+```
+
+3. **Clear Stale Sessions:**
+```bash
+# Clean up old session files if accumulating
+find /tmp -name "claude_session_*" -mtime +1 -delete
+```
+
+4. **Enable Debug Mode:**
+```bash
+export HOOK_DEBUG=true
+# Run problematic operation and check stderr for session ID debug output
+```
+
 ### Hook Data Not Displaying
 
 **Symptoms:**

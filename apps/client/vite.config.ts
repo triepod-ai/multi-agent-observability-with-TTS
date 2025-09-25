@@ -13,6 +13,7 @@ export default defineConfig({
   server: {
     port: 8543,
     host: true,
+    strictPort: true, // Force port 8543 or fail
     proxy: {
       '/api': {
         target: 'http://localhost:4000',

@@ -1,14 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, inject } from 'vue';
 import type { GuideHook } from '@/types/GuideHook';
-import type { SandboxItem } from '@/types/SandboxItem';
 import { useProgressionStore } from '@/stores/progressionStore';
-import type { 
-  LearningProgression, 
-  LearningPathStep, 
-  CompetencyLevel, 
-  PrerequisiteGateType,
-  AssessmentResult 
+import type {
+  LearningProgression,
+  LearningPathStep,
+  AssessmentResult
 } from '@/types/LearningProgression';
 import { phase3Integration } from '@/services/phase3Integration';
 import { subagentStopAssessment } from '@/data/assessments/subagentStopAssessment';
@@ -16,14 +13,9 @@ import { preCompactAssessment } from '@/data/assessments/preCompactAssessment';
 
 // Tab Components
 import {
-  ProgressTab,
   FlowTab,
   GuideTab,
-  ExamplesTab,
-  SandboxTab,
-  ScenariosTab,
-  ReferenceTab,
-  GlossaryTab
+  ExamplesTab
 } from './educational-tabs';
 import HookAssessment from './HookAssessment.vue';
 
@@ -43,14 +35,9 @@ const progressionStore = useProgressionStore();
 const activeTab = ref('guide');
 
 const tabs = [
-  { id: 'progress', label: 'Progress', icon: '📊' },
   { id: 'guide', label: 'Guide', icon: '📖', help: { tooltip: 'Learn about Claude Code hooks' } },
   { id: 'flow', label: 'Flow', icon: '🔄' },
-  { id: 'examples', label: 'Examples', icon: '💡' },
-  { id: 'sandbox', label: 'Sandbox', icon: '🧪' },
-  { id: 'scenarios', label: 'Scenarios', icon: '🎯' },
-  { id: 'reference', label: 'Reference', icon: '📚' },
-  { id: 'glossary', label: 'Glossary', icon: '📝' }
+  { id: 'examples', label: 'Examples', icon: '💡' }
 ];
 
 // State
@@ -432,42 +419,6 @@ const sampleAssessments: Record<string, any> = {
   pre_compact: preCompactAssessment
 };
 
-// Sample Prerequisites Gate for Demo
-const samplePrerequisiteGate = computed((): PrerequisiteGateType => {
-  const competencies = userProgression.value?.competencies || {};
-  const intermediateLevelCount = Object.values(competencies).filter(comp => 
-    comp.overallMastery >= 60
-  ).length;
-  
-  return {
-    gateId: 'advanced-mastery-gate',
-    name: 'Advanced Hook Mastery Track',
-    description: 'Unlock advanced content by reaching intermediate level in at least 5 hooks',
-    requirements: [
-      {
-        type: 'competency',
-        hookId: 'session_start',
-        dimension: 'overall',
-        threshold: 60,
-        description: 'Master Session Start basics'
-      },
-      {
-        type: 'competency',
-        hookId: 'pre_tool_use',
-        dimension: 'overall', 
-        threshold: 60,
-        description: 'Master PreToolUse security concepts'
-      }
-    ],
-    isUnlocked: intermediateLevelCount >= 2,
-    unlockedContent: ['Advanced error handling patterns', 'Custom hook development', 'Performance optimization techniques'],
-    progress: {
-      completed: intermediateLevelCount,
-      total: 5,
-      percentage: Math.min(100, (intermediateLevelCount / 5) * 100)
-    }
-  };
-});
 
 // Sample items for different tabs
 const sampleFlowDiagramData = {
@@ -579,41 +530,6 @@ print(json.dumps(analysis_result, indent=2))`,
   }
 ];
 
-const sampleSandboxItems: SandboxItem[] = [
-  {
-    id: 'test-session-start',
-    name: 'Test Session Start Hook',
-    description: 'Interactive test for session initialization',
-    category: 'testing',
-    difficulty: 'beginner',
-    language: 'bash',
-    template: '#!/bin/bash\necho "Session starting..."\n# Your code here',
-    expectedOutput: 'Session initialization successful',
-    validationRules: ['Must output session info', 'Must include project path']
-  },
-  {
-    id: 'test-subagent-stop',
-    name: 'Test SubagentStop Hook',
-    description: 'Test agent completion tracking with TTS filtering',
-    category: 'testing', 
-    difficulty: 'intermediate',
-    language: 'python',
-    template: '#!/usr/bin/env python3\n# Test SubagentStop functionality\nimport json\n# Your code here',
-    expectedOutput: 'Agent tracking data with TTS filtering logic',
-    validationRules: ['Must classify agent type', 'Must implement TTS filtering', 'Must track completion metrics']
-  },
-  {
-    id: 'test-pre-compact',
-    name: 'Test PreCompact Hook',
-    description: 'Test conversation analysis and insight extraction',
-    category: 'testing',
-    difficulty: 'advanced',
-    language: 'python',
-    template: '#!/usr/bin/env python3\n# Test PreCompact functionality\nimport json\n# Your code here',
-    expectedOutput: 'Structured analysis with achievements, next steps, blockers, and insights',
-    validationRules: ['Must extract achievements', 'Must identify next steps', 'Must detect blockers', 'Must generate insights']
-  }
-];
 
 // User progression state
 const userProgression = computed({
@@ -651,14 +567,9 @@ const competencyMappedData = computed(() => {
 
 // Tab component mapping
 const tabComponents = {
-  progress: ProgressTab,
   flow: FlowTab,
   guide: GuideTab,
-  examples: ExamplesTab,
-  sandbox: SandboxTab,
-  scenarios: ScenariosTab,
-  reference: ReferenceTab,
-  glossary: GlossaryTab
+  examples: ExamplesTab
 };
 
 const currentTabComponent = computed(() => tabComponents[activeTab.value as keyof typeof tabComponents]);
@@ -672,14 +583,6 @@ const currentTabProps = computed(() => {
   };
 
   switch (activeTab.value) {
-    case 'progress':
-      return {
-        ...baseProps,
-        learningProgress: learningProgress.value,
-        topicsLearned: topicsLearned.value,
-        competencyData: competencyMappedData.value,
-        prerequisiteGate: samplePrerequisiteGate.value
-      };
     case 'flow':
       return {
         ...baseProps,
@@ -698,24 +601,6 @@ const currentTabProps = computed(() => {
       return {
         ...baseProps,
         examples: sampleExamples
-      };
-    case 'sandbox':
-      return {
-        ...baseProps,
-        sandboxItems: sampleSandboxItems
-      };
-    case 'scenarios':
-      return {
-        ...baseProps,
-        scenarios: [] // Will be populated with scenario data
-      };
-    case 'reference':
-      return {
-        ...baseProps
-      };
-    case 'glossary':
-      return {
-        ...baseProps
       };
     default:
       return baseProps;
@@ -1033,14 +918,6 @@ if (typeof provide === 'function') {
       <!-- Progress Overview -->
       <div class="progress-overview">
         <div class="stat-card">
-          <div class="stat-value">{{ Math.round(learningProgress) }}%</div>
-          <div class="stat-label">Progress</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value">{{ topicsLearned }}</div>
-          <div class="stat-label">Topics</div>
-        </div>
-        <div class="stat-card">
           <div class="stat-value">{{ activeHooksCount }}</div>
           <div class="stat-label">Active Hooks</div>
         </div>
@@ -1121,33 +998,33 @@ if (typeof provide === 'function') {
 
 /* Header - Mobile First */
 .dashboard-header {
-  @apply bg-gradient-to-r from-blue-800 to-purple-800 p-3 mb-4;
+  @apply bg-gradient-to-r from-blue-800 to-purple-800 p-2 mb-2;
   /* Mobile: Reduced padding and margin */
 }
 
 .header-content {
-  @apply flex flex-col gap-3 mb-3;
+  @apply flex flex-col gap-2 mb-2;
   /* Mobile: Stack vertically */
 }
 
 @media (min-width: 768px) {
   .dashboard-header {
-    @apply p-6 mb-6;
+    @apply p-4 mb-3;
   }
-  
+
   .header-content {
-    @apply flex-row justify-between items-center mb-4;
+    @apply flex-row justify-between items-center mb-2;
   }
 }
 
 .title-section h2 {
-  @apply text-lg font-bold mb-1;
+  @apply text-base font-bold mb-0.5;
   /* Mobile: Smaller text */
 }
 
 @media (min-width: 768px) {
   .title-section h2 {
-    @apply text-2xl mb-2;
+    @apply text-lg mb-1;
   }
 }
 
@@ -1180,7 +1057,7 @@ if (typeof provide === 'function') {
 
 /* Progress Overview - Mobile Responsive */
 .progress-overview {
-  @apply grid grid-cols-2 gap-2;
+  @apply grid grid-cols-2 gap-1;
   /* Mobile: 2x2 grid */
 }
 
@@ -1191,18 +1068,18 @@ if (typeof provide === 'function') {
 }
 
 .stat-card {
-  @apply bg-black bg-opacity-20 rounded-lg p-3 text-center;
+  @apply bg-black bg-opacity-20 rounded p-2 text-center;
   /* Mobile: Reduced padding */
 }
 
 @media (min-width: 768px) {
   .stat-card {
-    @apply p-4 min-w-20;
+    @apply p-3 min-w-20;
   }
 }
 
 .stat-value {
-  @apply text-lg font-bold text-yellow-300;
+  @apply text-sm font-bold text-yellow-300;
   /* Mobile: Smaller value text */
 }
 
@@ -1213,12 +1090,12 @@ if (typeof provide === 'function') {
 }
 
 .stat-label {
-  @apply text-xs text-blue-100 mt-1;
+  @apply text-xs text-blue-100 mt-0.5;
 }
 
 /* Tab Navigation - Mobile Responsive */
 .tab-navigation {
-  @apply flex gap-1 px-3 mb-4 overflow-x-auto pb-2;
+  @apply flex gap-1 px-2 mb-2 overflow-x-auto pb-1;
   /* Mobile: Reduced gaps and padding, scrollable */
   -webkit-overflow-scrolling: touch; /* iOS smooth scrolling */
   scrollbar-width: none; /* Firefox */
@@ -1231,20 +1108,20 @@ if (typeof provide === 'function') {
 
 @media (min-width: 768px) {
   .tab-navigation {
-    @apply gap-2 px-6 mb-6;
+    @apply gap-1 px-4 mb-3;
   }
 }
 
 .tab-button {
-  @apply flex items-center gap-1 px-3 py-2 rounded-lg bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors whitespace-nowrap text-sm;
+  @apply flex items-center gap-1 px-2 py-1.5 rounded bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors whitespace-nowrap text-xs;
   /* Mobile: Smaller text, reduced gaps */
-  min-height: 44px; /* Touch-friendly height */
-  min-width: 44px; /* Touch-friendly width */
+  min-height: 36px; /* Touch-friendly height */
+  min-width: 36px; /* Touch-friendly width */
 }
 
 @media (min-width: 768px) {
   .tab-button {
-    @apply gap-2 px-4 text-base;
+    @apply gap-1 px-3 text-sm;
   }
 }
 
@@ -1276,13 +1153,13 @@ if (typeof provide === 'function') {
 
 /* Tab Content - Mobile Responsive */
 .tab-content {
-  @apply px-3 pb-4;
+  @apply px-2 pb-2;
   /* Mobile: Reduced padding */
 }
 
 @media (min-width: 768px) {
   .tab-content {
-    @apply px-6 pb-6;
+    @apply px-4 pb-3;
   }
 }
 

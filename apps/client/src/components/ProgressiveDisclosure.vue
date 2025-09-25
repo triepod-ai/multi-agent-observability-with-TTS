@@ -1,13 +1,13 @@
 <template>
   <div class="progressive-disclosure">
     <!-- Header with Level Controls -->
-    <div class="flex items-center justify-between mb-6 p-4 bg-gradient-to-r from-blue-900 to-purple-900 rounded-lg">
+    <div class="flex items-center justify-between mb-0.5 p-0.5 bg-gradient-to-r from-blue-900 to-purple-900 rounded">
       <div>
-        <h2 class="text-lg font-semibold text-white mb-1">{{ title }}</h2>
-        <p v-if="description" class="text-sm text-blue-100">{{ description }}</p>
+        <h2 class="text-sm font-semibold text-white mb-0">{{ title }}</h2>
+        <p v-if="description" class="text-xs text-blue-100">{{ description }}</p>
       </div>
       
-      <div class="flex items-center space-x-4">
+      <div class="flex items-center space-x-2">
         <!-- Disclosure Level Selector -->
         <div class="flex items-center space-x-2">
           <span class="text-xs text-blue-100">Detail Level:</span>
@@ -58,14 +58,14 @@
     <Transition name="search-expand">
       <div
         v-if="searchVisible"
-        class="mb-4 p-3 bg-gray-800 border border-gray-700 rounded-lg"
+        class="mb-1 p-1 bg-gray-800 border border-gray-700 rounded"
       >
         <div class="flex items-center space-x-3">
           <input
             v-model="searchQuery"
             @input="performSearch"
             placeholder="Search through all disclosure levels..."
-            class="flex-1 bg-gray-900 border border-gray-600 rounded px-3 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class="flex-1 bg-gray-900 border border-gray-600 rounded px-2 py-1 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <button
             @click="clearSearch"
@@ -77,7 +77,7 @@
         
         <div
           v-if="searchResults.length > 0"
-          class="mt-3 text-xs text-gray-400"
+          class="mt-2 text-xs text-gray-400"
         >
           Found {{ searchResults.length }} results
         </div>
@@ -85,19 +85,19 @@
     </Transition>
 
     <!-- Level Description -->
-    <div class="mb-4 p-3 bg-gray-800 border border-gray-700 rounded-lg">
-      <div class="flex items-center space-x-3">
-        <div class="flex items-center space-x-2">
+    <div class="mb-0.5 p-0.5 bg-gray-800 border border-gray-700 rounded">
+      <div class="flex items-center space-x-2 text-xs">
+        <div class="flex items-center space-x-1">
           <div
-            class="w-3 h-3 rounded-full"
+            class="w-2 h-2 rounded-full"
             :class="currentLevelInfo.color"
           ></div>
-          <span class="text-sm font-medium text-white">{{ currentLevelInfo.label }}</span>
+          <span class="font-medium text-white">{{ currentLevelInfo.label }}</span>
         </div>
-        <span class="text-xs text-gray-400">•</span>
-        <span class="text-xs text-gray-400">{{ currentLevelInfo.description }}</span>
-        <span class="text-xs text-gray-400">•</span>
-        <span class="text-xs text-gray-400">{{ visibleSectionsCount }} sections visible</span>
+        <span class="text-gray-500">•</span>
+        <span class="text-gray-400">{{ currentLevelInfo.description }}</span>
+        <span class="text-gray-500">•</span>
+        <span class="text-gray-400">{{ visibleSectionsCount }} visible</span>
       </div>
     </div>
 
@@ -119,33 +119,6 @@
       @deep-link="handleDeepLink"
     />
 
-    <!-- Footer with Learning Progress -->
-    <div
-      v-if="showProgress"
-      class="mt-6 p-4 bg-gray-800 border border-gray-700 rounded-lg"
-    >
-      <div class="flex items-center justify-between mb-3">
-        <h4 class="text-sm font-medium text-white">Learning Progress</h4>
-        <span class="text-xs text-gray-400">{{ Math.round(progressPercentage) }}% explored</span>
-      </div>
-      
-      <div class="w-full bg-gray-700 rounded-full h-2 overflow-hidden">
-        <div
-          class="h-full bg-gradient-to-r from-blue-500 to-green-500 rounded-full transition-all duration-500"
-          :style="{ width: progressPercentage + '%' }"
-        ></div>
-      </div>
-      
-      <div class="flex items-center justify-between mt-2 text-xs text-gray-400">
-        <span>{{ exploredSections.size }}/{{ totalSections }} sections explored</span>
-        <button
-          @click="resetProgress"
-          class="hover:text-white transition-colors"
-        >
-          Reset Progress
-        </button>
-      </div>
-    </div>
   </div>
 </template>
 

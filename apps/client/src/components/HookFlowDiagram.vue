@@ -1,28 +1,28 @@
 <template>
-  <div class="bg-gray-800 border border-gray-700 rounded-lg p-6 mb-4">
-    <div class="flex items-center justify-between mb-6">
-      <h2 class="text-xl font-semibold text-white flex items-center">
+  <div class="bg-gray-800 border border-gray-700 rounded p-3 mb-2">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-base font-semibold text-white flex items-center">
         <span class="mr-2">🔄</span>
         Claude Code Hook Flow
       </h2>
-      <div class="flex items-center space-x-2">
+      <div class="flex items-center space-x-1">
         <button
           @click="startAnimation"
           :disabled="isAnimating"
-          class="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded-md font-medium transition-all duration-200"
+          class="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded font-medium transition-all duration-200"
         >
           {{ isAnimating ? 'Animating...' : 'Start Flow' }}
         </button>
         <button
           @click="resetAnimation"
-          class="px-3 py-1 text-xs bg-gray-600 hover:bg-gray-700 text-white rounded-md font-medium transition-all duration-200"
+          class="px-2 py-1 text-xs bg-gray-600 hover:bg-gray-700 text-white rounded font-medium transition-all duration-200"
         >
           Reset
         </button>
       </div>
     </div>
 
-    <div class="bg-gray-900 rounded-lg p-4 relative overflow-hidden" style="height: 400px;">
+    <div class="bg-gray-900 rounded p-3 relative overflow-hidden" style="height: 350px;">
       <!-- Flow Container -->
       <div class="relative w-full h-full">
         <!-- Hook Nodes -->
@@ -38,7 +38,7 @@
         >
           <!-- Hook Node -->
           <div
-            class="relative flex flex-col items-center p-3 rounded-lg border-2 transition-all duration-300 min-w-[120px] group"
+            class="relative flex flex-col items-center p-2 rounded border-2 transition-all duration-300 min-w-[100px] group"
             :class="[
               selectedHook?.id === step.id ? 'ring-2 ring-blue-400 ring-opacity-50' : '',
               step.isActive ? 'border-blue-400 bg-blue-900/30' : 'border-gray-600 bg-gray-800 hover:border-gray-500'
@@ -47,25 +47,25 @@
             <!-- Active Pulse Animation -->
             <div
               v-if="step.isActive"
-              class="absolute inset-0 rounded-lg border-2 border-blue-400 animate-ping opacity-30"
+              class="absolute inset-0 rounded border-2 border-blue-400 animate-ping opacity-30"
             ></div>
-            
+
             <!-- Hook Icon -->
-            <div class="text-2xl mb-1">{{ step.icon }}</div>
-            
+            <div class="text-lg mb-0.5">{{ step.icon }}</div>
+
             <!-- Hook Name -->
             <div class="text-xs font-semibold text-white text-center leading-tight">{{ step.name }}</div>
-            
+
             <!-- Step Number -->
             <div
-              class="absolute -top-2 -right-2 w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center"
+              class="absolute -top-1 -right-1 w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center"
               :style="{ backgroundColor: step.color }"
             >
               {{ index + 1 }}
             </div>
 
             <!-- Tooltip on Hover -->
-            <div class="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs rounded-md px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10 border border-gray-600">
+            <div class="absolute bottom-full mb-1 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10 border border-gray-600">
               {{ step.description }}
               <div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
             </div>
@@ -120,52 +120,51 @@
 
     <!-- Hook Information Panel -->
     <Transition name="fade">
-      <div v-if="selectedHook" class="mt-6 bg-gray-900 rounded-lg p-4 border border-gray-600">
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="text-lg font-semibold text-white flex items-center">
-            <span class="mr-2 text-xl">{{ selectedHook.icon }}</span>
-            {{ selectedHook.name }} Hook
+      <div v-if="selectedHook" class="mt-3 bg-gray-900 rounded p-3 border border-gray-600">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="text-base font-semibold text-white flex items-center">
+            <span class="mr-1 text-lg">{{ selectedHook.icon }}</span>
+            {{ selectedHook.name }} Hook #{{ selectedHook.id === 'session_start' ? '1' : selectedHook.id === 'user_prompt_submit' ? '2' : selectedHook.id === 'pre_tool_use' ? '3' : selectedHook.id === 'post_tool_use' ? '4' : selectedHook.id === 'subagent_stop' ? '5' : selectedHook.id === 'stop' ? '6' : selectedHook.id === 'notification' ? '7' : '8' }}
           </h3>
           <button
             @click="selectedHook = null"
-            class="text-gray-400 hover:text-white transition-colors"
+            class="text-gray-400 hover:text-white transition-colors p-1"
           >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
-        <div class="space-y-4">
+        <div class="space-y-2">
           <!-- Simple Description -->
           <div>
-            <h4 class="text-sm font-medium text-blue-400 mb-1">What it does:</h4>
             <p class="text-sm text-gray-300">{{ getHookExplanation(selectedHook.id)?.simpleDescription }}</p>
           </div>
 
           <!-- When it runs -->
           <div>
-            <h4 class="text-sm font-medium text-green-400 mb-1">When it runs:</h4>
-            <p class="text-sm text-gray-300">{{ getHookExplanation(selectedHook.id)?.whenItRuns }}</p>
+            <h4 class="text-xs font-medium text-green-400 mb-0.5">When it runs:</h4>
+            <p class="text-xs text-gray-300">{{ getHookExplanation(selectedHook.id)?.whenItRuns }}</p>
           </div>
 
           <!-- Why it matters -->
           <div>
-            <h4 class="text-sm font-medium text-yellow-400 mb-1">Why it matters:</h4>
-            <p class="text-sm text-gray-300">{{ getHookExplanation(selectedHook.id)?.whyItMatters }}</p>
+            <h4 class="text-xs font-medium text-yellow-400 mb-0.5">Why it matters:</h4>
+            <p class="text-xs text-gray-300">{{ getHookExplanation(selectedHook.id)?.whyItMatters }}</p>
           </div>
 
           <!-- Example -->
           <div>
-            <h4 class="text-sm font-medium text-purple-400 mb-1">Example:</h4>
-            <p class="text-sm text-gray-300 italic">{{ getHookExplanation(selectedHook.id)?.realWorldExample }}</p>
+            <h4 class="text-xs font-medium text-purple-400 mb-0.5">Example:</h4>
+            <p class="text-xs text-gray-300 italic">{{ getHookExplanation(selectedHook.id)?.realWorldExample }}</p>
           </div>
         </div>
       </div>
     </Transition>
 
     <!-- Flow Instructions -->
-    <div class="mt-4 text-center">
+    <div class="mt-2 text-center">
       <p class="text-xs text-gray-400">
         Click on any hook to learn more • Click "Start Flow" to see the execution sequence
       </p>

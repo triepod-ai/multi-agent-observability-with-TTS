@@ -1,9 +1,9 @@
 <template>
-  <div class="nested-expandables space-y-2">
+  <div class="nested-expandables space-y-0">
     <!-- Breadcrumb Navigation for Deep Levels -->
     <div
       v-if="showBreadcrumbs && currentPath.length > 0"
-      class="flex items-center space-x-2 text-xs text-gray-400 mb-4 p-2 bg-gray-900 rounded border border-gray-700"
+      class="flex items-center space-x-2 text-xs text-gray-400 mb-1 p-1 bg-gray-900 rounded border border-gray-700"
     >
       <span class="flex items-center">
         <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
@@ -25,7 +25,7 @@
     <!-- Control Bar -->
     <div
       v-if="showControls"
-      class="flex items-center justify-between p-2 bg-gray-800 border border-gray-700 rounded-lg mb-4"
+      class="flex items-center justify-between p-1 bg-gray-800 border border-gray-700 rounded mb-1"
     >
       <div class="flex items-center space-x-3">
         <span class="text-xs text-gray-400">Disclosure Level:</span>
@@ -61,7 +61,7 @@
     </div>
 
     <!-- Nested Content Sections -->
-    <div class="space-y-2">
+    <div class="space-y-0">
       <NestedSection
         v-for="section in filteredSections"
         :key="section.id"
@@ -80,7 +80,7 @@
     <!-- Quick Access Menu -->
     <div
       v-if="showQuickAccess && quickAccessItems.length > 0"
-      class="mt-6 p-4 bg-gray-800 border border-gray-700 rounded-lg"
+      class="mt-3 p-2 bg-gray-800 border border-gray-700 rounded"
     >
       <h4 class="text-sm font-medium text-white mb-3 flex items-center">
         <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">

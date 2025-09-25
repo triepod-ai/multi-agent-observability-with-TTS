@@ -76,16 +76,6 @@
             </svg>
           </button>
           
-          <!-- Terminal Status Toggle Button -->
-          <button
-            @click="showTerminalStatus = !showTerminalStatus"
-            class="p-2 rounded-lg bg-white/20 hover:bg-white/30 transition-all duration-200 border border-white/30 hover:border-white/50 backdrop-blur-sm shadow-lg hover:shadow-xl"
-            :title="showTerminalStatus ? 'Hide terminal status' : 'Show terminal status'"
-          >
-            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          </button>
           
           <!-- Theme Manager Button -->
           <button
@@ -247,11 +237,6 @@
       </Transition>
     </div>
     
-    <!-- Terminal Status Bar -->
-    <TerminalStatusBar
-      v-if="showTerminalStatus"
-      :terminal-status="terminalStatus"
-    />
     
     <!-- Stick to bottom button -->
     <StickScrollButton
@@ -303,7 +288,6 @@ import TimelineView from './components/TimelineView.vue';
 import ApplicationsOverview from './components/ApplicationsOverview.vue';
 import AgentDashboard from './components/AgentDashboard.vue';
 import FilterNotificationBar from './components/FilterNotificationBar.vue';
-import TerminalStatusBar from './components/TerminalStatusBar.vue';
 import HookStatusGrid from './components/HookStatusGrid.vue';
 import EducationalDashboard from './components/EducationalDashboard.vue';
 import { useEducationalMode } from './composables/useEducationalMode';
@@ -361,7 +345,6 @@ const sortOrder = ref<'asc' | 'desc'>('desc'); // Default to latest first
 const stickToBottom = ref(true);
 const showThemeManager = ref(false);
 const showFilters = ref(false);
-const showTerminalStatus = ref(true); // Toggle for terminal status bar
 const selectedSessionId = ref<string | null>(null);
 const selectedEvent = ref<HookEvent | null>(null);
 const showEventDetail = ref(false);

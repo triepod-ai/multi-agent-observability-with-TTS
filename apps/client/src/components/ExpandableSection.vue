@@ -4,7 +4,7 @@
       @click="toggleExpansion"
       @keydown.enter="toggleExpansion"
       @keydown.space.prevent="toggleExpansion"
-      class="flex items-center justify-between w-full p-3 text-left transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+      class="flex items-center justify-between w-full p-1 text-left transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
       :class="[
         isExpanded ? expandedButtonClass : collapsedButtonClass,
         interactive ? 'hover:' + hoverClass : '',
@@ -57,7 +57,7 @@
         role="region"
         :aria-labelledby="headerId"
       >
-        <div class="p-4" :class="innerContentClass">
+        <div class="p-1" :class="innerContentClass">
           <slot :isExpanded="isExpanded" :toggle="toggleExpansion"></slot>
         </div>
       </div>

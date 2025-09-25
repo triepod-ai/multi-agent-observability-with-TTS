@@ -1,8 +1,8 @@
 <template>
   <div data-tab-content="guide">
-    <div class="mb-4">
-      <h2 class="text-lg font-semibold text-white mb-2">Complete Hook Guide</h2>
-      <p class="text-sm text-gray-400 mb-4">
+    <div class="mb-2">
+      <h2 class="text-base font-semibold text-white mb-1">Complete Hook Guide</h2>
+      <p class="text-xs text-gray-400 mb-2">
         Detailed explanations of all 8 Claude Code hooks with examples, best practices, and common issues.
       </p>
     </div>

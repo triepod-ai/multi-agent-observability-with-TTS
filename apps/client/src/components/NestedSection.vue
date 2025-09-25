@@ -23,21 +23,21 @@
       @collapse="handleCollapse"
     >
       <!-- Section Content -->
-      <div class="space-y-4">
+      <div class="space-y-1">
         <!-- Main Content -->
         <div v-if="section.content" class="prose prose-sm prose-invert max-w-none">
-          <div class="text-gray-300 leading-relaxed" v-html="formatContent(section.content)"></div>
+          <div class="text-gray-300 leading-tight text-xs" v-html="formatContent(section.content)"></div>
         </div>
 
         <!-- Metadata Display -->
         <div
           v-if="section.metadata && Object.keys(section.metadata).length > 0"
-          class="grid grid-cols-1 md:grid-cols-2 gap-4 p-3 bg-gray-900 rounded border border-gray-700"
+          class="grid grid-cols-1 md:grid-cols-2 gap-1 p-1 bg-gray-900 rounded border border-gray-700"
         >
           <div
             v-for="(value, key) in section.metadata"
             :key="key"
-            class="flex items-start space-x-3"
+            class="flex items-start space-x-1"
           >
             <span class="text-xs font-medium text-blue-400 capitalize min-w-0 flex-shrink-0">
               {{ formatMetadataKey(key) }}:
@@ -51,9 +51,9 @@
         <!-- Child Sections -->
         <div
           v-if="section.children && section.children.length > 0 && isExpanded"
-          class="space-y-2 pl-4 border-l-2 border-gray-700"
+          class="space-y-1 pl-4 border-l-2 border-gray-700"
         >
-          <div class="flex items-center mb-3">
+          <div class="flex items-center mb-1">
             <div class="w-2 h-px bg-gray-700 mr-2"></div>
             <span class="text-xs font-medium text-gray-400">
               {{ section.children.length }} subsection{{ section.children.length !== 1 ? 's' : '' }}
@@ -78,25 +78,25 @@
         <!-- Deep Link Actions -->
         <div
           v-if="showActions"
-          class="flex items-center justify-between pt-3 border-t border-gray-700"
+          class="flex items-center justify-between pt-1 border-t border-gray-700"
         >
-          <div class="flex items-center space-x-3 text-xs text-gray-400">
+          <div class="flex items-center space-x-1 text-xs text-gray-400">
             <span>Level {{ currentDepth + 1 }}</span>
             <span v-if="section.children">•</span>
             <span v-if="section.children">{{ section.children.length }} children</span>
           </div>
-          
-          <div class="flex items-center space-x-2">
+
+          <div class="flex items-center space-x-1">
             <button
               v-if="section.children && section.children.length > 0"
               @click="expandChildren"
-              class="px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+              class="px-1 py-0 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
             >
               Expand Children
             </button>
             <button
               @click="copyDeepLink"
-              class="px-2 py-1 text-xs bg-gray-600 hover:bg-gray-700 text-white rounded transition-colors"
+              class="px-1 py-0 text-xs bg-gray-600 hover:bg-gray-700 text-white rounded transition-colors"
               title="Copy direct link to this section"
             >
               📋 Copy Link

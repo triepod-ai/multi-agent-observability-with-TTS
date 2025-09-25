@@ -263,23 +263,23 @@ export interface RelationshipStats {
 }
 
 export function getRelationshipStats(timeRange?: { start: number; end: number }): RelationshipStats {
-  let whereClause = '';
+  let baseWhere = '';
   const params: any[] = [];
-  
+
   if (timeRange) {
-    whereClause = 'WHERE created_at BETWEEN ? AND ?';
+    baseWhere = 'WHERE created_at BETWEEN ? AND ?';
     params.push(timeRange.start, timeRange.end);
   }
 
   // Get total relationships
-  const totalStmt = db.prepare(`SELECT COUNT(*) as count FROM session_relationships ${whereClause}`);
+  const totalStmt = db.prepare(`SELECT COUNT(*) as count FROM session_relationships ${baseWhere}`);
   const totalResult = totalStmt.get(...params) as any;
   const totalRelationships = totalResult.count;
 
   // Get relationship type distribution
   const typeStmt = db.prepare(`
-    SELECT relationship_type, COUNT(*) as count 
-    FROM session_relationships ${whereClause}
+    SELECT relationship_type, COUNT(*) as count
+    FROM session_relationships ${baseWhere}
     GROUP BY relationship_type
   `);
   const typeRows = typeStmt.all(...params) as any[];
@@ -289,10 +289,13 @@ export function getRelationshipStats(timeRange?: { start: number; end: number })
   });
 
   // Get spawn reason distribution
+  const reasonWhere = baseWhere
+    ? `${baseWhere} AND spawn_reason IS NOT NULL`
+    : 'WHERE spawn_reason IS NOT NULL';
+
   const reasonStmt = db.prepare(`
-    SELECT spawn_reason, COUNT(*) as count 
-    FROM session_relationships ${whereClause}
-    WHERE spawn_reason IS NOT NULL
+    SELECT spawn_reason, COUNT(*) as count
+    FROM session_relationships ${reasonWhere}
     GROUP BY spawn_reason
   `);
   const reasonRows = reasonStmt.all(...params) as any[];
@@ -302,10 +305,13 @@ export function getRelationshipStats(timeRange?: { start: number; end: number })
   });
 
   // Get delegation type distribution
+  const delegationWhere = baseWhere
+    ? `${baseWhere} AND delegation_type IS NOT NULL`
+    : 'WHERE delegation_type IS NOT NULL';
+
   const delegationStmt = db.prepare(`
-    SELECT delegation_type, COUNT(*) as count 
-    FROM session_relationships ${whereClause}
-    WHERE delegation_type IS NOT NULL
+    SELECT delegation_type, COUNT(*) as count
+    FROM session_relationships ${delegationWhere}
     GROUP BY delegation_type
   `);
   const delegationRows = delegationStmt.all(...params) as any[];
@@ -316,21 +322,21 @@ export function getRelationshipStats(timeRange?: { start: number; end: number })
 
   // Get depth statistics
   const depthStmt = db.prepare(`
-    SELECT AVG(depth_level) as avgDepth, MAX(depth_level) as maxDepth 
-    FROM session_relationships ${whereClause}
+    SELECT AVG(depth_level) as avgDepth, MAX(depth_level) as maxDepth
+    FROM session_relationships ${baseWhere}
   `);
   const depthResult = depthStmt.get(...params) as any;
 
   // Get completion rate
   const completionStmt = db.prepare(`
-    SELECT 
+    SELECT
       COUNT(CASE WHEN completed_at IS NOT NULL THEN 1 END) as completed,
       COUNT(*) as total
-    FROM session_relationships ${whereClause}
+    FROM session_relationships ${baseWhere}
   `);
   const completionResult = completionStmt.get(...params) as any;
-  const completionRate = completionResult.total > 0 
-    ? (completionResult.completed / completionResult.total) 
+  const completionRate = completionResult.total > 0
+    ? (completionResult.completed / completionResult.total)
     : 0;
 
   return {

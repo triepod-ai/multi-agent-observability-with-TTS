@@ -1,5 +1,6 @@
 import { Database } from 'bun:sqlite';
 import type { HookEvent } from '../types';
+import { getRelationshipStats } from './relationshipService';
 
 export interface EnhancedHookContext {
   sourceApps: string[];
@@ -48,6 +49,10 @@ export interface EnhancedHookContext {
       type: string;
       count: number;
     }>;
+    maxDepth?: number;
+    averageDepth?: number;
+    completionRate?: number;
+    spawnReasons?: { [key: string]: number };
   };
   systemContext?: {
     hostname?: string;
@@ -173,7 +178,7 @@ export function calculateEnhancedHookContext(
   const recentErrors = extractRecentErrors(hookEvents);
   
   // Session context analysis
-  const sessionContext = analyzeSessionContext(hookEvents);
+  const sessionContext = analyzeSessionContext(hookEvents, timeWindow);
   
   // System context (basic information)
   const systemContext = {
@@ -429,28 +434,53 @@ function extractRecentErrors(events: HookEvent[]) {
     }));
 }
 
-function analyzeSessionContext(events: HookEvent[]) {
-  const parentSessions = events.filter(e => e.parent_session_id).length;
-  const childSessions = events.filter(e => e.session_depth && e.session_depth > 1).length;
-  
-  const delegationTypes = new Map();
-  events.forEach(e => {
-    const delegationType = e.payload?.delegation_type;
-    if (delegationType) {
-      delegationTypes.set(delegationType, (delegationTypes.get(delegationType) || 0) + 1);
-    }
-  });
-  
-  const delegationPatterns = Array.from(delegationTypes.entries()).map(([type, count]) => ({
-    type,
-    count
-  }));
-  
-  return {
-    parentSessions,
-    childSessions,
-    delegationPatterns
-  };
+function analyzeSessionContext(events: HookEvent[], timeWindow: number = 24 * 60 * 60 * 1000) {
+  // Use the actual session relationships database instead of inferring from events
+  const now = Date.now();
+  const since = now - timeWindow;
+
+  try {
+    const relationshipStats = getRelationshipStats({ start: since, end: now });
+
+    // Convert delegation types to the expected format
+    const delegationPatterns = Object.entries(relationshipStats.delegationTypes || {})
+      .map(([type, count]) => ({ type, count }));
+
+    return {
+      parentSessions: relationshipStats.totalRelationships,
+      childSessions: relationshipStats.totalRelationships, // In our system, relationships represent parent->child
+      delegationPatterns,
+      maxDepth: relationshipStats.maxDepth,
+      averageDepth: relationshipStats.averageDepth,
+      completionRate: relationshipStats.completionRate,
+      spawnReasons: relationshipStats.spawnReasons
+    };
+  } catch (error) {
+    console.error('Error fetching relationship stats:', error);
+
+    // Fallback to the old method if relationship stats fail
+    const parentSessions = events.filter(e => e.parent_session_id).length;
+    const childSessions = events.filter(e => e.session_depth && e.session_depth > 1).length;
+
+    const delegationTypes = new Map();
+    events.forEach(e => {
+      const delegationType = e.payload?.delegation_type;
+      if (delegationType) {
+        delegationTypes.set(delegationType, (delegationTypes.get(delegationType) || 0) + 1);
+      }
+    });
+
+    const delegationPatterns = Array.from(delegationTypes.entries()).map(([type, count]) => ({
+      type,
+      count
+    }));
+
+    return {
+      parentSessions,
+      childSessions,
+      delegationPatterns
+    };
+  }
 }
 
 function analyzeTopConsumers(events: HookEvent[]) {

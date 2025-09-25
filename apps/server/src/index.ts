@@ -1571,7 +1571,8 @@ const server = Bun.serve({
       wsClients.add(ws);
       
       // Send recent events on connection
-      const events = getRecentEvents(50);
+      // Increased from 50 to 500 to provide more context for agent detection
+      const events = getRecentEvents(500);
       ws.send(JSON.stringify({ type: 'initial', data: events }));
       
       // Send current terminal status

@@ -352,10 +352,10 @@ function handleSubagentStop(event: HookEvent, timestamp: number): void {
   // Update session status and end time
   const payload = event.payload || {};
   const completionStatus = payload.error ? 'failed' : 'completed';
-  
+
   const updateSessionStmt = db.prepare(`
-    UPDATE sessions 
-    SET 
+    UPDATE sessions
+    SET
       end_time = ?,
       status = ?,
       session_metadata = json_set(
@@ -365,7 +365,7 @@ function handleSubagentStop(event: HookEvent, timestamp: number): void {
       )
     WHERE session_id = ?
   `);
-  
+
   updateSessionStmt.run(
     timestamp,
     completionStatus,
@@ -373,23 +373,56 @@ function handleSubagentStop(event: HookEvent, timestamp: number): void {
     JSON.stringify(payload),
     event.session_id
   );
-  
-  // Update relationship completion time
+
+  // Extract parent session ID from subagent session ID if not provided
+  // Task tool creates subagent session IDs with pattern: {parent_session_id}_{process_id}_{timestamp}
+  let parentSessionId = event.parent_session_id;
+
+  if (!parentSessionId && event.session_id) {
+    const sessionIdParts = event.session_id.split('_');
+    if (sessionIdParts.length >= 3) {
+      // First part before first underscore should be the parent session ID (UUID format)
+      const potentialParentId = sessionIdParts[0];
+      // Validate it looks like a UUID (36 characters with hyphens)
+      if (potentialParentId.length === 36 && potentialParentId.includes('-')) {
+        parentSessionId = potentialParentId;
+        console.log(`Extracted parent session ID from subagent session ID: ${parentSessionId} <- ${event.session_id}`);
+
+        // Create the session relationship retroactively since it wasn't created at start
+        try {
+          createSessionRelationship(
+            parentSessionId,
+            event.session_id,
+            'parent/child', // Valid relationship type per database constraint
+            'task_tool', // Spawn reason: Valid constraint value for Task tool
+            'parallel', // Delegation type: Valid constraint value (parallel/sequential/isolated)
+            { created_from: 'subagent_stop', extracted_parent: true }, // Metadata
+            timestamp // Use stop timestamp as creation time
+          );
+          console.log(`Created session relationship: ${parentSessionId} -> ${event.session_id}`);
+        } catch (error) {
+          console.error(`Failed to create session relationship for ${event.session_id}:`, error);
+        }
+      }
+    }
+  }
+
+  // Update relationship completion time (now we might have created the relationship above)
   const updateRelationshipStmt = db.prepare(`
-    UPDATE session_relationships 
-    SET completed_at = ? 
+    UPDATE session_relationships
+    SET completed_at = ?
     WHERE child_session_id = ?
   `);
   updateRelationshipStmt.run(timestamp, event.session_id);
-  
-  // Get parent session ID for WebSocket event
+
+  // Get parent session ID for WebSocket event (query again in case we just created the relationship)
   const relationshipQuery = db.prepare(`
-    SELECT parent_session_id 
-    FROM session_relationships 
-    WHERE child_session_id = ? 
+    SELECT parent_session_id
+    FROM session_relationships
+    WHERE child_session_id = ?
     LIMIT 1
   `).get(event.session_id);
-  
+
   // Broadcast session completion event via WebSocket
   if (relationshipQuery?.parent_session_id) {
     broadcastRelationshipEvent({

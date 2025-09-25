@@ -171,7 +171,8 @@
       />
     </div>
 
-    <!-- Tool Usage and Performance Analysis -->
+    <!-- Tool Usage and Performance Analysis - DEPRECATED -->
+    <!--
     <div class="mb-6">
       <AgentMetricsChart
         title="Tool Usage Distribution"
@@ -185,10 +186,11 @@
         @export="exportToolUsageData"
       />
     </div>
+    -->
 
-    <!-- Session Relationships and Tree View -->
+    <!-- Session Relationships and Tree View - DEPRECATED -->
+    <!--
     <div class="mb-6 grid grid-cols-1 xl:grid-cols-3 gap-6">
-      <!-- Relationship Statistics -->
       <div class="xl:col-span-1">
         <RelationshipStats
           :auto-refresh="true"
@@ -197,8 +199,7 @@
           @error="handleRelationshipError"
         />
       </div>
-      
-      <!-- Session Tree -->
+
       <div class="xl:col-span-2">
         <div class="bg-gray-950 rounded-lg border border-gray-800 h-96">
           <SessionTree
@@ -209,6 +210,7 @@
         </div>
       </div>
     </div>
+    -->
 
     <!-- Agent Executions Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -325,8 +327,9 @@ import type { HookEvent } from '../types';
 import AgentExecutionCard from './AgentExecutionCard.vue';
 import AgentDetailModal from './AgentDetailModal.vue';
 import AgentMetricsChart from './AgentMetricsChart.vue';
-import SessionTree from './SessionTree.vue';
-import RelationshipStats from './RelationshipStats.vue';
+// DEPRECATED: Components removed from UI
+// import SessionTree from './SessionTree.vue';
+// import RelationshipStats from './RelationshipStats.vue';
 import { useAgentMetrics } from '../composables/useAgentMetrics';
 
 // Props

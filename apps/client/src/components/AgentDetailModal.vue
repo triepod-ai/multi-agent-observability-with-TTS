@@ -9,9 +9,9 @@
         ></div>
         
         <!-- Modal Content -->
-        <div class="relative bg-gray-800 rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden border border-gray-700">
+        <div class="relative bg-gray-800 rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-gray-700">
           <!-- Header -->
-          <div class="sticky top-0 bg-gray-800 border-b border-gray-700 p-6 z-10">
+          <div class="flex-shrink-0 bg-gray-800 border-b border-gray-700 p-6 z-10">
             <div class="flex items-center justify-between">
               <div class="flex items-center space-x-4">
                 <!-- Agent Icon -->
@@ -47,7 +47,7 @@
           </div>
           
           <!-- Content -->
-          <div class="overflow-y-auto max-h-[calc(90vh-120px)]">
+          <div class="flex-1 overflow-y-auto min-h-0">
             <div class="p-6 space-y-6">
               <!-- Status and Metrics Overview -->
               <div class="grid grid-cols-1 md:grid-cols-4 gap-4">

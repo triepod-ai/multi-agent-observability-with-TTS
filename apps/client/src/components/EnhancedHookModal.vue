@@ -290,13 +290,17 @@ function closeModal() {
 }
 
 .enhanced-hook-modal {
-  @apply bg-gray-800 rounded-xl border border-gray-700 w-full max-w-6xl max-h-full overflow-hidden flex flex-col;
-  min-height: 600px;
+  @apply bg-gray-800 rounded-xl border border-gray-700 w-full max-w-6xl;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 /* Modal Header */
 .modal-header {
   @apply flex items-center justify-between p-6 border-b border-gray-700;
+  flex-shrink: 0; /* Prevent header from shrinking */
 }
 
 .hook-identity {
@@ -305,6 +309,14 @@ function closeModal() {
 
 .hook-info {
   @apply flex-1 min-w-0;
+}
+
+.hook-info h2 {
+  @apply truncate;
+}
+
+.hook-info p {
+  @apply truncate;
 }
 
 .status-badges {
@@ -326,6 +338,7 @@ function closeModal() {
 /* Modal Tabs */
 .modal-tabs {
   @apply flex border-b border-gray-700 px-6 overflow-x-auto;
+  flex-shrink: 0; /* Prevent tabs from shrinking */
 }
 
 .tab-button {
@@ -346,11 +359,58 @@ function closeModal() {
 
 /* Tab Content */
 .tab-content {
-  @apply flex-1 overflow-auto;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .tab-panel {
-  @apply p-6 h-full;
+  @apply p-6;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+  max-height: 100%;
+  scrollbar-width: thin;
+  scrollbar-color: #6b7280 #374151;
+}
+
+/* Custom scrollbar for webkit browsers */
+.tab-panel::-webkit-scrollbar {
+  width: 12px;
+}
+
+.tab-panel::-webkit-scrollbar-track {
+  background: #374151;
+  border-radius: 6px;
+  margin: 10px 0;
+}
+
+.tab-panel::-webkit-scrollbar-thumb {
+  background: #6b7280;
+  border-radius: 6px;
+  border: 2px solid #374151;
+}
+
+.tab-panel::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Ensure proper text wrapping in content */
+.tab-panel pre,
+.tab-panel code {
+  @apply whitespace-pre-wrap break-words;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Ensure long lines don't cause horizontal scroll */
+.tab-panel * {
+  max-width: 100%;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 /* Responsive Design */
@@ -379,7 +439,7 @@ function closeModal() {
     @apply px-3 py-2;
   }
   
-  .tab-content {
+  .tab-panel {
     @apply p-4;
   }
 }

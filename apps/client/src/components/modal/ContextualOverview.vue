@@ -227,7 +227,14 @@ function generateRichDescription(): string {
       return `Initializing sessions across ${context.sourceApps.length} applications with average startup time of ${formatDuration(context.avgDuration)}. Recent activity includes ${context.totalExecutions} session starts with ${context.activeSessions.length} unique sessions tracked.`;
     
     case 'pre_tool_use':
-      const topTools = context.toolUsage.slice(0, 3).map(t => t.name).join(', ');
+      const topTools = context.toolUsage.slice(0, 3).map(t => {
+        // Truncate long MCP tool names
+        const name = t.name;
+        if (name.length > 30) {
+          return name.substring(0, 27) + '...';
+        }
+        return name;
+      }).join(', ');
       return `Validating tool executions across the system. Most active tools: ${topTools || 'various system tools'}. Processing ${context.totalExecutions} validation requests with ${formatDuration(context.avgDuration)} average validation time.`;
     
     case 'subagent_stop':
@@ -235,6 +242,17 @@ function generateRichDescription(): string {
       return `Managing agent completion and cleanup. Active agent types: ${agentTypes || 'various agents'}. Processed ${context.totalExecutions} agent completions with ${formatNumber(context.totalTokens)} total tokens consumed.`;
     
     case 'post_tool_use':
+      // If there are top tools to display, truncate long names
+      if (context.toolUsage && context.toolUsage.length > 0) {
+        const topTools = context.toolUsage.slice(0, 2).map(t => {
+          const name = t.name;
+          if (name.length > 25) {
+            return name.substring(0, 22) + '...';
+          }
+          return name;
+        }).join(', ');
+        return `Processing results for tools like ${topTools}. Handled ${context.totalExecutions} completions with ${formatDuration(context.avgDuration)} avg time and ${hook.successRate || 0}% success rate.`;
+      }
       return `Processing tool execution results with ${context.avgDuration}ms average processing time. Handled ${context.totalExecutions} tool completions across ${context.sourceApps.length} applications with ${hook.successRate || 0}% success rate.`;
       
     case 'user_prompt_submit':

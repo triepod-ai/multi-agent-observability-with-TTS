@@ -93,7 +93,7 @@
             <div class="tool-header">
               <div class="tool-identity">
                 <span class="tool-icon">{{ getToolIcon(tool.name) }}</span>
-                <span class="tool-name">{{ tool.name }}</span>
+                <span class="tool-name" :title="tool.name">{{ tool.name }}</span>
               </div>
               <div class="tool-stats">
                 <span class="usage-count">{{ tool.count }} uses</span>
@@ -495,26 +495,35 @@ function getSuccessRateClass(rate: number): string {
 
 .tool-usage-item {
   @apply bg-gray-800/50 border border-gray-700 rounded-lg p-4;
+  overflow: hidden;
 }
 
 .tool-header {
-  @apply flex items-center justify-between mb-3;
+  @apply flex items-center justify-between mb-3 gap-4;
+  min-width: 0;
 }
 
 .tool-identity {
-  @apply flex items-center space-x-2;
+  @apply flex items-center space-x-2 min-w-0;
+  flex: 1 1 auto;
+  max-width: calc(100% - 200px);
 }
 
 .tool-icon {
-  @apply text-lg;
+  @apply text-lg flex-shrink-0;
 }
 
 .tool-name {
-  @apply font-medium text-white;
+  @apply font-medium text-white truncate;
+  display: block;
+  max-width: 250px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tool-stats {
-  @apply flex items-center space-x-3 text-sm;
+  @apply flex items-center space-x-3 text-sm flex-shrink-0;
 }
 
 .usage-count {
@@ -721,6 +730,14 @@ function getSuccessRateClass(rate: number): string {
 @media (max-width: 768px) {
   .tool-header, .agent-header {
     @apply flex-col items-start space-y-2;
+  }
+
+  .tool-identity {
+    max-width: 100%;
+  }
+
+  .tool-name {
+    max-width: calc(100vw - 120px);
   }
   
   .tool-stats, .tool-performance {

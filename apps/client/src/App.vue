@@ -177,22 +177,23 @@
       v-if="isEducationalMode"
       :events="events"
     />
-    
-    <!-- Hook Status Grid (expert mode only) -->
-    <HookStatusGrid
+
+    <!-- Hook Status Grid - Moved to Timeline tab instead of global display -->
+    <!-- <HookStatusGrid
       v-else
       :events="events"
-    />
-    
+    /> -->
+
     <!-- Activity Dashboard -->
     <ActivityDashboard
+      v-if="false"
       :events="events"
       :get-session-color="getHexColorForSession"
       :get-app-color="getHexColorForApp"
       @select-session="handleSessionSelect"
       @view-all-sessions="currentViewMode = 'timeline'"
     />
-    
+
     <!-- Main Content Area -->
     <div class="flex-1 overflow-hidden">
       <Transition name="fade" mode="out-in">

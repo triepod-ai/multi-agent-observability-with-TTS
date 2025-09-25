@@ -116,10 +116,10 @@
         <div
           v-for="[appName, appEvents] in sortedApplications"
           :key="appName"
-          class="bg-gray-800/50 rounded-lg border border-gray-700 p-4 hover:border-gray-600 transition-all duration-200 flex flex-col h-[500px]"
+          class="bg-gray-800/50 rounded-lg border border-gray-700 p-4 hover:border-gray-600 transition-all duration-200 flex flex-col h-[500px] overflow-hidden"
         >
           <!-- Application Header -->
-          <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center justify-between mb-4 flex-shrink-0">
             <div class="flex items-center space-x-3">
               <div 
                 class="w-4 h-4 rounded-full flex-shrink-0"
@@ -141,8 +141,10 @@
             </div>
           </div>
 
-          <!-- Application Metrics -->
-          <div class="grid grid-cols-4 gap-3 mb-4">
+          <!-- Scrollable Content Area -->
+          <div class="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+            <!-- Application Metrics -->
+            <div class="grid grid-cols-4 gap-3 mb-4">
             <div class="text-center p-2 bg-gray-900/50 rounded">
               <div class="text-lg font-bold text-purple-400">{{ getAppAgentCount(appEvents) }}</div>
               <div class="text-xs text-gray-400">Agents</div>
@@ -231,24 +233,25 @@
             </div>
           </div>
 
-          <!-- Recent Activity Timeline -->
-          <div class="border-t border-gray-700 pt-3 mt-auto">
-            <h5 class="text-xs font-medium text-gray-400 mb-2">Activity Timeline</h5>
-            <div class="flex items-center space-x-1">
-              <div
-                v-for="(activity, index) in getActivityTimeline(appEvents)"
-                :key="index"
-                class="w-2 h-6 rounded-sm transition-all duration-200"
-                :class="activity.intensity > 0.7 ? 'bg-green-500' : 
-                       activity.intensity > 0.4 ? 'bg-yellow-500' : 
-                       activity.intensity > 0 ? 'bg-blue-500' : 'bg-gray-700'"
-                :title="`${activity.count} events at ${activity.time}`"
-              ></div>
+            <!-- Recent Activity Timeline -->
+            <div class="border-t border-gray-700 pt-3 mt-auto">
+              <h5 class="text-xs font-medium text-gray-400 mb-2">Activity Timeline</h5>
+              <div class="flex items-center space-x-1">
+                <div
+                  v-for="(activity, index) in getActivityTimeline(appEvents)"
+                  :key="index"
+                  class="w-2 h-6 rounded-sm transition-all duration-200"
+                  :class="activity.intensity > 0.7 ? 'bg-green-500' :
+                         activity.intensity > 0.4 ? 'bg-yellow-500' :
+                         activity.intensity > 0 ? 'bg-blue-500' : 'bg-gray-700'"
+                  :title="`${activity.count} events at ${activity.time}`"
+                ></div>
+              </div>
             </div>
           </div>
 
           <!-- Action Buttons -->
-          <div class="flex justify-between mt-4">
+          <div class="flex justify-between mt-4 flex-shrink-0">
             <button
               @click="filterByApplication(appName)"
               class="flex-1 mr-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded transition-colors"

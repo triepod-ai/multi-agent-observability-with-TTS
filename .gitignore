@@ -236,6 +236,7 @@ results/
 .parcel-cache/
 
 # Misc
+.claude/agents/
 *.bak
 *.backup
 *.old

@@ -307,13 +307,13 @@
               </Transition>
             </div>
           </div>
-        </div>
-        
-        <!-- Load More Button -->
-        <div v-if="filteredEvents.length > displayLimit" class="load-more-container">
-          <button @click="loadMore" class="load-more-btn">
-            Load More Events ({{ filteredEvents.length - displayLimit }} remaining)
-          </button>
+
+          <!-- Load More Button -->
+          <div v-if="filteredEvents.length > displayLimit" class="load-more-container">
+            <button @click="loadMore" class="load-more-btn">
+              Load More Events ({{ filteredEvents.length - displayLimit }} remaining)
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -513,6 +513,18 @@ async function copyToClipboard(text: string): Promise<void> {
 <style scoped>
 .recent-activity {
   @apply space-y-6;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.activity-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 /* Loading and No Data States */
@@ -536,6 +548,16 @@ async function copyToClipboard(text: string): Promise<void> {
 /* Activity Summary */
 .activity-summary {
   @apply bg-gray-900/50 border border-gray-700 rounded-lg p-4 mb-6;
+  flex-shrink: 0;
+}
+
+/* Activity Timeline */
+.activity-timeline {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .summary-stats {
@@ -553,6 +575,7 @@ async function copyToClipboard(text: string): Promise<void> {
 /* Filters */
 .activity-filters {
   @apply flex flex-wrap gap-4 mb-6 p-4 bg-gray-900/30 border border-gray-700 rounded-lg;
+  flex-shrink: 0;
 }
 
 .filter-group {
@@ -570,6 +593,32 @@ async function copyToClipboard(text: string): Promise<void> {
 /* Timeline */
 .timeline-container {
   @apply space-y-4;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: #6b7280 #374151;
+}
+
+/* Custom scrollbar for webkit browsers */
+.timeline-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.timeline-container::-webkit-scrollbar-track {
+  background: #374151;
+  border-radius: 4px;
+}
+
+.timeline-container::-webkit-scrollbar-thumb {
+  background: #6b7280;
+  border-radius: 4px;
+}
+
+.timeline-container::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
 }
 
 .timeline-item {
@@ -695,7 +744,8 @@ async function copyToClipboard(text: string): Promise<void> {
 
 /* Load More */
 .load-more-container {
-  @apply text-center mt-6;
+  @apply text-center mt-6 mb-4;
+  padding-bottom: 16px;
 }
 
 .load-more-btn {

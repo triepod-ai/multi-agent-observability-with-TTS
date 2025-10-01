@@ -87,7 +87,46 @@
             
             <!-- Agent Events Container -->
             <div v-if="!group.isAgent || !collapsedAgents.has(group.sessionId)" :class="group.isAgent ? 'ml-8 mr-8 border-l-2 border-purple-500/30 pl-4' : ''">
+
+              <!-- Tool Pair Container -->
+              <div v-if="group.isToolPair" class="relative mb-8 p-4 bg-gray-800/30 rounded-lg border border-blue-500/30">
+                <div class="text-xs text-blue-400 mb-2 font-semibold">🔗 Tool Execution Pair ({{ group.correlationId?.substring(0, 8) }})</div>
+
+                <div class="flex items-center gap-4">
+                  <!-- PreToolUse Event -->
+                  <div class="flex-1">
+                    <div class="text-xs text-green-400 mb-1">📤 Pre-execution</div>
+                    <event-card
+                      :event="group.events[0]"
+                      :is-timeline-view="true"
+                      class="border-green-500/30"
+                    />
+                  </div>
+
+                  <!-- Connection Arrow -->
+                  <div class="px-4">
+                    <div class="flex items-center">
+                      <div class="w-8 h-0.5 bg-blue-500/50"></div>
+                      <div class="text-blue-400 mx-2">▶</div>
+                      <div class="w-8 h-0.5 bg-blue-500/50"></div>
+                    </div>
+                  </div>
+
+                  <!-- PostToolUse Event -->
+                  <div class="flex-1">
+                    <div class="text-xs text-red-400 mb-1">📥 Post-execution</div>
+                    <event-card
+                      :event="group.events[1]"
+                      :is-timeline-view="true"
+                      class="border-red-500/30"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Individual Events -->
               <div
+                v-else
                 v-for="(event, eventIndex) in group.events"
                 :key="`${event.id}-${event.timestamp}`"
                 class="relative mb-8"
@@ -334,12 +373,15 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import type { HookEvent } from '../types';
+import type { HookEvent, SortableField, SortOrder } from '../types';
+import EventCard from './EventCard.vue';
 
 const props = defineProps<{
   events: HookEvent[];
   getSessionColor: (sessionId: string) => string;
   getAppColor: (appName: string) => string;
+  sortBy?: SortableField;
+  sortOrder?: SortOrder;
 }>();
 
 defineEmits<{
@@ -360,53 +402,126 @@ interface EventGroup {
   agentType?: string;
   duration?: number;
   events: HookEvent[];
+  isToolPair?: boolean;
+  correlationId?: string;
 }
 
-// Computed: Group events by agent sessions
+// Function to group correlated tool events into pairs
+function groupToolEventPairs(events: HookEvent[]): HookEvent[] {
+  const result: HookEvent[] = [];
+  const correlationMap = new Map<string, HookEvent[]>();
+
+  // Group events by correlation_id
+  events.forEach(event => {
+    if (event.correlation_id && (event.hook_event_type === 'PreToolUse' || event.hook_event_type === 'PostToolUse')) {
+      if (!correlationMap.has(event.correlation_id)) {
+        correlationMap.set(event.correlation_id, []);
+      }
+      correlationMap.get(event.correlation_id)!.push(event);
+    } else {
+      // Non-tool events go directly to result
+      result.push(event);
+    }
+  });
+
+  // Process correlated tool pairs
+  correlationMap.forEach((correlatedEvents, correlationId) => {
+    if (correlatedEvents.length === 2) {
+      // Perfect pair - sort by timestamp and add together
+      correlatedEvents.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+      result.push(...correlatedEvents);
+    } else {
+      // Unpaired events - add individually
+      result.push(...correlatedEvents);
+    }
+  });
+
+  return result.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+}
+
+// Computed: Group events by session_id (correlation_id used only as metadata for linking)
 const groupedEvents = computed((): EventGroup[] => {
   const sessionGroups = new Map<string, HookEvent[]>();
-  
+
   props.events.forEach(event => {
-    if (!sessionGroups.has(event.session_id)) {
-      sessionGroups.set(event.session_id, []);
+    // Always use session_id for grouping - correlation_id is just metadata
+    const groupKey = event.session_id;
+    if (!sessionGroups.has(groupKey)) {
+      sessionGroups.set(groupKey, []);
     }
-    sessionGroups.get(event.session_id)!.push(event);
+    sessionGroups.get(groupKey)!.push(event);
   });
   
   const groups: EventGroup[] = [];
-  
-  sessionGroups.forEach((sessionEvents, sessionId) => {
-    sessionEvents.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
-    
-    const isAgent = detectAgentSession(sessionEvents);
-    
+
+  sessionGroups.forEach((groupEvents, groupKey) => {
+    // Apply user's sorting preferences to events within this session group
+    const sortedGroupEvents = sortEventsWithinGroup([...groupEvents], props.sortBy, props.sortOrder);
+
+    // Group correlated tool events (PreToolUse/PostToolUse pairs)
+    const pairedEvents = groupToolEventPairs(sortedGroupEvents);
+
+    const isAgent = detectAgentSession(sortedGroupEvents);
+
     if (isAgent) {
-      const agentData = analyzeAgentGroup(sessionId, sessionEvents);
+      const agentData = analyzeAgentGroup(groupKey, sortedGroupEvents);
       groups.push({
         isAgent: true,
-        sessionId,
+        sessionId: groupKey, // Always session_id for consistent grouping
         agentName: agentData.agentName,
         agentType: agentData.agentType,
         duration: agentData.duration,
-        events: sessionEvents
+        events: sortedGroupEvents // Use sorted events
       });
     } else {
-      // Individual events for non-agent sessions
-      sessionEvents.forEach(event => {
-        groups.push({
-          isAgent: false,
-          sessionId: event.session_id,
-          events: [event]
-        });
-      });
+      // Process tool pairs and individual events for non-agent sessions
+      const processedEvents = groupToolEventPairs(sortedGroupEvents);
+
+      for (let i = 0; i < processedEvents.length; i++) {
+        const event = processedEvents[i];
+        const nextEvent = processedEvents[i + 1];
+
+        // Check if this is a PreToolUse with matching PostToolUse
+        if (event.hook_event_type === 'PreToolUse' &&
+            nextEvent?.hook_event_type === 'PostToolUse' &&
+            event.correlation_id === nextEvent.correlation_id) {
+          // Create tool pair group
+          groups.push({
+            isAgent: false,
+            sessionId: groupKey,
+            events: [event, nextEvent],
+            isToolPair: true,
+            correlationId: event.correlation_id
+          });
+          i++; // Skip the next event since we processed it as part of the pair
+        } else {
+          // Individual event
+          groups.push({
+            isAgent: false,
+            sessionId: groupKey,
+            events: [event]
+          });
+        }
+      }
     }
   });
-  
-  // Sort by first event timestamp
+
+  // Sort groups themselves based on their representative values
   return groups.sort((a, b) => {
-    const aTime = a.events[0]?.timestamp || 0;
-    const bTime = b.events[0]?.timestamp || 0;
-    return aTime - bTime;
+    const aValue = getGroupRepresentativeValue(a, props.sortBy);
+    const bValue = getGroupRepresentativeValue(b, props.sortBy);
+
+    let compareValue = 0;
+
+    if (props.sortBy === 'timestamp') {
+      compareValue = (aValue as number) - (bValue as number);
+    } else {
+      compareValue = String(aValue).localeCompare(String(bValue));
+    }
+
+    // Apply sort order - default to 'desc' for timestamp if not specified
+    const order = props.sortOrder || (props.sortBy === 'timestamp' ? 'desc' : 'asc');
+    return order === 'asc' ? compareValue : -compareValue;
   });
 });
 
@@ -549,6 +664,80 @@ const laneConnections = computed((): LaneConnection[] => {
 
   return connections;
 });
+
+// Sorting helper functions
+function sortEventsWithinGroup(events: HookEvent[], sortBy?: SortableField, sortOrder?: SortOrder): HookEvent[] {
+  if (!sortBy || !sortOrder) {
+    // Default to timestamp sorting if not specified
+    return events.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+  }
+
+  return events.sort((a, b) => {
+    let compareValue = 0;
+
+    switch (sortBy) {
+      case 'timestamp':
+        compareValue = (a.timestamp || 0) - (b.timestamp || 0);
+        break;
+      case 'source_app':
+        compareValue = a.source_app.localeCompare(b.source_app);
+        break;
+      case 'event_type':
+        compareValue = a.hook_event_type.localeCompare(b.hook_event_type);
+        break;
+      case 'name':
+        // Sort by a combination of source_app and event type
+        const aName = `${a.source_app}_${a.hook_event_type}`;
+        const bName = `${b.source_app}_${b.hook_event_type}`;
+        compareValue = aName.localeCompare(bName);
+        break;
+    }
+
+    // Apply sort order
+    return sortOrder === 'asc' ? compareValue : -compareValue;
+  });
+}
+
+function getGroupRepresentativeValue(group: EventGroup, sortBy?: SortableField): any {
+  if (!sortBy || group.events.length === 0) {
+    return group.events[0]?.timestamp || 0;
+  }
+
+  switch (sortBy) {
+    case 'timestamp':
+      // Use the earliest timestamp in the group for representative value
+      return Math.min(...group.events.map(e => e.timestamp || 0));
+    case 'source_app':
+      // Use the first event's source_app (groups are already by session, so this should be consistent)
+      return group.events[0]?.source_app || '';
+    case 'event_type':
+      // Use the most common event type in the group, or first if tied
+      const eventTypeCounts = group.events.reduce((acc, event) => {
+        acc[event.hook_event_type] = (acc[event.hook_event_type] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      const mostCommonType = Object.entries(eventTypeCounts)
+        .sort(([,a], [,b]) => b - a)[0]?.[0];
+      return mostCommonType || group.events[0]?.hook_event_type || '';
+    case 'name':
+      // Combination of app and most common event type
+      const first = group.events[0];
+      if (!first) return '';
+
+      const typeCounts = group.events.reduce((acc, event) => {
+        acc[event.hook_event_type] = (acc[event.hook_event_type] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      const commonType = Object.entries(typeCounts)
+        .sort(([,a], [,b]) => b - a)[0]?.[0] || first.hook_event_type;
+
+      return `${first.source_app}_${commonType}`;
+    default:
+      return group.events[0]?.timestamp || 0;
+  }
+}
 
 // Helper functions (from AgentDashboard)
 function detectAgentSession(events: HookEvent[]): boolean {

@@ -129,13 +129,57 @@ The Activity Dashboard replaces the previous abstract wave charts with actionabl
 
 ## Timeline View
 
-The new Timeline View provides a visual representation of events over time with clear chronological relationships.
+The Timeline View provides a sophisticated visual representation of events over time with intelligent correlation grouping and tool event pairing.
 
 ### Technical Architecture
 
+#### Event Grouping Strategy (Updated 2025)
+
+**Session-First Grouping**: The Timeline View now uses a session-first grouping strategy to ensure consistent event organization:
+
+```typescript
+// UPDATED: Session-first grouping for consistency
+const groupKey = event.session_id; // Always use session_id as primary grouping key
+
+// correlation_id preserved as metadata for tool event pairing
+const correlationId = event.correlation_id; // Used for pairing logic only
+```
+
+**Previous Issue**: Mixed correlation_id and session_id grouping caused modal display confusion where different IDs appeared in the same event group.
+
+**Solution**: All events consistently grouped by session_id, with correlation_id preserved as metadata for linking related tool events.
+
+#### Tool Event Pairing System (NEW)
+
+**Visual Pairing**: PreToolUse and PostToolUse events with matching correlation_ids are now displayed as connected pairs:
+
+```typescript
+// Tool pair detection logic
+if (event.hook_event_type === 'PreToolUse' &&
+    nextEvent?.hook_event_type === 'PostToolUse' &&
+    event.correlation_id === nextEvent.correlation_id) {
+  // Create tool pair group with visual connection
+  groups.push({
+    isAgent: false,
+    sessionId: groupKey,
+    events: [event, nextEvent],
+    isToolPair: true,
+    correlationId: event.correlation_id
+  });
+}
+```
+
+**Visual Implementation**:
+- **Container**: Special container with blue border (`border-blue-500/30`)
+- **Header**: Shows correlation ID prefix and "Tool Execution Pair" label
+- **Layout**: Side-by-side display with connecting arrow
+- **Pre-execution**: Green border (`border-green-500/30`) with 📤 icon
+- **Post-execution**: Red border (`border-red-500/30`) with 📥 icon
+- **Connection Arrow**: Blue arrow (▶) between the two events
+
 #### Visual Timeline Structure
 - **Implementation**: Custom Vue component with absolute positioning
-- **Central Axis**: 
+- **Central Axis**:
   ```css
   background: linear-gradient(to bottom, #3B82F6, #8B5CF6)
   width: 2px
@@ -147,7 +191,7 @@ The new Timeline View provides a visual representation of events over time with 
   const side = index % 2 === 0 ? 'left' : 'right'
   const xPosition = side === 'left' ? 'calc(50% - 350px)' : 'calc(50% + 50px)'
   ```
-- **Time Markers**: 
+- **Time Markers**:
   - Pulse animation: `animate-pulse` with scale transform
   - Size: 12px circles with gradient background
   - Z-index layering for proper overlap
@@ -549,6 +593,59 @@ interface HookEvent {
 2. Sort by latest first
 3. Check session context
 4. Use expandable cards for full details
+
+## Recent Enhancements (September 2025)
+
+### Correlation System & Timeline Visualization Fix (September 26, 2025)
+
+#### Problem Resolution
+- **Issue**: Frontend mixed correlation_id and session_id for grouping events, causing confusion in observability dashboard
+- **Symptom**: Different IDs shown in the same modal, fragmented session views
+- **Root Cause**: `const groupKey = event.correlation_id || event.session_id;` created inconsistent grouping
+
+#### Solution Implementation
+
+**1. Session-First Grouping Strategy**
+```typescript
+// OLD (problematic):
+const groupKey = event.correlation_id || event.session_id;
+
+// NEW (consistent):
+const groupKey = event.session_id;
+```
+
+**Impact**: All events now consistently grouped by session_id, with correlation_id preserved as metadata.
+
+**2. Tool Event Pairing System**
+- **Visual Connection**: PreToolUse and PostToolUse events with matching correlation_ids display as connected pairs
+- **Enhanced UI**: Side-by-side layout with visual arrow (📤 ▶ 📥)
+- **Color Coding**: Green for pre-execution, red for post-execution, blue for correlation
+- **Metadata Display**: Shows truncated correlation_id for identification
+
+**3. Technical Implementation**
+```typescript
+// Added groupToolEventPairs() function
+function groupToolEventPairs(events: HookEvent[]): HookEvent[] {
+  // Group by correlation_id for pairing
+  // Maintain session integrity
+  // Handle unpaired events gracefully
+}
+
+// Enhanced EventGroup interface
+interface EventGroup {
+  isAgent: boolean;
+  sessionId: string;        // Always session_id
+  events: HookEvent[];
+  isToolPair?: boolean;     // NEW: Tool pairing flag
+  correlationId?: string;   // NEW: Preserved metadata
+}
+```
+
+#### Benefits
+- **Consistent Behavior**: Events always group by session boundaries
+- **Enhanced Workflow Visibility**: Tool execution flows clearly displayed
+- **Better Debugging**: Easy identification of related tool operations
+- **Improved UX**: No more confusing mixed-ID modals
 
 ## Recent Enhancements (January 2025)
 

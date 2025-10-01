@@ -23,6 +23,7 @@ The Session Relationship Implementation provides comprehensive tracking and visu
 2. **Relationship Service** (`relationshipService.ts`): Business logic for relationship operations
 3. **API Layer** (`index.ts`): REST endpoints and WebSocket integration
 4. **Frontend Types** (`types.ts`): TypeScript interfaces for client-server communication
+5. **Timeline Correlation System** (`TimelineView.vue`): Session-first grouping and tool event pairing
 
 ### Database Schema
 
@@ -236,6 +237,47 @@ export function buildSessionTree(rootSessionId: string, maxDepth: number = 5): S
   };
 }
 ```
+
+### Timeline Correlation Integration (Updated 2025)
+
+#### Session-First Grouping Strategy
+
+The Timeline View now implements a session-first grouping strategy that aligns with the session relationship system:
+
+```typescript
+// Consistent with session relationship tracking
+const groupKey = event.session_id; // Primary grouping by session
+
+// Correlation ID preserved for tool event pairing
+const correlationId = event.correlation_id; // Metadata for specialized operations
+```
+
+**Benefits for Session Relationships**:
+- **Consistent Visualization**: Timeline grouping matches session hierarchy
+- **Clear Parent-Child Display**: Child sessions appear as distinct timeline groups
+- **Preserved Correlation Data**: correlation_id available for cross-session tool tracking
+- **Enhanced Debugging**: Easy identification of session relationship boundaries
+
+#### Tool Event Correlation Within Sessions
+
+Tool events (PreToolUse/PostToolUse) are now paired within their session context:
+
+```typescript
+// Tool pairing respects session boundaries
+if (event.hook_event_type === 'PreToolUse' &&
+    nextEvent?.hook_event_type === 'PostToolUse' &&
+    event.correlation_id === nextEvent.correlation_id &&
+    event.session_id === nextEvent.session_id) { // Session boundary check
+  // Create tool pair within session context
+  createToolPair(event, nextEvent, session);
+}
+```
+
+**Integration with Session Relationships**:
+- Tool pairs only form within the same session
+- Cross-session correlations preserved as metadata
+- Parent-child session tool usage clearly separated
+- Agent sessions maintain tool pairing within their context
 
 ### Real-time WebSocket Integration
 

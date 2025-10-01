@@ -64,6 +64,10 @@ export function initDatabase(): void {
     if (!columnNames.includes('delegation_context')) {
       db.exec('ALTER TABLE events ADD COLUMN delegation_context TEXT');
     }
+
+    if (!columnNames.includes('correlation_id')) {
+      db.exec('ALTER TABLE events ADD COLUMN correlation_id TEXT');
+    }
   } catch (error) {
     // If the table doesn't exist yet, the CREATE TABLE above will handle it
   }
@@ -71,6 +75,7 @@ export function initDatabase(): void {
   // Create indexes for common queries
   db.exec('CREATE INDEX IF NOT EXISTS idx_source_app ON events(source_app)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_session_id ON events(session_id)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_correlation_id ON events(correlation_id)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_hook_event_type ON events(hook_event_type)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_timestamp ON events(timestamp)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_parent_session_id ON events(parent_session_id)');
@@ -152,10 +157,10 @@ export function insertEvent(event: HookEvent): HookEvent {
   const stmt = db.prepare(`
     INSERT INTO events (
       source_app, session_id, hook_event_type, payload, chat, summary, timestamp,
-      parent_session_id, session_depth, wave_id, delegation_context
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      parent_session_id, session_depth, wave_id, delegation_context, correlation_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
-  
+
   const timestamp = event.timestamp || Date.now();
   const result = stmt.run(
     event.source_app,
@@ -168,7 +173,8 @@ export function insertEvent(event: HookEvent): HookEvent {
     event.parent_session_id || null,
     event.session_depth || 0,
     event.wave_id || null,
-    event.delegation_context ? JSON.stringify(event.delegation_context) : null
+    event.delegation_context ? JSON.stringify(event.delegation_context) : null,
+    event.correlation_id || null
   );
 
   // Auto-create sessions and relationships based on events
@@ -634,14 +640,14 @@ export function getFilterOptions(): FilterOptions {
 export function getRecentEvents(limit: number = 100): HookEvent[] {
   const stmt = db.prepare(`
     SELECT id, source_app, session_id, hook_event_type, payload, chat, summary, timestamp,
-           parent_session_id, session_depth, wave_id, delegation_context
+           parent_session_id, session_depth, wave_id, delegation_context, correlation_id
     FROM events
     ORDER BY id DESC
     LIMIT ?
   `);
-  
+
   const rows = stmt.all(limit) as any[];
-  
+
   return rows.map(row => ({
     id: row.id,
     source_app: row.source_app,
@@ -654,7 +660,8 @@ export function getRecentEvents(limit: number = 100): HookEvent[] {
     parent_session_id: row.parent_session_id,
     session_depth: row.session_depth,
     wave_id: row.wave_id,
-    delegation_context: row.delegation_context ? JSON.parse(row.delegation_context) : undefined
+    delegation_context: row.delegation_context ? JSON.parse(row.delegation_context) : undefined,
+    correlation_id: row.correlation_id || undefined
   }));
 }
 

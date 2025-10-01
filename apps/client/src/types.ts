@@ -6,6 +6,7 @@ export interface HookEvent {
   session_depth?: number;
   wave_id?: string;
   delegation_context?: Record<string, any>;
+  correlation_id?: string;
   hook_event_type: string;
   payload: Record<string, any> & {
     tool_name?: string;
@@ -302,4 +303,13 @@ export interface HookFlowStep {
   connections: string[];
   isActive: boolean;
   color: string;
+}
+
+// Sorting Types for Type Safety
+export type SortableField = 'timestamp' | 'name' | 'source_app' | 'event_type';
+export type SortOrder = 'asc' | 'desc';
+
+export interface SortConfiguration {
+  sortBy: SortableField;
+  sortOrder: SortOrder;
 }

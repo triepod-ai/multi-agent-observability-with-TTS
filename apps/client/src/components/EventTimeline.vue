@@ -65,11 +65,29 @@ const scrollContainer = ref<HTMLElement>();
 const { getGradientForSession, getColorForSession, getGradientForApp, getColorForApp, getHexColorForApp } = useEventColors();
 
 const filteredEvents = computed(() => {
+  // Helper function to check if event matches session filter (includes correlation support)
+  const matchesSessionFilter = (event: HookEvent) => {
+    if (props.filters.sessionIds.length === 0) return true;
+
+    // Direct session_id match
+    if (props.filters.sessionIds.includes(event.session_id)) return true;
+
+    // Correlation_id match - include if any event with same correlation_id has filtered session_id
+    if (event.correlation_id) {
+      return props.events.some(e =>
+        e.correlation_id === event.correlation_id &&
+        props.filters.sessionIds.includes(e.session_id)
+      );
+    }
+
+    return false;
+  };
+
   return props.events.filter(event => {
     if (props.filters.sourceApps.length > 0 && !props.filters.sourceApps.includes(event.source_app)) {
       return false;
     }
-    if (props.filters.sessionIds.length > 0 && !props.filters.sessionIds.includes(event.session_id)) {
+    if (!matchesSessionFilter(event)) {
       return false;
     }
     if (props.filters.eventTypes.length > 0 && !props.filters.eventTypes.includes(event.hook_event_type)) {

@@ -100,8 +100,8 @@
         :sort-by="sortBy"
         :sort-order="sortOrder"
         @update:filters="handleSmartFilterUpdate"
-        @update:sortBy="sortBy = $event as typeof sortBy"
-        @update:sortOrder="sortOrder = $event as typeof sortOrder"
+        @update:sortBy="handleSortByUpdate"
+        @update:sortOrder="handleSortOrderUpdate"
       />
     </Transition>
     
@@ -194,6 +194,8 @@
           :events="finalFilteredEvents"
           :get-session-color="getHexColorForSession"
           :get-app-color="getHexColorForApp"
+          :sort-by="sortBy"
+          :sort-order="sortOrder"
           @event-click="openEventDetail"
           @copy-event="handleEventCopy"
         />
@@ -273,7 +275,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import type { HookEvent, FilterState } from './types';
+import type { HookEvent, FilterState, SortableField, SortOrder } from './types';
 import { useWebSocket } from './composables/useWebSocket';
 import { useThemes } from './composables/useThemes';
 import { useEventColors } from './composables/useEventColors';
@@ -338,13 +340,13 @@ const {
 } = useFilterNotifications(events, filters);
 
 // Sorting state
-const sortBy = ref<'timestamp' | 'name' | 'source_app' | 'event_type'>('timestamp');
-const sortOrder = ref<'asc' | 'desc'>('desc'); // Default to latest first
+const sortBy = ref<SortableField>('timestamp');
+const sortOrder = ref<SortOrder>('desc'); // Default to latest first
 
 // UI state
 const stickToBottom = ref(true);
 const showThemeManager = ref(false);
-const showFilters = ref(false);
+const showFilters = ref(true);
 const selectedSessionId = ref<string | null>(null);
 const selectedEvent = ref<HookEvent | null>(null);
 const showEventDetail = ref(false);
@@ -499,6 +501,35 @@ const handleClearFilter = (filterType: 'sourceApp' | 'sessionId' | 'eventType' |
       filters.value.toolNames = [];
       break;
   }
+};
+
+// Type guards for runtime validation
+const isSortableField = (value: string): value is SortableField => {
+  return ['timestamp', 'name', 'source_app', 'event_type'].includes(value);
+};
+
+const isSortOrder = (value: string): value is SortOrder => {
+  return ['asc', 'desc'].includes(value);
+};
+
+const handleSortByUpdate = (value: string) => {
+  if (!isSortableField(value)) {
+    console.error(`Invalid sortBy value: ${value}. Expected one of: timestamp, name, source_app, event_type`);
+    // Fallback to default
+    sortBy.value = 'timestamp';
+    return;
+  }
+  sortBy.value = value; // TypeScript knows this is safe
+};
+
+const handleSortOrderUpdate = (value: string) => {
+  if (!isSortOrder(value)) {
+    console.error(`Invalid sortOrder value: ${value}. Expected: asc or desc`);
+    // Fallback to default
+    sortOrder.value = 'desc';
+    return;
+  }
+  sortOrder.value = value; // TypeScript knows this is safe
 };
 
 const handleSmartFilterUpdate = (newFilters: { sourceApps: string[]; sessionIds: string[]; eventTypes: string[]; toolNames: string[]; search?: string }) => {

@@ -345,7 +345,68 @@ const server = Bun.serve({
         headers: { ...headers, 'Content-Type': 'application/json' }
       });
     }
-    
+
+    // GET /events/correlated - Get correlated PreToolUse/PostToolUse events
+    if (url.pathname === '/events/correlated' && req.method === 'GET') {
+      try {
+        const limit = parseInt(url.searchParams.get('limit') || '50');
+        const correlationId = url.searchParams.get('correlation_id');
+
+        const db = getDatabase();
+        let stmt;
+        let rows;
+
+        if (correlationId) {
+          // Get specific correlated events by correlation_id
+          stmt = db.prepare(`
+            SELECT id, source_app, session_id, hook_event_type, payload, chat, summary, timestamp,
+                   parent_session_id, session_depth, wave_id, delegation_context, correlation_id
+            FROM events
+            WHERE correlation_id = ?
+            ORDER BY timestamp ASC
+          `);
+          rows = stmt.all(correlationId);
+        } else {
+          // Get all correlated event pairs (events that have correlation_id and appear as pairs)
+          stmt = db.prepare(`
+            SELECT id, source_app, session_id, hook_event_type, payload, chat, summary, timestamp,
+                   parent_session_id, session_depth, wave_id, delegation_context, correlation_id
+            FROM events
+            WHERE correlation_id IS NOT NULL
+            ORDER BY correlation_id, timestamp ASC
+            LIMIT ?
+          `);
+          rows = stmt.all(limit);
+        }
+
+        const events = rows.map((row: any) => ({
+          id: row.id,
+          source_app: row.source_app,
+          session_id: row.session_id,
+          hook_event_type: row.hook_event_type,
+          payload: JSON.parse(row.payload),
+          chat: row.chat ? JSON.parse(row.chat) : undefined,
+          summary: row.summary || undefined,
+          timestamp: row.timestamp,
+          parent_session_id: row.parent_session_id,
+          session_depth: row.session_depth,
+          wave_id: row.wave_id,
+          delegation_context: row.delegation_context ? JSON.parse(row.delegation_context) : undefined,
+          correlation_id: row.correlation_id
+        }));
+
+        return new Response(JSON.stringify(events), {
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        console.error('Error fetching correlated events:', error);
+        return new Response(JSON.stringify({ error: 'Failed to fetch correlated events' }), {
+          status: 500,
+          headers: { ...headers, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+
     // Theme API endpoints
     
     // POST /api/themes - Create a new theme

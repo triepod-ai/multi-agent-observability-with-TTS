@@ -12,6 +12,8 @@ export interface HookEvent {
   session_depth?: number;
   wave_id?: string;
   delegation_context?: Record<string, any>;
+  // Event correlation field
+  correlation_id?: string;
 }
 
 export interface FilterOptions {

@@ -6,11 +6,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/pre_tool_use.py"
+            "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/pre_tool_use_safety.py"
           },
           {
             "type": "command",
-            "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/send_event_async.py --source-app multi-agent-observability-system --event-type PreToolUse --summarize"
+            "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/pre_tool_use_with_correlation.py | uv run /home/bryan/multi-agent-observability-system/.claude/hooks/send_event_async.py --source-app multi-agent-observability-system --event-type PreToolUse --summarize"
           }
         ]
       }
@@ -21,11 +21,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/post_tool_use.py"
-          },
-          {
-            "type": "command",
-            "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/send_event_async.py --source-app multi-agent-observability-system --event-type PostToolUse --summarize"
+            "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/post_tool_use_with_correlation.py | uv run /home/bryan/multi-agent-observability-system/.claude/hooks/send_event_async.py --source-app multi-agent-observability-system --event-type PostToolUse --summarize"
           }
         ]
       }

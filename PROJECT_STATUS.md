@@ -1,3 +1,8 @@
+## Session Export - 20250926_101200
+- Date: Thu Sep 26 10:12:00 AM CDT 2025
+- Git: Branch: main | Working on correlation system
+- Description: Implemented complete PreToolUse/PostToolUse correlation system with UUID-based event pairing. Fixed duplicate hook issue where both old and new correlation hooks were running simultaneously. Added correlation_id field to database schema, created correlation wrapper hooks (pre_tool_use_with_correlation.py, post_tool_use_with_correlation.py), and established file-based correlation ID passing mechanism. Successfully tested end-to-end correlation with API endpoint /events/correlated. System now properly links tool execution pairs with matching correlation IDs for UI visualization.
+
 ## Session Export - 20250822_154126
 - Date: Thu Aug 22 03:41:26 PM CDT 2025
 - Git: Branch: main | 6 modified, 5 new files | Last: 6df3095 chore: Update gitignore to exclude backup directories

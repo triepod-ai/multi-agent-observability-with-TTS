@@ -189,6 +189,13 @@ This project is fundamentally about **creating and monitoring AI agents** with c
   - Performance and connection optimization strategies
 
 ### Hook Installation and Diagnostics
+- **[docs/SAFETY_HOOK_GUIDE.md](./docs/SAFETY_HOOK_GUIDE.md)** - **Safety hook system for preventing dangerous command execution** ⭐⭐⭐ (Added: 2025-09-26)
+  - **Pre-execution validation**: Blocks dangerous rm commands, wildcard disasters, and system file deletion
+  - **Pattern matching**: Regex-based detection of 15+ dangerous command patterns
+  - **Smart exceptions**: Allows safe operations like node_modules, __pycache__, build/ deletion
+  - **Integration**: Runs first in PreToolUse chain before correlation and event tracking
+  - **Testing**: Comprehensive test suite validates blocking and allowing behavior
+  - **Logging**: Blocked commands logged to /tmp for audit trail
 - **[docs/REDIS_HANDOFF_RETRIEVAL_FIX.md](./docs/REDIS_HANDOFF_RETRIEVAL_FIX.md)** - **Comprehensive documentation for resolving hook path configuration and dependency retrieval issues** ⭐ (Added: 2025-08-02)
 - **[docs/REDIS_MCP_REMOVAL_GUIDE.md](./docs/REDIS_MCP_REMOVAL_GUIDE.md)** - **Complete technical guide for removing Redis MCP and transitioning to direct Redis CLI usage** ⭐⭐ (Added: 2025-08-02)
 
@@ -308,7 +315,14 @@ This project is fundamentally about **creating and monitoring AI agents** with c
   - **Zero Configuration**: Works automatically with UV `--with` flags
 
 ### UI Documentation
-- **[docs/UI_ENHANCEMENTS_GUIDE.md](./docs/UI_ENHANCEMENTS_GUIDE.md)** - **Comprehensive guide to UI enhancements including Activity Dashboard, Timeline View, EventCard Details, Sorting, Applications Overview flexbox layout fixes, and Multi-Selection Filtering** ⭐ (Updated: 2025-07-26)
+- **[docs/UI_ENHANCEMENTS_GUIDE.md](./docs/UI_ENHANCEMENTS_GUIDE.md)** - **Comprehensive guide to UI enhancements including Activity Dashboard, Timeline View, EventCard Details, Sorting, Applications Overview flexbox layout fixes, Multi-Selection Filtering, and Correlation System Fix** ⭐ (Updated: 2025-09-26)
+- **[docs/TIMELINE_CORRELATION_SYSTEM.md](./docs/TIMELINE_CORRELATION_SYSTEM.md)** - **Complete implementation guide for Timeline View correlation system, event grouping strategy, and tool event pairing enhancements** ⭐⭐⭐ (Created: 2025-09-26)
+  - **Session-First Grouping**: Consistent event organization using session_id as primary grouping key
+  - **Tool Event Pairing**: Visual correlation of PreToolUse/PostToolUse events with matching correlation_ids
+  - **Modal Display Fix**: Eliminates confusion from mixed correlation_id/session_id grouping
+  - **Enhanced Timeline UI**: Connected tool execution flows with visual arrows and color coding
+  - **Component Integration**: Complete TimelineView.vue and EventCard.vue integration patterns
+  - **Performance Optimization**: Efficient grouping algorithms and rendering strategies
 - **[docs/FILTER_NOTIFICATION_SYSTEM.md](./docs/FILTER_NOTIFICATION_SYSTEM.md)** - **Complete filter notification system documentation with multi-selection support** ⭐ (Updated: 2025-07-26)
 - [apps/client/docs/FILTER_NOTIFICATION_QUICK_REFERENCE.md](./apps/client/docs/FILTER_NOTIFICATION_QUICK_REFERENCE.md) - Filter notification system developer quick reference (Added: 2025-07-26)
 - [apps/client/docs/MULTI_SELECTION_FILTER_QUICK_REFERENCE.md](./apps/client/docs/MULTI_SELECTION_FILTER_QUICK_REFERENCE.md) - Multi-selection filter feature quick reference and usage guide (Added: 2025-07-26)

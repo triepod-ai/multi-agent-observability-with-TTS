@@ -346,8 +346,27 @@ The Hook Coverage Modal uses these endpoints:
 
 - **Overview Tab**: Uses `/api/hook-coverage`
 - **Recent Activity Tab**: Uses `/api/hooks/{type}/recent-events`
-- **Performance Tab**: Uses `/api/hooks/{type}/performance`  
+- **Performance Tab**: Uses `/api/hooks/{type}/performance`
 - **Execution Context Tab**: Uses `/api/hooks/{type}/enhanced-context`
+
+### Timeline View Integration (Updated 2025)
+
+The Timeline View now uses correlation_id data differently for enhanced visualization:
+
+#### Event Grouping Strategy
+```typescript
+// Primary grouping by session_id
+const groups = groupBySessionId(events);
+
+// correlation_id used for tool event pairing within sessions
+const toolPairs = detectToolPairs(sessionEvents, 'correlation_id');
+```
+
+#### API Data Usage
+- **session_id**: Primary grouping key for timeline organization
+- **correlation_id**: Metadata for tool event pairing (PreToolUse ↔ PostToolUse)
+- **Event Structure**: No changes to API response format required
+- **Backward Compatibility**: Existing API endpoints fully compatible
 
 ### WebSocket Updates
 

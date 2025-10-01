@@ -714,7 +714,8 @@ validate_installation() {
     # Check required files
     local required_files=(
         ".claude/hooks/pre_tool_use.py"
-        ".claude/hooks/post_tool_use.py" 
+        ".claude/hooks/pre_tool_use_safety.py"
+        ".claude/hooks/post_tool_use.py"
         ".claude/hooks/notification.py"
         ".claude/hooks/utils/tts/observability.py"
         ".claude/settings.json"

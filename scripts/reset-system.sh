@@ -40,8 +40,8 @@ kill_port() {
     fi
 }
 
-# Kill server processes (port 4000)
-kill_port 4000 "server"
+# Kill server processes (port 4056)
+kill_port 4056 "server"
 
 # Kill client dev server (port 8543)
 kill_port 8543 "client"

@@ -96,7 +96,7 @@ export function useAgentMetrics(events: Ref<HookEvent[]>) {
   const WS_PONG_TIMEOUT = 10000; // 10 seconds
 
   // API Base URL
-  const API_BASE = import.meta.env.VITE_SERVER_URL || 'http://localhost:4000';
+  const API_BASE = import.meta.env.VITE_SERVER_URL || 'http://localhost:4056';
   
   // Enhanced connection state
   const isRealtimeConnected = ref(false);
@@ -748,16 +748,18 @@ export function useAgentMetrics(events: Ref<HookEvent[]>) {
   // Enhanced API fetch methods with caching and error handling
   async function fetchCurrentMetrics(): Promise<void> {
     const cacheKey = getCacheKey('metrics');
-    
+
     // Try cache first
     const cached = getCache<AgentMetrics>(cacheKey);
     if (cached && !isDegradedMode.value) {
+      console.log('[fetchCurrentMetrics] Using cached metrics:', cached);
       metrics.value = cached;
       return;
     }
 
     loadingStates.value.metrics = true;
-    
+    console.log('[fetchCurrentMetrics] Fetching from:', `${API_BASE}/api/agents/metrics/current?timeRange=${selectedTimeRange.value}`);
+
     try {
       await retryWithBackoff(async () => {
         const controller = createTimeoutController();
@@ -765,13 +767,14 @@ export function useAgentMetrics(events: Ref<HookEvent[]>) {
           `${API_BASE}/api/agents/metrics/current?timeRange=${selectedTimeRange.value}`,
           { signal: controller.signal }
         );
-        
+
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
-        
+
         const data = await response.json();
-        
+        console.log('[fetchCurrentMetrics] Received data:', data);
+
         // Map backend response to frontend metrics structure
         const metricsData: AgentMetrics = {
           totalExecutions: data.executions_today || 0,
@@ -783,7 +786,8 @@ export function useAgentMetrics(events: Ref<HookEvent[]>) {
           avgTokensPerAgent: data.executions_today > 0 ? Math.round(data.tokens_used_today / data.executions_today) : 0,
           toolsUsed: 0 // Will be updated by fetchToolUsage
         };
-        
+
+        console.log('[fetchCurrentMetrics] Mapped metrics:', metricsData);
         metrics.value = metricsData;
         setCache(cacheKey, metricsData);
       }, 'fetch current metrics');

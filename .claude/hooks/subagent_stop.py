@@ -23,6 +23,7 @@ from utils.relationship_tracker import (
     update_relationship_completion, notify_parent_completion, cleanup_spawn_markers
 )
 from utils.agent_naming_service import generate_agent_name
+from utils.http_client import send_event_to_server, create_hook_event
 
 try:
     from dotenv import load_dotenv
@@ -624,7 +625,7 @@ def send_metrics_to_redis(agent_info: Dict[str, Any]) -> bool:
 def send_metrics_to_server(agent_info: Dict[str, Any]) -> bool:
     """Send agent completion metrics to the observability server."""
     try:
-        server_url = os.getenv('OBSERVABILITY_SERVER_URL', 'http://localhost:4000')
+        server_url = os.getenv('OBSERVABILITY_SERVER_URL', 'http://localhost:4056')
         
         # Send to /api/agents/complete endpoint
         response = requests.post(
@@ -776,7 +777,34 @@ def main():
             server_success = send_metrics_to_server(agent_info)
             if server_success:
                 print(f"Agent metrics sent to server", file=sys.stderr)
-        
+
+        # NEW: Send SubagentStop event to events stream for frontend agent detection
+        if not args.no_server:
+            try:
+                subagent_stop_event = create_hook_event(
+                    source_app="claude-code",
+                    session_id=session_id,
+                    hook_event_type="SubagentStop",
+                    payload={
+                        "agent_id": agent_info.get('agent_id', 'unknown'),
+                        "agent_name": agent_info.get('agent_name', 'unknown'),
+                        "agent_type": agent_info.get('agent_type', 'generic'),
+                        "success": agent_info.get('success', True),
+                        "error_occurred": agent_info.get('error_occurred', False),
+                        "duration_seconds": agent_info.get('duration_seconds', 0),
+                        "tools_used": agent_info.get('tools_used', []),
+                        "tokens_used": agent_info.get('tokens_used', 0),
+                        "metadata": {
+                            "agent_type": agent_info.get('agent_type', 'generic'),
+                            "stop_hook_active": stop_hook_active
+                        }
+                    }
+                )
+                if send_event_to_server(subagent_stop_event):
+                    print(f"SubagentStop event created for {agent_info.get('agent_name', 'unknown')}", file=sys.stderr)
+            except Exception as e:
+                print(f"Failed to create SubagentStop event: {e}", file=sys.stderr)
+
         # Write back to file with formatting
         with open(log_path, 'w') as f:
             json.dump(log_data, f, indent=2)

@@ -215,40 +215,6 @@
         </div>
       </div>
 
-      <!-- Demo Mode Toggle -->
-      <div class="mt-4 pt-4 border-t border-[var(--theme-border-primary)]">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-sm font-semibold text-[var(--theme-text-secondary)] flex items-center">
-            <span class="mr-1">🎭</span>
-            Demo Mode
-          </h3>
-          <label class="flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              v-model="demoMode"
-              @change="updateFilters"
-              class="sr-only"
-            />
-            <div class="relative">
-              <div :class="[
-                'w-10 h-6 rounded-full transition-colors duration-200',
-                demoMode ? 'bg-[var(--theme-primary)]' : 'bg-[var(--theme-bg-quaternary)]'
-              ]"></div>
-              <div :class="[
-                'absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200',
-                demoMode ? 'transform translate-x-4' : ''
-              ]"></div>
-            </div>
-            <span class="ml-3 text-sm text-[var(--theme-text-primary)]">
-              Show SalesAi Agents Only
-            </span>
-          </label>
-        </div>
-        <p class="text-xs text-[var(--theme-text-tertiary)]">
-          Filter to show only June, Walter, Mason, and Alexa demo agents
-        </p>
-      </div>
-
       <!-- Saved Filters -->
       <div class="mt-4 pt-4 border-t border-[var(--theme-border-primary)]">
         <div class="flex items-center justify-between mb-2">
@@ -320,7 +286,6 @@ const searchQuery = ref('');
 const selectedApps = ref<string[]>([]);
 const selectedEventTypes = ref<string[]>([]);
 const selectedSessions = ref<string[]>([]);
-const demoMode = ref(false);
 
 const filterPresets = ref<FilterPreset[]>([
   {
@@ -345,14 +310,6 @@ const filterPresets = ref<FilterPreset[]>([
     icon: '👤',
     apps: [],
     eventTypes: ['UserPromptSubmit', 'Notification'],
-    sessions: []
-  },
-  {
-    id: 'salesai-demo',
-    name: 'SalesAi Demo',
-    icon: '🎭',
-    apps: ['june-customer-success', 'walter-sales-lead', 'mason-reengagement', 'alexa-outreach'],
-    eventTypes: [],
     sessions: []
   }
 ]);
@@ -423,11 +380,10 @@ const availableSessions = computed(() => {
 });
 
 const hasActiveFilters = computed(() => {
-  return searchQuery.value.trim() !== '' || 
-         selectedApps.value.length > 0 || 
-         selectedEventTypes.value.length > 0 || 
-         selectedSessions.value.length > 0 ||
-         demoMode.value;
+  return searchQuery.value.trim() !== '' ||
+         selectedApps.value.length > 0 ||
+         selectedEventTypes.value.length > 0 ||
+         selectedSessions.value.length > 0;
 });
 
 const activeFilterChips = computed(() => {
@@ -473,17 +429,7 @@ const activeFilterChips = computed(() => {
       value: session
     });
   });
-  
-  if (demoMode.value) {
-    chips.push({
-      id: 'demo-mode',
-      type: 'demo',
-      icon: '🎭',
-      label: 'Demo Mode',
-      value: 'demo'
-    });
-  }
-  
+
   return chips;
 });
 
@@ -547,10 +493,6 @@ const removeFilter = (filter: any) => {
     case 'session':
       toggleSession(filter.value);
       break;
-    case 'demo':
-      demoMode.value = false;
-      updateFilters();
-      break;
   }
 };
 
@@ -559,7 +501,6 @@ const clearAllFilters = () => {
   selectedApps.value = [];
   selectedEventTypes.value = [];
   selectedSessions.value = [];
-  demoMode.value = false;
   updateFilters();
 };
 
@@ -591,10 +532,9 @@ const updateFilters = () => {
     sessionIds: selectedSessions.value,
     eventTypes: selectedEventTypes.value,
     toolNames: [],  // TODO: Add tool name filtering in the UI
-    search: searchQuery.value,
-    demoMode: demoMode.value
+    search: searchQuery.value
   };
-  
+
   emit('update:filters', newFilters);
 };
 
@@ -614,9 +554,6 @@ onMounted(() => {
   if (props.filters.search) {
     searchQuery.value = props.filters.search;
   }
-  if (props.filters.demoMode !== undefined) {
-    demoMode.value = props.filters.demoMode;
-  }
 });
 
 // Watch for external filter changes
@@ -625,7 +562,6 @@ watch(() => props.filters, (newFilters) => {
   selectedSessions.value = [...newFilters.sessionIds];
   selectedEventTypes.value = [...newFilters.eventTypes];
   searchQuery.value = newFilters.search || '';
-  demoMode.value = newFilters.demoMode || false;
 }, { deep: true });
 </script>
 

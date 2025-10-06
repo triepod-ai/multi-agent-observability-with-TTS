@@ -19,7 +19,7 @@ import urllib.parse
 
 
 # Default server configuration
-DEFAULT_SERVER_URL = "http://localhost:4000"
+DEFAULT_SERVER_URL = "http://localhost:4056"
 DEFAULT_TIMEOUT = 5.0
 
 

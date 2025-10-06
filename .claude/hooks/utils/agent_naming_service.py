@@ -35,7 +35,7 @@ class AgentNamingService:
     """
     
     def __init__(self):
-        self.server_url = os.getenv('OBSERVABILITY_SERVER_URL', 'http://localhost:4000')
+        self.server_url = os.getenv('OBSERVABILITY_SERVER_URL', 'http://localhost:4056')
         self.cache_ttl = 86400  # 24 hours cache
         self.max_retries = 2
         self.retry_delay = 1.0  # seconds

@@ -310,8 +310,8 @@ def register_session_relationship(parent_id: str, child_id: str, metadata: Dict[
         return False
     
     try:
-        server_url = os.getenv('OBSERVABILITY_SERVER_URL', 'http://localhost:4000')
-        
+        server_url = os.getenv('OBSERVABILITY_SERVER_URL', 'http://localhost:4056')
+
         # Create relationship payload
         relationship_data = {
             "parent_session_id": parent_id,
@@ -364,8 +364,8 @@ def update_relationship_completion(child_id: str, completion_data: Dict[str, Any
         return False
     
     try:
-        server_url = os.getenv('OBSERVABILITY_SERVER_URL', 'http://localhost:4000')
-        
+        server_url = os.getenv('OBSERVABILITY_SERVER_URL', 'http://localhost:4056')
+
         # Send completion update
         response = requests.patch(
             f"{server_url}/api/sessions/relationships/{child_id}/complete",
@@ -411,7 +411,7 @@ def calculate_session_depth(parent_session_id: Optional[str] = None) -> int:
     # Fallback to counting relationships (requires server API)
     if REQUESTS_AVAILABLE:
         try:
-            server_url = os.getenv('OBSERVABILITY_SERVER_URL', 'http://localhost:4000')
+            server_url = os.getenv('OBSERVABILITY_SERVER_URL', 'http://localhost:4056')
             response = requests.get(
                 f"{server_url}/api/sessions/{parent_session_id}/depth",
                 timeout=3

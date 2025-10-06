@@ -18,7 +18,7 @@ import urllib.parse
 import urllib.error
 
 # Configuration
-DEFAULT_SERVER_URL = "http://localhost:4000"
+DEFAULT_SERVER_URL = "http://localhost:4056"
 DEFAULT_TIMEOUT = 2.0  # Reduced from 5.0
 MAX_RETRIES = 2
 RETRY_DELAY = 0.5

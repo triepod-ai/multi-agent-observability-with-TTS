@@ -514,6 +514,309 @@ if __name__ == "__main__":
     ]
   },
   {
+    hookId: 'session_end',
+    hookName: 'SessionEnd Cleanup Hook',
+    examples: [
+      {
+        id: 'session-cleanup',
+        title: 'Session Cleanup & Resource Management',
+        description: 'Properly closes resources, saves state, and performs cleanup when Claude Code session ends',
+        icon: '🚪',
+        type: 'Session Management',
+        language: 'python',
+        difficulty: 'beginner',
+        code: `#!/usr/bin/env python3
+"""SessionEnd hook - cleanup resources and save final state"""
+import json
+import sys
+from pathlib import Path
+
+def cleanup_session(payload):
+    """Perform session cleanup and resource management"""
+    session_id = payload.get('session_id', 'unknown')
+    exit_reason = payload.get('exit_reason', 'unknown')
+
+    print(f"🚪 Session ending: {session_id} (reason: {exit_reason})", file=sys.stderr)
+
+    # 1. Close any open database connections
+    # db_connection.close()
+
+    # 2. Save session state to file
+    state_file = Path.home() / '.claude' / 'session_state.json'
+    state_file.parent.mkdir(exist_ok=True)
+
+    session_state = {
+        'session_id': session_id,
+        'exit_reason': exit_reason,
+        'ended_at': payload.get('timestamp', ''),
+        'status': 'completed' if exit_reason == 'user_initiated' else 'interrupted'
+    }
+
+    with open(state_file, 'w') as f:
+        json.dump(session_state, f, indent=2)
+
+    # 3. Cleanup temporary files
+    temp_dir = Path('/tmp') / f'claude-session-{session_id}'
+    if temp_dir.exists():
+        import shutil
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+    print(f"✅ Session cleanup completed for {session_id}", file=sys.stderr)
+    return {"status": "cleanup_complete"}
+
+if __name__ == "__main__":
+    try:
+        payload = json.load(sys.stdin)
+        result = cleanup_session(payload)
+        print(json.dumps(result))
+        sys.exit(0)
+    except Exception as e:
+        print(f"❌ Cleanup error: {e}", file=sys.stderr)
+        sys.exit(0)  # Non-blocking error`,
+        tags: ['cleanup', 'resources', 'state-management']
+      },
+      {
+        id: 'session-analytics',
+        title: 'Session Analytics & Logging',
+        description: 'Logs session duration, statistics, and sends analytics data when session ends',
+        icon: '📊',
+        type: 'Analytics',
+        language: 'python',
+        difficulty: 'intermediate',
+        code: `#!/usr/bin/env python3
+"""SessionEnd analytics - track session metrics and send to analytics"""
+import json
+import sys
+from datetime import datetime
+from pathlib import Path
+
+def log_session_analytics(payload):
+    """Log comprehensive session analytics"""
+    session_id = payload.get('session_id', 'unknown')
+    transcript_path = payload.get('transcript_path', '')
+    exit_reason = payload.get('exit_reason', 'unknown')
+
+    # Calculate session duration from transcript
+    session_start = None
+    session_end = datetime.now()
+    tools_used = set()
+    total_interactions = 0
+
+    if transcript_path and Path(transcript_path).exists():
+        with open(transcript_path, 'r') as f:
+            try:
+                transcript = json.load(f)
+                # Parse transcript for metrics
+                if isinstance(transcript, list):
+                    total_interactions = len(transcript)
+                    for entry in transcript:
+                        if 'timestamp' in entry and not session_start:
+                            session_start = datetime.fromisoformat(entry['timestamp'])
+                        if 'tool_name' in entry:
+                            tools_used.add(entry['tool_name'])
+            except:
+                pass
+
+    # Calculate duration
+    duration_seconds = 0
+    if session_start:
+        duration_seconds = (session_end - session_start).total_seconds()
+
+    # Build analytics payload
+    analytics = {
+        'session_id': session_id,
+        'exit_reason': exit_reason,
+        'duration_seconds': int(duration_seconds),
+        'total_interactions': total_interactions,
+        'tools_used': list(tools_used),
+        'tools_count': len(tools_used),
+        'ended_at': session_end.isoformat(),
+        'session_type': 'normal' if exit_reason == 'user_initiated' else 'abnormal'
+    }
+
+    # Save to analytics log
+    log_file = Path.home() / '.claude' / 'analytics' / f'session-{session_id}.json'
+    log_file.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(log_file, 'w') as f:
+        json.dump(analytics, f, indent=2)
+
+    # Print summary
+    duration_min = duration_seconds / 60
+    print(f"📊 Session Analytics:", file=sys.stderr)
+    print(f"  Duration: {duration_min:.1f} minutes", file=sys.stderr)
+    print(f"  Interactions: {total_interactions}", file=sys.stderr)
+    print(f"  Tools used: {len(tools_used)}", file=sys.stderr)
+    print(f"  Exit reason: {exit_reason}", file=sys.stderr)
+
+    # Optional: Send to analytics service
+    # send_to_analytics_server(analytics)
+
+    return {"status": "analytics_logged", "duration_seconds": duration_seconds}
+
+if __name__ == "__main__":
+    try:
+        payload = json.load(sys.stdin)
+        result = log_session_analytics(payload)
+        print(json.dumps(result))
+        sys.exit(0)
+    except Exception as e:
+        print(f"❌ Analytics error: {e}", file=sys.stderr)
+        sys.exit(0)  # Non-blocking`,
+        tags: ['analytics', 'logging', 'metrics']
+      },
+      {
+        id: 'complete-session-manager',
+        title: 'Complete Session Manager',
+        description: 'Full-featured session end handler with cleanup, logging, notifications, and error handling',
+        icon: '🎯',
+        type: 'Production',
+        language: 'python',
+        difficulty: 'advanced',
+        code: `#!/usr/bin/env python3
+"""Complete SessionEnd manager - production-ready session cleanup"""
+import json
+import sys
+import subprocess
+from pathlib import Path
+from datetime import datetime
+from typing import Dict, Any, Optional
+
+class SessionEndManager:
+    """Manages complete session end workflow"""
+
+    def __init__(self, payload: Dict[str, Any]):
+        self.payload = payload
+        self.session_id = payload.get('session_id', 'unknown')
+        self.exit_reason = payload.get('exit_reason', 'unknown')
+        self.transcript_path = payload.get('transcript_path', '')
+        self.errors = []
+
+    def execute(self) -> Dict[str, Any]:
+        """Execute complete session end workflow"""
+        print(f"🚪 Session ending: {self.session_id}", file=sys.stderr)
+
+        # Execute cleanup steps
+        self._close_resources()
+        self._save_session_state()
+        self._log_analytics()
+        self._cleanup_temp_files()
+        self._send_notification()
+
+        # Build result
+        result = {
+            'session_id': self.session_id,
+            'exit_reason': self.exit_reason,
+            'cleanup_status': 'partial' if self.errors else 'complete',
+            'errors': self.errors,
+            'ended_at': datetime.now().isoformat()
+        }
+
+        if self.errors:
+            print(f"⚠️  Completed with {len(self.errors)} errors", file=sys.stderr)
+        else:
+            print(f"✅ Session cleanup completed successfully", file=sys.stderr)
+
+        return result
+
+    def _close_resources(self):
+        """Close database connections and open resources"""
+        try:
+            # Close database connections
+            # db.close()
+
+            # Close file handles
+            # for handle in open_files:
+            #     handle.close()
+
+            print("  ✓ Resources closed", file=sys.stderr)
+        except Exception as e:
+            self.errors.append(f"Resource cleanup: {e}")
+            print(f"  ✗ Resource cleanup failed: {e}", file=sys.stderr)
+
+    def _save_session_state(self):
+        """Save final session state"""
+        try:
+            state_file = Path.home() / '.claude' / 'state' / f'{self.session_id}.json'
+            state_file.parent.mkdir(parents=True, exist_ok=True)
+
+            state = {
+                'session_id': self.session_id,
+                'exit_reason': self.exit_reason,
+                'ended_at': datetime.now().isoformat(),
+                'transcript_path': self.transcript_path
+            }
+
+            with open(state_file, 'w') as f:
+                json.dump(state, f, indent=2)
+
+            print("  ✓ Session state saved", file=sys.stderr)
+        except Exception as e:
+            self.errors.append(f"State save: {e}")
+            print(f"  ✗ State save failed: {e}", file=sys.stderr)
+
+    def _log_analytics(self):
+        """Log session analytics"""
+        try:
+            analytics = {
+                'session_id': self.session_id,
+                'exit_reason': self.exit_reason,
+                'ended_at': datetime.now().isoformat()
+            }
+
+            log_file = Path.home() / '.claude' / 'logs' / 'session-ends.jsonl'
+            log_file.parent.mkdir(parents=True, exist_ok=True)
+
+            with open(log_file, 'a') as f:
+                f.write(json.dumps(analytics) + '\\n')
+
+            print("  ✓ Analytics logged", file=sys.stderr)
+        except Exception as e:
+            self.errors.append(f"Analytics: {e}")
+            print(f"  ✗ Analytics failed: {e}", file=sys.stderr)
+
+    def _cleanup_temp_files(self):
+        """Remove temporary session files"""
+        try:
+            temp_dir = Path('/tmp') / f'claude-{self.session_id}'
+            if temp_dir.exists():
+                import shutil
+                shutil.rmtree(temp_dir, ignore_errors=True)
+            print("  ✓ Temp files cleaned", file=sys.stderr)
+        except Exception as e:
+            self.errors.append(f"Temp cleanup: {e}")
+            print(f"  ✗ Temp cleanup failed: {e}", file=sys.stderr)
+
+    def _send_notification(self):
+        """Send session end notification"""
+        try:
+            # Optional: TTS notification
+            if self.exit_reason == 'user_initiated':
+                message = f"Session completed: {self.session_id[:8]}"
+            else:
+                message = f"Session interrupted: {self.exit_reason}"
+
+            # subprocess.run(['speak', message], capture_output=True)
+            print(f"  ✓ Notification: {message}", file=sys.stderr)
+        except Exception as e:
+            # Non-critical, don't add to errors
+            print(f"  ⚠ Notification skipped: {e}", file=sys.stderr)
+
+if __name__ == "__main__":
+    try:
+        payload = json.load(sys.stdin)
+        manager = SessionEndManager(payload)
+        result = manager.execute()
+        print(json.dumps(result))
+        sys.exit(0)
+    except Exception as e:
+        print(f"❌ Fatal error: {e}", file=sys.stderr)
+        sys.exit(0)  # Non-blocking`,
+        tags: ['production', 'cleanup', 'comprehensive', 'error-handling']
+      }
+    ]
+  },
+  {
     hookId: 'stop',
     hookName: 'Session Stop Hook',
     examples: [
@@ -637,128 +940,173 @@ export const configurationExamples: CodeExample[] = [
   {
     id: 'hook-config',
     title: 'Complete Hook Configuration',
-    description: 'Full .claude/settings.local.json configuration with all hooks and TTS integration',
+    description: 'Full .claude/settings.json configuration with all hooks using correct format (absolute paths + uv run)',
     icon: '⚙️',
     type: 'Configuration',
     language: 'json',
     code: `{
   "hooks": {
-    "pre_tool_use": {
-      "script": ".claude/hooks/security_validator.py",
-      "timeout": 5000,
-      "description": "🛡️ Validates tool safety before execution"
-    },
-    "post_tool_use": {
-      "script": ".claude/hooks/execution_logger.py", 
-      "timeout": 3000,
-      "description": "📝 Logs all tool executions for audit"
-    },
-    "session_start": {
-      "script": ".claude/hooks/session_context_loader.py",
-      "timeout": 10000,
-      "description": "🏗️ Loads project context and previous session handoffs"
-    },
-    "user_prompt_submit": {
-      "script": ".claude/hooks/prompt_tracker.py",
-      "timeout": 2000,
-      "description": "📝 Tracks user prompts and conversation flow"
-    },
-    "subagent_start": {
-      "script": ".claude/hooks/subagent_start.py",
-      "timeout": 3000,
-      "description": "🤖 Tracks subagent spawning and delegation"
-    },
-    "subagent_stop": {
-      "script": ".claude/hooks/subagent_stop.py",
-      "timeout": 5000,
-      "description": "🤖 Monitors subagent completion with intelligent TTS"
-    },
-    "notification": {
-      "script": ".claude/hooks/notification_handler.py",
-      "timeout": 3000,
-      "description": "🔔 Handles priority-based notifications"
-    },
-    "precompact": {
-      "script": ".claude/hooks/precompact_summary.py",
-      "timeout": 15000,
-      "description": "📝 Generates conversation summaries before compaction"
-    },
-    "stop": {
-      "script": ".claude/hooks/session_summary.py --chat",
-      "timeout": 10000,
-      "description": "💾 Creates session summaries and handoff context"
-    }
-  },
-  "permissions": [
-    "Bash(command:*)",
-    "Read(*)",
-    "Write(*)",
-    "Edit(*)",
-    "MultiEdit(*)",
-    "Grep(*)",
-    "Glob(*)",
-    "LS(*)"
-  ],
-  "tts": {
-    "enabled": true,
-    "provider": "openai",
-    "filtering": {
-      "subagent_completion": true,
-      "error_alerts": true,
-      "critical_only": false
-    }
+    "PreToolUse": [{
+      "matcher": "",
+      "hooks": [{
+        "type": "command",
+        "command": "uv run /path/to/project/.claude/hooks/pre_tool_use.py"
+      }, {
+        "type": "command",
+        "command": "uv run /path/to/project/.claude/hooks/send_event_async.py --source-app my-project --event-type PreToolUse --summarize"
+      }]
+    }],
+    "PostToolUse": [{
+      "matcher": "",
+      "hooks": [{
+        "type": "command",
+        "command": "uv run /path/to/project/.claude/hooks/post_tool_use.py | uv run /path/to/project/.claude/hooks/send_event_async.py --source-app my-project --event-type PostToolUse --summarize"
+      }]
+    }],
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run --with redis /path/to/project/.claude/hooks/session_context_loader.py"
+          },
+          {
+            "type": "command",
+            "command": "uv run --with openai,pyttsx3 /path/to/project/.claude/hooks/session_startup_notifier.py"
+          },
+          {
+            "type": "command",
+            "command": "uv run /path/to/project/.claude/hooks/session_event_tracker.py"
+          }
+        ]
+      },
+      {
+        "matcher": "resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run --with redis /path/to/project/.claude/hooks/session_context_loader.py"
+          },
+          {
+            "type": "command",
+            "command": "uv run --with openai,pyttsx3 /path/to/project/.claude/hooks/session_resume_detector.py"
+          },
+          {
+            "type": "command",
+            "command": "uv run /path/to/project/.claude/hooks/session_event_tracker.py"
+          }
+        ]
+      },
+      {
+        "matcher": "clear",
+        "hooks": [{
+          "type": "command",
+          "command": "uv run /path/to/project/.claude/hooks/session_event_tracker.py"
+        }]
+      }
+    ],
+    "UserPromptSubmit": [{
+      "hooks": [{
+        "type": "command",
+        "command": "uv run /path/to/project/.claude/hooks/user_prompt_submit.py --log-only"
+      }, {
+        "type": "command",
+        "command": "uv run /path/to/project/.claude/hooks/send_event_async.py --source-app my-project --event-type UserPromptSubmit --summarize"
+      }]
+    }],
+    "SubagentStop": [{
+      "matcher": "",
+      "hooks": [{
+        "type": "command",
+        "command": "uv run /path/to/project/.claude/hooks/subagent_stop.py"
+      }, {
+        "type": "command",
+        "command": "uv run /path/to/project/.claude/hooks/send_event_async.py --source-app my-project --event-type SubagentStop --summarize"
+      }]
+    }],
+    "Notification": [{
+      "matcher": "",
+      "hooks": [{
+        "type": "command",
+        "command": "uv run /path/to/project/.claude/hooks/send_event_async.py --source-app my-project --event-type Notification --summarize"
+      }]
+    }],
+    "PreCompact": [{
+      "matcher": "",
+      "hooks": [{
+        "type": "command",
+        "command": "uv run /path/to/project/.claude/hooks/pre_compact.py"
+      }, {
+        "type": "command",
+        "command": "uv run /path/to/project/.claude/hooks/send_event_async.py --source-app my-project --event-type PreCompact --summarize"
+      }]
+    }],
+    "Stop": [{
+      "matcher": "",
+      "hooks": [{
+        "type": "command",
+        "command": "uv run /path/to/project/.claude/hooks/stop.py --chat"
+      }, {
+        "type": "command",
+        "command": "uv run /path/to/project/.claude/hooks/send_event_async.py --source-app my-project --event-type Stop --summarize"
+      }]
+    }]
   }
 }`,
-    explanation: 'This configuration enables **complete observability** with all 8 hooks, proper timeouts, and intelligent TTS filtering. Each hook has a specific purpose and timeout based on expected execution complexity.',
+    explanation: 'This configuration enables **complete observability** with all hooks using the correct format. Note: ✅ **PascalCase** hook names, ✅ **Absolute paths** (prevents directory change errors), ✅ **uv run** wrapper (dependency management), ✅ **--with flags** for dependencies (SessionStart), ✅ **Array structure** with hooks array. Replace `/path/to/project` with your actual project path.',
     estimatedTime: '0ms',
-    difficulty: 'beginner',
-    runnable: true,
-    docsLink: 'https://docs.claude.ai/hooks-configuration',
+    difficulty: 'intermediate',
+    runnable: false,
+    docsLink: 'https://docs.anthropic.com/claude-code',
     expectedOutput: `⚙️ Configuration validated
-✅ pre_tool_use hook registered
-✅ post_tool_use hook registered
-✅ session_start hook registered
-✅ user_prompt_submit hook registered
-✅ subagent_start hook registered
-✅ subagent_stop hook registered
-✅ notification hook registered
-✅ precompact hook registered
-✅ stop hook registered
+✅ PreToolUse hook registered
+✅ PostToolUse hook registered
+✅ SessionStart hook registered (3 matchers)
+✅ UserPromptSubmit hook registered
+✅ SubagentStop hook registered
+✅ Notification hook registered
+✅ PreCompact hook registered
+✅ Stop hook registered
 📁 Scripts found in .claude/hooks/
 🔄 Hook system ready`
   },
   {
     id: 'minimal-config',
     title: 'Minimal Hook Setup',
-    description: 'Essential hooks for basic monitoring and security',
+    description: 'Essential hooks for basic monitoring and security (correct format)',
     icon: '🚀',
     type: 'Minimal Config',
     language: 'json',
     code: `{
   "hooks": {
-    "pre_tool_use": {
-      "script": ".claude/hooks/security_check.py",
-      "timeout": 3000
-    },
-    "post_tool_use": {
-      "script": ".claude/hooks/basic_logger.py",
-      "timeout": 2000
-    },
-    "stop": {
-      "script": ".claude/hooks/session_end.py",
-      "timeout": 5000
-    }
-  },
-  "permissions": [
-    "Bash(command:*)",
-    "Read(*)",
-    "Write(*)"
-  ]
+    "PreToolUse": [{
+      "matcher": "",
+      "hooks": [{
+        "type": "command",
+        "command": "uv run /path/to/project/.claude/hooks/pre_tool_use.py"
+      }]
+    }],
+    "PostToolUse": [{
+      "matcher": "",
+      "hooks": [{
+        "type": "command",
+        "command": "uv run /path/to/project/.claude/hooks/post_tool_use.py"
+      }]
+    }],
+    "Stop": [{
+      "matcher": "",
+      "hooks": [{
+        "type": "command",
+        "command": "uv run /path/to/project/.claude/hooks/stop.py"
+      }]
+    }]
+  }
 }`,
-    explanation: 'A **minimal configuration** with just the essential hooks: security validation, basic logging, and session cleanup. Perfect for *getting started* or environments where minimal overhead is important.',
+    explanation: 'A **minimal configuration** with essential hooks using the **correct format**: PascalCase names, absolute paths with uv run, and proper array structure. Perfect for *getting started*. Remember to replace `/path/to/project` with your actual project path (e.g., `/home/user/my-project`).',
     estimatedTime: '0ms',
     difficulty: 'beginner',
-    runnable: true
+    runnable: false
   }
 ];
 

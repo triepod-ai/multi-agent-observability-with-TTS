@@ -3,7 +3,7 @@
     <div class="mb-3 md:mb-4">
       <h2 class="text-base md:text-lg font-semibold text-white mb-2">Interactive Hook Flow</h2>
       <p class="text-xs md:text-sm text-gray-400 mb-3 md:mb-4">
-        This diagram shows how the 8 Claude Code hooks work together. <span class="hidden sm:inline">Click any hook to learn more, or click "Start Flow" to see the execution sequence.</span><span class="sm:hidden">Tap hooks to learn more.</span>
+        This diagram shows how the 9 Claude Code hooks work together. <span class="hidden sm:inline">Click any hook to learn more, or click "Start Flow" to see the execution sequence.</span><span class="sm:hidden">Tap hooks to learn more.</span>
       </p>
     </div>
 

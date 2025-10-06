@@ -7,22 +7,54 @@
       </p>
     </div>
 
-    <!-- Example Categories -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- Hook Examples -->
-      <div>
-        <h3 class="text-md font-semibold text-blue-400 mb-3 flex items-center">
-          <span class="mr-2">🔧</span>
-          Hook Examples by Type
-        </h3>
-        
-        <div v-for="hookExampleSet in hookExampleSets" :key="hookExampleSet.hookId" class="mb-6">
-          <h4 class="text-sm font-medium text-gray-300 mb-3 flex items-center">
-            <span class="mr-2">{{ getHookIcon(hookExampleSet.hookId) }}</span>
-            {{ hookExampleSet.hookName }}
-          </h4>
-          
-          <div class="space-y-3">
+    <!-- Quick Start Guide - MOVED TO TOP -->
+    <div class="mb-6 bg-gradient-to-br from-blue-900/30 to-purple-900/30 border border-blue-700/50 rounded-lg p-5 shadow-lg">
+      <h3 class="text-base font-semibold text-white mb-4 flex items-center">
+        <span class="mr-2 text-xl">🚀</span>
+        Quick Start Guide
+      </h3>
+      <div class="space-y-2.5 text-sm text-gray-300">
+        <div class="flex items-start">
+          <span class="text-green-400 mr-3 flex-shrink-0 mt-0.5 font-bold">1.</span>
+          <span>Copy a hook example and save it to <code class="bg-gray-700/70 px-1.5 py-0.5 rounded text-cyan-300">.claude/hooks/</code></span>
+        </div>
+        <div class="flex items-start">
+          <span class="text-green-400 mr-3 flex-shrink-0 mt-0.5 font-bold">2.</span>
+          <span>Update <code class="bg-gray-700/70 px-1.5 py-0.5 rounded text-cyan-300">.claude/settings.json</code> with <strong>absolute paths</strong> and <code class="bg-gray-700/70 px-1.5 py-0.5 rounded text-cyan-300">uv run</code> wrapper</span>
+        </div>
+        <div class="flex items-start">
+          <span class="text-green-400 mr-3 flex-shrink-0 mt-0.5 font-bold">3.</span>
+          <span>Make the script executable: <code class="bg-gray-700/70 px-1.5 py-0.5 rounded text-cyan-300">chmod +x .claude/hooks/script.py</code></span>
+        </div>
+        <div class="flex items-start">
+          <span class="text-green-400 mr-3 flex-shrink-0 mt-0.5 font-bold">4.</span>
+          <span>Test with Claude Code and watch the observability dashboard!</span>
+        </div>
+      </div>
+      <div class="mt-4 pt-4 border-t border-blue-700/30 text-xs text-yellow-300 bg-yellow-900/10 rounded p-3">
+        <strong>⚠️ Important:</strong> Use absolute paths (e.g., <code class="bg-gray-700/70 px-1.5 py-0.5 rounded text-cyan-300">/home/user/project/.claude/hooks/script.py</code>) to prevent "No such file or directory" errors.
+      </div>
+    </div>
+
+    <!-- Hook Examples by Type - VERTICAL STACKED -->
+    <div class="mb-6">
+      <h3 class="text-md font-semibold text-blue-400 mb-4 flex items-center">
+        <span class="mr-2">🔧</span>
+        Hook Examples by Type
+      </h3>
+
+      <div class="space-y-3">
+        <ExpandableSection
+          v-for="hookExampleSet in hookExampleSets"
+          :key="hookExampleSet.hookId"
+          :title="hookExampleSet.hookName"
+          :icon="getHookIcon(hookExampleSet.hookId)"
+          :badge="`${hookExampleSet.examples.length} example${hookExampleSet.examples.length > 1 ? 's' : ''}`"
+          :defaultExpanded="false"
+          variant="bordered"
+          size="md"
+        >
+          <div class="space-y-3 mt-2">
             <InteractiveCodeExample
               v-for="example in hookExampleSet.examples"
               :key="example.id"
@@ -31,51 +63,36 @@
               @open-docs="$emit('open-docs', $event)"
             />
           </div>
-        </div>
+        </ExpandableSection>
       </div>
+    </div>
 
-      <!-- Configuration Examples -->
-      <div>
-        <h3 class="text-md font-semibold text-green-400 mb-3 flex items-center">
-          <span class="mr-2">⚙️</span>
-          Configuration Examples
-        </h3>
-        
-        <div class="space-y-3">
-          <InteractiveCodeExample
-            v-for="configExample in configExamples"
-            :key="configExample.id"
-            :example="configExample"
-            @run="$emit('run-example', $event)"
-            @open-docs="$emit('open-docs', $event)"
-          />
-        </div>
+    <!-- Configuration Examples - VERTICAL STACKED -->
+    <div>
+      <h3 class="text-md font-semibold text-green-400 mb-4 flex items-center">
+        <span class="mr-2">⚙️</span>
+        Configuration Examples
+      </h3>
 
-        <!-- Quick Start Guide -->
-        <div class="mt-6 bg-gray-800 border border-gray-700 rounded-lg p-4">
-          <h4 class="text-sm font-semibold text-white mb-3 flex items-center">
-            <span class="mr-2">🚀</span>
-            Quick Start Guide
-          </h4>
-          <div class="space-y-2 text-xs text-gray-300">
-            <div class="flex items-start">
-              <span class="text-green-400 mr-2 flex-shrink-0 mt-0.5">1.</span>
-              <span>Copy a hook example and save it to <code class="bg-gray-700 px-1 rounded">.claude/hooks/</code></span>
-            </div>
-            <div class="flex items-start">
-              <span class="text-green-400 mr-2 flex-shrink-0 mt-0.5">2.</span>
-              <span>Update your <code class="bg-gray-700 px-1 rounded">.claude/settings.local.json</code> configuration</span>
-            </div>
-            <div class="flex items-start">
-              <span class="text-green-400 mr-2 flex-shrink-0 mt-0.5">3.</span>
-              <span>Make the script executable: <code class="bg-gray-700 px-1 rounded">chmod +x .claude/hooks/script.py</code></span>
-            </div>
-            <div class="flex items-start">
-              <span class="text-green-400 mr-2 flex-shrink-0 mt-0.5">4.</span>
-              <span>Test with Claude Code and watch the observability dashboard!</span>
-            </div>
+      <div class="space-y-3">
+        <ExpandableSection
+          v-for="configExample in configExamples"
+          :key="configExample.id"
+          :title="configExample.title"
+          :subtitle="configExample.description"
+          icon="⚙️"
+          :defaultExpanded="false"
+          variant="bordered"
+          size="md"
+        >
+          <div class="mt-2">
+            <InteractiveCodeExample
+              :example="configExample"
+              @run="$emit('run-example', $event)"
+              @open-docs="$emit('open-docs', $event)"
+            />
           </div>
-        </div>
+        </ExpandableSection>
       </div>
     </div>
   </div>
@@ -83,6 +100,7 @@
 
 <script setup lang="ts">
 import InteractiveCodeExample from '../InteractiveCodeExample.vue';
+import ExpandableSection from '../ExpandableSection.vue';
 import { hookExamples, configurationExamples } from '../../data/hookExamples';
 import { computed } from 'vue';
 
@@ -99,7 +117,8 @@ const getHookIcon = (hookId: string) => {
     'subagent_stop': '🤖',
     'notification': '🔔',
     'precompact': '📄',
-    'stop': '💾'
+    'stop': '💾',
+    'session_end': '🚪'
   };
   return iconMap[hookId] || '🔧';
 };

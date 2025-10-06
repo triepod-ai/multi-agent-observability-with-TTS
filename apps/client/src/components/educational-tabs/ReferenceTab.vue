@@ -3,7 +3,7 @@
     <div class="mb-4">
       <h2 class="text-lg font-semibold text-white mb-2">Quick Reference Cards</h2>
       <p class="text-sm text-gray-400 mb-4">
-        Scannable reference cards for all 8 Claude Code hooks. Search, filter, and click for quick access to hook information.
+        Scannable reference cards for all 9 Claude Code hooks. Search, filter, and click for quick access to hook information.
       </p>
     </div>
 

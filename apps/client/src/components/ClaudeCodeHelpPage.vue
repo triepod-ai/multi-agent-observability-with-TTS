@@ -9,7 +9,7 @@
               <span class="text-3xl">🪝</span>
               Claude Code Hooks Reference
             </h1>
-            <p class="text-gray-400 text-sm mt-1">Complete documentation for all 8 Claude Code hooks</p>
+            <p class="text-gray-400 text-sm mt-1">Complete documentation for all 9 Claude Code hooks</p>
           </div>
           <div class="flex items-center gap-2">
             <span class="text-xs text-gray-500">Source:</span>
@@ -658,6 +658,53 @@ Other: Non-blocking`,
       'Consider session continuity',
       'Handle token limits gracefully'
     ]
+  },
+  {
+    id: 'session_end',
+    name: 'SessionEnd Hook',
+    event: 'SessionEnd',
+    icon: '🚪',
+    position: 9,
+    category: 'Session',
+    trigger: 'Session termination',
+    description: 'Runs when Claude Code session ends. Final opportunity for cleanup, logging, and state persistence.',
+    purpose: 'Handle session shutdown gracefully by performing cleanup, closing resources, logging statistics, and saving final state.',
+    canBlock: false,
+    tags: ['Session', 'Cleanup', 'Logging'],
+    config: `{
+  "hooks": {
+    "SessionEnd": [{
+      "hooks": [{
+        "type": "command",
+        "command": "/path/to/session-cleanup.sh"
+      }]
+    }]
+  }
+}`,
+    inputSchema: `{
+  "session_id": "abc123",
+  "transcript_path": "~/.claude/...",
+  "hook_event_name": "SessionEnd",
+  "exit_reason": "user_initiated|timeout|error"
+}`,
+    outputControl: `Exit 0: Success
+Exit 2: Show error
+Other: Non-blocking`,
+    useCases: [
+      'Close database connections and resources',
+      'Save final session state',
+      'Log session statistics and duration',
+      'Cleanup temporary files',
+      'Send session completion notifications'
+    ],
+    bestPractices: [
+      'Keep cleanup operations fast',
+      'Handle both graceful and forced exits',
+      'Log critical errors that occur during cleanup',
+      'Ensure cleanup is idempotent',
+      'Save state before resource deallocation'
+    ],
+    security: 'Ensure sensitive resources are properly closed and credentials are cleared. Handle cleanup failures gracefully to prevent resource leaks.'
   }
 ])
 

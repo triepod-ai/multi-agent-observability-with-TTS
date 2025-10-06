@@ -206,7 +206,7 @@ async function processSubagentStopEvent(event: HookEvent, savedEvent: any): Prom
 
 // Create Bun server with HTTP and WebSocket support
 const server = Bun.serve({
-  port: process.env.PORT ? parseInt(process.env.PORT) : 4000,
+  port: process.env.PORT ? parseInt(process.env.PORT) : 4056,
   
   async fetch(req: Request) {
     const url = new URL(req.url);

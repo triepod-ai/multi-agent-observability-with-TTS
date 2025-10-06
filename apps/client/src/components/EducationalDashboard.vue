@@ -15,7 +15,8 @@ import { preCompactAssessment } from '@/data/assessments/preCompactAssessment';
 import {
   FlowTab,
   GuideTab,
-  ExamplesTab
+  ExamplesTab,
+  SystemTab
 } from './educational-tabs';
 import HookAssessment from './HookAssessment.vue';
 
@@ -37,7 +38,8 @@ const activeTab = ref('guide');
 const tabs = [
   { id: 'guide', label: 'Guide', icon: '📖', help: { tooltip: 'Learn about Claude Code hooks' } },
   { id: 'flow', label: 'Flow', icon: '🔄' },
-  { id: 'examples', label: 'Examples', icon: '💡' }
+  { id: 'examples', label: 'Examples', icon: '💡' },
+  { id: 'system', label: 'System', icon: '🏗️', help: { tooltip: 'How this observability system works' } }
 ];
 
 // State
@@ -569,7 +571,8 @@ const competencyMappedData = computed(() => {
 const tabComponents = {
   flow: FlowTab,
   guide: GuideTab,
-  examples: ExamplesTab
+  examples: ExamplesTab,
+  system: SystemTab
 };
 
 const currentTabComponent = computed(() => tabComponents[activeTab.value as keyof typeof tabComponents]);
@@ -601,6 +604,10 @@ const currentTabProps = computed(() => {
       return {
         ...baseProps,
         examples: sampleExamples
+      };
+    case 'system':
+      return {
+        ...baseProps
       };
     default:
       return baseProps;

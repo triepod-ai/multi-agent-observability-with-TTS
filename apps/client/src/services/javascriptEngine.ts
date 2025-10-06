@@ -11,7 +11,7 @@ export interface JavaScriptExecutionResult {
 
 export class JavaScriptEngine {
   private outputBuffer: string[] = [];
-  private isReady = true;
+  private _isReady = true;
 
   constructor() {
     // JavaScript engine is ready immediately (native browser support)
@@ -277,7 +277,7 @@ export class JavaScriptEngine {
    * Check if engine is ready
    */
   isReady(): boolean {
-    return this.isReady;
+    return this._isReady;
   }
 
   /**

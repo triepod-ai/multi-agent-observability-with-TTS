@@ -5,7 +5,7 @@
       <div class="max-w-7xl mx-auto px-4 py-6">
         <div class="text-center mb-6">
           <h1 class="text-3xl font-bold text-white mb-2">Claude Code Hook System</h1>
-          <p class="text-gray-400">Interactive reference for all 8 Claude Code hooks</p>
+          <p class="text-gray-400">Interactive reference for all 9 Claude Code hooks</p>
         </div>
 
         <!-- Search Bar -->

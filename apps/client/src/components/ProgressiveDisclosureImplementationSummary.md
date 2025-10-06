@@ -111,7 +111,7 @@ EducationalHookExplanations.vue (updated)
 ```vue
 <ProgressiveDisclosure
   title="Claude Code Hook System"
-  description="Learn about the 8 Claude Code hooks with progressive complexity levels"
+  description="Learn about the 9 Claude Code hooks with progressive complexity levels"
   :sections="hookSections"
   :disclosure-levels="disclosureLevels"
   default-level="overview"

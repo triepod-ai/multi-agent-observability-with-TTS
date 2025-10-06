@@ -15,7 +15,7 @@ The Educational Dashboard Mode transforms the multi-agent-observability-system f
 ### 2. Interactive Hook Flow Diagram
 - **Component**: `HookFlowDiagram.vue`
 - **Features**:
-  - Visual representation of all 8 Claude Code hooks
+  - Visual representation of all 9 Claude Code hooks
   - Animated flow showing execution sequence
   - Click-to-learn functionality for detailed information
   - Real-time animation with pulsing effects
@@ -83,16 +83,17 @@ interface HookExplanation {
 
 ### Hook Coverage
 
-All 8 Claude Code hooks are covered with comprehensive educational content:
+All 9 Claude Code hooks are covered with comprehensive educational content:
 
 1. **SessionStart** 🚀 - Session initialization and context loading
-2. **UserPromptSubmit** 💬 - User input processing  
+2. **UserPromptSubmit** 💬 - User input processing
 3. **PreToolUse** ⚡ - Before tool execution validation
 4. **PostToolUse** ✅ - After tool execution processing
 5. **SubagentStop** 🤖 - Agent completion and cleanup
 6. **Stop** 🛑 - Session termination
-7. **Notification** 🔔 - System notifications and alerts  
+7. **Notification** 🔔 - System notifications and alerts
 8. **PreCompact** 📦 - Pre-compression analysis
+9. **SessionEnd** 🚪 - Session cleanup and resource deallocation
 
 ## Educational Content
 

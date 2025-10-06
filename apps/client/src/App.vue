@@ -295,7 +295,7 @@ import EducationalDashboard from './components/EducationalDashboard.vue';
 import { useEducationalMode } from './composables/useEducationalMode';
 
 // WebSocket connection
-const { events, isConnected, error, terminalStatus } = useWebSocket('ws://localhost:4000/stream');
+const { events, isConnected, error, terminalStatus } = useWebSocket('ws://localhost:4056/stream');
 
 // Theme management
 const { } = useThemes();
@@ -322,8 +322,7 @@ const filters = ref<FilterState>({
   sessionIds: [],
   eventTypes: [],
   toolNames: [],
-  search: '',
-  demoMode: false
+  search: ''
 });
 
 // Filter notifications

@@ -9,7 +9,7 @@ This document tracks our progress on fixing the Educational Dashboard to make le
 
 ### **Phase 1 & 2 Foundation** 
 - ✅ **Basic Educational Dashboard** - Vue 3 with 6 tabs (guide, flow, examples, sandbox, scenarios, reference)
-- ✅ **Hook Explanations** - Comprehensive explanations for all 8 Claude Code hooks
+- ✅ **Hook Explanations** - Comprehensive explanations for all 9 Claude Code hooks
 - ✅ **Hook Flow Diagram** - Visual representation with clickable interactions
 - ✅ **Interactive Examples** - Code examples with copy functionality
 - ✅ **Contextual Help** - Progressive disclosure and tooltips
@@ -158,7 +158,7 @@ You're absolutely right to be concerned about "parts here and there that do not 
 
 1. **Test Current Implementation** - Verify the assessment flow works end-to-end
 2. **Fix Code Execution** - Replace mock sandbox with real (but safe) execution
-3. **Add More Content** - Create assessments for all 8 hooks, not just Session Start
+3. **Add More Content** - Create assessments for all 9 hooks, not just Session Start
 4. **Performance Audit** - Ensure features work smoothly on different devices
 5. **Documentation Update** - Update user guides to reflect new completion capabilities
 

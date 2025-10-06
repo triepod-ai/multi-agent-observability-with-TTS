@@ -56,7 +56,6 @@ export interface FilterState {
   eventTypes: string[];
   toolNames: string[];
   search?: string;
-  demoMode?: boolean;
 }
 
 export interface FilterNotification {

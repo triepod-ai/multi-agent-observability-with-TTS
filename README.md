@@ -2,6 +2,13 @@
 
 **Dual-mode platform combining real-time agent monitoring with interactive learning capabilities**. Watch agent activities in expert mode or learn Claude Code hooks through our educational dashboard. You can watch the [full breakdown here](https://youtu.be/9ijnN985O_c).
 
+## 🆕 Recent Updates
+
+- **🏗️ System Architecture Tab** - New educational tab documenting complete Hook → Server → Dashboard observability flow with real implementation code
+- **🚪 SessionEnd Hook Support** - Added 9th Claude Code hook with complete documentation and 3 production-ready examples
+- **💡 Enhanced Examples Library** - Now covers 7/9 hooks with copy-paste-ready Python implementations
+- **📚 Complete Hook Coverage** - All 9 officially supported Claude Code hooks now documented and explained
+
 ## 🎯 Core Purpose: Observable AI Agents + Interactive Learning
 
 This system serves two primary purposes:
@@ -22,13 +29,14 @@ This system serves two primary purposes:
 - **Slash-to-Agent Conversion** - Transform complex commands into efficient, observable agents
 - **30+ Agent Type Classifications** - Comprehensive categorization for better monitoring and filtering
 
-#### **Educational Mode** 
+#### **Educational Mode**
 - **Interactive Hook Flow Diagram** - Visual representation with animated execution sequences
-- **Comprehensive Learning Content** - Beginner-friendly explanations for all 8 Claude Code hooks
+- **Comprehensive Learning Content** - Beginner-friendly explanations for all 9 Claude Code hooks
+- **System Architecture Tab** - Complete observability flow documentation (Hook → Server → Dashboard)
 - **Assessment System** - Quizzes and learning progression with Monaco Editor integration
+- **Code Examples Library** - Production-ready examples with copy-paste functionality
 - **Contextual Help** - Progressive disclosure with tooltips and expandable panels
 - **Learning Progress Tracker** - Persistent progress tracking with competency scoring
-- **Real-World Scenarios** - Practical examples showing hook interactions
 - **60% Learning Curve Reduction** - Makes Claude Code hooks accessible to beginners
 
 ## 📊 Overview
@@ -44,17 +52,21 @@ The platform enables monitoring of multiple concurrent agents with session track
 ## 🎓 Educational Features
 
 ### Interactive Learning Experience
-The educational dashboard transforms complex Claude Code concepts into an accessible learning journey:
+The educational dashboard transforms complex Claude Code concepts into an accessible learning journey with 4 comprehensive tabs:
 
-- **Seamless Mode Toggle** - Switch between educational 🎓 and expert 👨‍💻 modes
-- **Interactive Hook Flow** - Visual diagrams showing hook execution sequences with animations
-- **Progressive Learning Path** - Structured curriculum from basics to advanced concepts
+- **📖 Guide Tab** - Comprehensive explanations for all 9 Claude Code hooks with beginner-friendly content
+- **🔄 Flow Tab** - Interactive visual diagrams showing hook execution sequences with animations
+- **💡 Examples Tab** - 7/9 hooks with production-ready Python code you can copy and use immediately
+- **🏗️ System Tab** *(NEW)* - Complete architecture documentation showing Hook → Server → Dashboard flow with real implementation code
+- **Seamless Mode Toggle** - Switch between educational 🎓 and expert 👨‍💻 modes anytime
 - **Hands-on Practice** - Monaco Editor integration for real code interaction
 - **Assessment System** - Quizzes with scoring, progress tracking, and competency measurement
 - **Contextual Help** - Progressive disclosure with tooltips and detailed explanations
 
 ### Learning Content Structure
-- **Hook Guide** - Comprehensive explanations for all 8 Claude Code hooks
+- **Hook Guide** - Comprehensive explanations for all 9 Claude Code hooks (SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, SubagentStop, Stop, Notification, PreCompact, SessionEnd)
+- **System Architecture** - Complete observability flow with real code examples from this project
+- **Code Examples** - 7/9 hooks with production-ready Python implementations
 - **Real-World Examples** - Practical scenarios showing hook interactions
 - **Interactive Sandbox** - Safe environment for experimentation (75% complete)
 - **Progress Tracking** - Persistent learning data with IndexedDB storage
@@ -382,7 +394,7 @@ Vue 3 application with dual-mode functionality (Expert + Educational):
   - **Assessment System** with Monaco Editor integration and scoring
   - **Progress Tracking** with competency measurement and badge earning
   - **Contextual Help** with progressive disclosure and tooltips
-  - **Learning Tabs**: Guide, Flow, Examples, Sandbox, Scenarios, Reference
+  - **Learning Tabs**: Guide, Flow, Examples, System Architecture (4 active tabs)
   - **IndexedDB Storage** for persistent learning progress
 
 - **Filter Notification System (v2.0.0+)**:
@@ -630,8 +642,11 @@ The educational dashboard provides a comprehensive learning platform for Claude 
 
 #### ✅ **Fully Functional Features**
 - **Interactive Mode Toggle** - Switch between educational 🎓 and expert 👨‍💻 modes
+- **4-Tab Learning Interface** - Guide, Flow, Examples, and System Architecture tabs
 - **Hook Flow Diagram** - Visual representation with animated execution sequences
-- **Comprehensive Hook Explanations** - Detailed guides for all 8 Claude Code hooks
+- **Comprehensive Hook Explanations** - Detailed guides for all 9 Claude Code hooks
+- **Code Examples Library** - 7/9 hooks with production-ready Python implementations
+- **System Architecture Documentation** - Complete Hook → Server → Dashboard flow with real code
 - **Assessment System** - Complete quiz functionality with Monaco Editor integration
 - **Learning Progress Tracking** - Competency updates and persistent learning data
 - **Contextual Help** - Progressive disclosure with tooltips and expandable panels
@@ -645,7 +660,7 @@ The educational dashboard provides a comprehensive learning platform for Claude 
 
 #### 🎯 **Planned Enhancements**
 - **Real Code Execution** - Replace mock sandbox with secure WebAssembly execution
-- **More Assessment Content** - Currently 1/8 hooks have assessments, expanding to all
+- **More Assessment Content** - Currently 1/9 hooks have assessments, expanding to all
 - **Performance Optimization** - Target <500ms load times and 60fps animations
 - **Cross-browser Testing** - Full Safari, Firefox, Edge compatibility
 
@@ -664,7 +679,7 @@ The educational mode transforms complex technical concepts into an accessible le
 **Success Metrics**:
 - 60% reduction in learning curve for new users
 - Interactive engagement through clickable elements and animations
-- Comprehensive coverage of all 8 Claude Code hook types
+- Comprehensive coverage of all 9 Claude Code hook types
 - Real-world context through practical scenarios
 
 ## 🔧 Troubleshooting

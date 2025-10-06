@@ -16,11 +16,11 @@ export default defineConfig({
     strictPort: true, // Force port 8543 or fail
     proxy: {
       '/api': {
-        target: 'http://localhost:4000',
+        target: 'http://localhost:4056',
         changeOrigin: true
       },
       '/ws': {
-        target: 'ws://localhost:4000',
+        target: 'ws://localhost:4056',
         ws: true
       }
     }

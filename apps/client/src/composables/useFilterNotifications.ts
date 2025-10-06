@@ -61,25 +61,18 @@ export function useFilterNotifications(events: Ref<HookEvent[]>, filters: Ref<Fi
   // Check if any filters are active
   const hasActiveFilters = computed(() => {
     return !!(
-      (filters.value.sourceApps && filters.value.sourceApps.length > 0) || 
-      (filters.value.sessionIds && filters.value.sessionIds.length > 0) || 
-      (filters.value.eventTypes && filters.value.eventTypes.length > 0) || 
+      (filters.value.sourceApps && filters.value.sourceApps.length > 0) ||
+      (filters.value.sessionIds && filters.value.sessionIds.length > 0) ||
+      (filters.value.eventTypes && filters.value.eventTypes.length > 0) ||
       (filters.value.toolNames && filters.value.toolNames.length > 0) ||
-      filters.value.search ||
-      filters.value.demoMode
+      filters.value.search
     );
   });
 
   // Get filtered events based on current filters
   const filteredEvents = computed(() => {
     let filtered = [...events.value];
-    
-    // Demo mode filter - show only SalesAi agents
-    if (filters.value.demoMode) {
-      const demoAgents = ['june-customer-success', 'walter-sales-lead', 'mason-reengagement', 'alexa-outreach'];
-      filtered = filtered.filter(e => demoAgents.includes(e.source_app));
-    }
-    
+
     if (filters.value.sourceApps && filters.value.sourceApps.length > 0) {
       filtered = filtered.filter(e => filters.value.sourceApps.includes(e.source_app));
     }

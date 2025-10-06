@@ -70,14 +70,14 @@ interface HookInfo {
 ### Verified Hook Data
 All hook information is sourced from the verified Qdrant claude_code_documentation collection, ensuring:
 - **Accuracy**: Information matches official Claude Code hook specifications
-- **Completeness**: All 8 hooks documented with comprehensive details
+- **Completeness**: All 9 hooks documented with comprehensive details
 - **Reliability**: Consistent data structure and format
 - **Security**: Proper security warnings for critical hooks
 
 ## Key Features
 
 ### 1. Comprehensive Hook Coverage
-- **All 8 Claude Code Hooks**: SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Notification, SubagentStop, Stop, PreCompact
+- **All 9 Claude Code Hooks**: SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Notification, SubagentStop, Stop, PreCompact, SessionEnd
 - **Complete Documentation**: Purpose, configuration, I/O schemas, use cases, best practices
 - **Security Awareness**: Special warnings for security-critical hooks (PreToolUse, UserPromptSubmit)
 - **Execution Order**: Clear positioning (1-8) showing hook execution sequence

@@ -2,6 +2,7 @@ export { default as ProgressTab } from './ProgressTab.vue';
 export { default as FlowTab } from './FlowTab.vue';
 export { default as GuideTab } from './GuideTab.vue';
 export { default as ExamplesTab } from './ExamplesTab.vue';
+export { default as SystemTab } from './SystemTab.vue';
 export { default as SandboxTab } from './SandboxTab.vue';
 export { default as ScenariosTab } from './ScenariosTab.vue';
 export { default as ReferenceTab } from './ReferenceTab.vue';

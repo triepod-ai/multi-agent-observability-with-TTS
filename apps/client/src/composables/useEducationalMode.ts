@@ -230,7 +230,7 @@ const hookExplanations: HookExplanation[] = [
     detailedDescription: 'The PreCompact hook performs analysis before conversation compression, extracting insights, generating summaries, and preparing handoff context for future sessions. It ensures important information is preserved.',
     realWorldExample: 'Before a long conversation gets compressed to save memory, this hook extracts key decisions, blockers, and achievements, then stores them as "session handoff context" for future reference.',
     codeExample: `{
-  "hook_event_type": "PreCompact", 
+  "hook_event_type": "PreCompact",
   "payload": {
     "summary_type": "session_handoff",
     "key_insights": ["Authentication implemented", "Database schema updated"],
@@ -251,6 +251,39 @@ const hookExplanations: HookExplanation[] = [
       'Storage failures might prevent handoff preservation'
     ],
     flowPosition: 8,
+    connections: ['session_end']
+  },
+  {
+    id: 'session_end',
+    name: 'SessionEnd',
+    icon: '🚪',
+    simpleDescription: 'Performs cleanup when you close Claude Code',
+    detailedDescription: 'The SessionEnd hook runs when a Claude Code session terminates, enabling final cleanup, logging, resource deallocation, and session state persistence. It provides a structured way to handle session closure gracefully.',
+    realWorldExample: 'When you close Claude Code, this hook saves any unsaved session state, closes database connections, logs the session duration and statistics, and announces "Session ended: 45 minutes, 12 files modified" to confirm proper shutdown.',
+    codeExample: `{
+  "hook_event_type": "SessionEnd",
+  "payload": {
+    "exit_reason": "user_initiated",
+    "session_duration_seconds": 2700,
+    "total_interactions": 24,
+    "files_modified": 12,
+    "last_activity": "2025-01-06T14:30:00Z"
+  }
+}`,
+    whenItRuns: 'When Claude Code session ends, whether by user action or system termination',
+    whyItMatters: 'Ensures proper cleanup, prevents resource leaks, and maintains session integrity',
+    bestPractices: [
+      'Save critical session state before exit',
+      'Close all open resources and connections',
+      'Log session statistics for analytics',
+      'Handle graceful vs forced shutdowns appropriately'
+    ],
+    commonIssues: [
+      'Cleanup might not complete if session crashes',
+      'Long-running cleanup operations could delay shutdown',
+      'Unsaved work warnings might be missed'
+    ],
+    flowPosition: 9,
     connections: ['session_start']
   }
 ];
@@ -277,9 +310,9 @@ export function useEducationalMode() {
       name: hook.name,
       icon: hook.icon,
       description: hook.simpleDescription,
-      position: { 
-        x: (index % 4) * 200 + 100, 
-        y: Math.floor(index / 4) * 150 + 100 
+      position: {
+        x: (index % 3) * 200 + 100,
+        y: Math.floor(index / 3) * 150 + 100
       },
       connections: hook.connections,
       isActive: false,
@@ -296,7 +329,8 @@ export function useEducationalMode() {
       'subagent_stop': '#8B5CF6', // purple
       'stop': '#6B7280', // gray
       'notification': '#F97316', // orange
-      'precompact': '#06B6D4' // cyan
+      'precompact': '#06B6D4', // cyan
+      'session_end': '#DC2626' // red (termination)
     };
     return colors[hookId] || '#6B7280';
   };

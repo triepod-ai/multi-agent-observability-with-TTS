@@ -50,8 +50,8 @@ export function useFlowDiagram() {
     
     // Create a more sophisticated layout
     const layoutConfig = {
-      rows: 2,
-      cols: 4,
+      rows: 3,
+      cols: 3,
       nodeSpacing: { x: 250, y: 200 },
       startPosition: { x: 150, y: 150 }
     };

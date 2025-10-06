@@ -291,7 +291,7 @@ watch(memoryUsage, (usage) => {
 - Safe execution environment principles
 
 ### Hook System Mastery
-- Hands-on experimentation with all 8 hook types
+- Hands-on experimentation with all 9 hook types
 - Real-world scenario testing and validation
 - Custom hook development and testing
 - Performance optimization through practical testing

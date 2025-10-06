@@ -380,13 +380,14 @@ const visibleConnections = computed(() => {
 const getNodeCategory = (nodeId: string): string => {
   const categoryMap: Record<string, string> = {
     'session_start': 'essential',
-    'user_prompt_submit': 'essential', 
+    'user_prompt_submit': 'essential',
     'pre_tool_use': 'security',
     'post_tool_use': 'monitoring',
     'subagent_stop': 'monitoring',
     'stop': 'essential',
     'notification': 'monitoring',
-    'precompact': 'advanced'
+    'precompact': 'advanced',
+    'session_end': 'essential'
   };
   return categoryMap[nodeId] || 'essential';
 };

@@ -253,7 +253,7 @@ interface Props {
 
 const props = defineProps<Props>();
 
-// Hook definitions based on the 8 main Claude Code hook types
+// Hook definitions based on the 9 main Claude Code hook types
 const hookDefinitions = [
   {
     type: 'session_start',
@@ -263,7 +263,7 @@ const hookDefinitions = [
     eventTypes: ['SessionStart']
   },
   {
-    type: 'user_prompt_submit', 
+    type: 'user_prompt_submit',
     displayName: 'UserPrompt',
     description: 'User input processing',
     icon: '💬',
@@ -271,7 +271,7 @@ const hookDefinitions = [
   },
   {
     type: 'pre_tool_use',
-    displayName: 'PreToolUse', 
+    displayName: 'PreToolUse',
     description: 'Before tool execution validation',
     icon: '⚡',
     eventTypes: ['PreToolUse']
@@ -279,7 +279,7 @@ const hookDefinitions = [
   {
     type: 'post_tool_use',
     displayName: 'PostToolUse',
-    description: 'After tool execution processing', 
+    description: 'After tool execution processing',
     icon: '✅',
     eventTypes: ['PostToolUse']
   },
@@ -299,7 +299,7 @@ const hookDefinitions = [
   },
   {
     type: 'notification',
-    displayName: 'Notification', 
+    displayName: 'Notification',
     description: 'System notifications and alerts',
     icon: '🔔',
     eventTypes: ['Notification']
@@ -310,6 +310,13 @@ const hookDefinitions = [
     description: 'Pre-compression analysis',
     icon: '📦',
     eventTypes: ['PreCompact']
+  },
+  {
+    type: 'session_end',
+    displayName: 'SessionEnd',
+    description: 'Session cleanup and final logging',
+    icon: '🚪',
+    eventTypes: ['SessionEnd']
   }
 ];
 

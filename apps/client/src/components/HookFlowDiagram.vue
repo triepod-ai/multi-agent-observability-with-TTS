@@ -124,7 +124,7 @@
         <div class="flex items-center justify-between mb-2">
           <h3 class="text-base font-semibold text-white flex items-center">
             <span class="mr-1 text-lg">{{ selectedHook.icon }}</span>
-            {{ selectedHook.name }} Hook #{{ selectedHook.id === 'session_start' ? '1' : selectedHook.id === 'user_prompt_submit' ? '2' : selectedHook.id === 'pre_tool_use' ? '3' : selectedHook.id === 'post_tool_use' ? '4' : selectedHook.id === 'subagent_stop' ? '5' : selectedHook.id === 'stop' ? '6' : selectedHook.id === 'notification' ? '7' : '8' }}
+            {{ selectedHook.name }} Hook #{{ selectedHook.id === 'session_start' ? '1' : selectedHook.id === 'user_prompt_submit' ? '2' : selectedHook.id === 'pre_tool_use' ? '3' : selectedHook.id === 'post_tool_use' ? '4' : selectedHook.id === 'subagent_stop' ? '5' : selectedHook.id === 'stop' ? '6' : selectedHook.id === 'notification' ? '7' : selectedHook.id === 'precompact' ? '8' : '9' }}
           </h3>
           <button
             @click="selectedHook = null"

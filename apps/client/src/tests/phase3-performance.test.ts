@@ -286,13 +286,13 @@ describe('Phase 3 Performance Benchmarks', () => {
           activities: Array(1000).fill(null).map((_, i) => ({
             timestamp: Date.now() + i,
             type: 'practice',
-            data: { hookId: `hook_${i % 8}`, score: Math.random() * 100 }
+            data: { hookId: `hook_${i % 9}`, score: Math.random() * 100 }
           }))
         }
       };
       
       // Add competencies for all hooks
-      for (let i = 0; i < 8; i++) {
+      for (let i = 0; i < 9; i++) {
         mockProgression.competencies[`hook_${i}`] = {
           hookId: `hook_${i}`,
           knowledge: Math.random() * 100,
@@ -321,7 +321,7 @@ describe('Phase 3 Performance Benchmarks', () => {
       for (let i = 0; i < 100; i++) {
         phase3Integration.emit('competency-updated', {
           userId: 'test-user',
-          hookId: `hook_${i % 8}`,
+          hookId: `hook_${i % 9}`,
           dimension: 'application',
           oldScore: 50,
           newScore: 60,
@@ -410,7 +410,7 @@ describe('Phase 3 Performance Benchmarks', () => {
         // Simulate intensive learning progression update
         const event = {
           userId: 'test-user',
-          hookId: `hook_${i % 8}`,
+          hookId: `hook_${i % 9}`,
           dimension: ['knowledge', 'application', 'analysis', 'synthesis'][i % 4],
           oldScore: Math.random() * 100,
           newScore: Math.random() * 100,
@@ -590,7 +590,7 @@ describe('Phase 3 Performance Benchmarks', () => {
           // Competency update
           phase3Integration.emit('competency-updated', {
             userId: 'test-user',
-            hookId: `hook_${i % 8}`,
+            hookId: `hook_${i % 9}`,
             dimension: 'knowledge',
             oldScore: Math.random() * 100,
             newScore: Math.random() * 100,
@@ -599,7 +599,7 @@ describe('Phase 3 Performance Benchmarks', () => {
         } else if (i % 4 === 1) {
           // Node selection
           phase3Integration.emit('node-selected', {
-            nodeId: `hook_${i % 8}`,
+            nodeId: `hook_${i % 9}`,
             competencyLevel: Math.random() * 100
           });
         } else if (i % 4 === 2) {

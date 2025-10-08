@@ -722,7 +722,7 @@ const getAppAgents = (events: HookEvent[]): Array<{
   
   sessionGroups.forEach((sessionEvents) => {
     if (detectAgentSession(sessionEvents)) {
-      let agentName = 'Unknown Agent';
+      let agentName = 'Investigation Session';
       let agentType = 'generic';
       
       const taskEvents = sessionEvents.filter(event => 

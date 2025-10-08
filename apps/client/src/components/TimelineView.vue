@@ -767,8 +767,8 @@ function detectAgentSession(events: HookEvent[]): boolean {
 function analyzeAgentGroup(_sessionId: string, events: HookEvent[]) {
   const firstEvent = events[0];
   const lastEvent = events[events.length - 1];
-  
-  let agentName = 'Unknown Agent';
+
+  let agentName = 'Investigation Session';
   let agentType = 'generic';
   
   const taskEvents = events.filter(event => 

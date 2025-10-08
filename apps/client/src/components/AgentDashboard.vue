@@ -212,20 +212,6 @@
     </div>
     -->
 
-    <!-- Agent Executions Grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-      <TransitionGroup name="agent-card">
-        <AgentExecutionCard
-          v-for="agentSession in agentSessions"
-          :key="agentSession.sessionId"
-          :agent-session="agentSession"
-          :session-color="getSessionColor(agentSession.sessionId)"
-          :app-color="getAppColor(agentSession.sourceApp)"
-          @view-details="handleViewDetails"
-          @expand-tools="handleExpandTools"
-        />
-      </TransitionGroup>
-    </div>
 
     <!-- Enhanced Empty State -->
     <div v-if="agentMetrics.metrics.value.totalExecutions === 0 || (agentMetrics.metrics.value.totalExecutions > 0 && agentSessions.length === 0)" class="text-center py-16">
@@ -298,7 +284,7 @@
       <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
         <TransitionGroup name="agent-card">
           <AgentExecutionCard
-            v-for="agentSession in agentSessions.slice(0, 6)"
+            v-for="agentSession in agentSessions"
             :key="agentSession.sessionId"
             :agent-session="agentSession"
             :session-color="getSessionColor(agentSession.sessionId)"
@@ -637,21 +623,23 @@ function analyzeAgentSession(sessionId: string, events: HookEvent[]): AgentSessi
   const subagentStopEvents = events.filter(event => event.hook_event_type === 'SubagentStop');
   if (subagentStopEvents.length > 0) {
     const stopEvent = subagentStopEvents[0];
-    if (stopEvent.payload.agent_name && typeof stopEvent.payload.agent_name === 'string') {
+    if (stopEvent.payload.agent_name && typeof stopEvent.payload.agent_name === 'string' && stopEvent.payload.agent_name.trim().length > 0) {
       agentName = stopEvent.payload.agent_name;
       agentType = classifyAgentType(agentName, events);
     }
   }
   
   // Strategy 1b: Check SubagentStart events (also reliable)
-  if (agentName === 'Unknown Agent') {
+  if (agentName === 'Investigation Session') {
     const subagentStartEvents = events.filter(event => event.hook_event_type === 'SubagentStart');
     if (subagentStartEvents.length > 0) {
       const startEvent = subagentStartEvents[0];
-      if ((startEvent.payload.agent_name && typeof startEvent.payload.agent_name === 'string') || 
-          (startEvent.payload.subagent_type && typeof startEvent.payload.subagent_type === 'string')) {
-        agentName = (typeof startEvent.payload.agent_name === 'string' ? startEvent.payload.agent_name : 
-                    typeof startEvent.payload.subagent_type === 'string' ? startEvent.payload.subagent_type : 'Unknown Agent');
+      const hasValidAgentName = startEvent.payload.agent_name && typeof startEvent.payload.agent_name === 'string' && startEvent.payload.agent_name.trim().length > 0;
+      const hasValidSubagentType = startEvent.payload.subagent_type && typeof startEvent.payload.subagent_type === 'string' && startEvent.payload.subagent_type.trim().length > 0;
+
+      if (hasValidAgentName || hasValidSubagentType) {
+        agentName = (hasValidAgentName ? startEvent.payload.agent_name :
+                    hasValidSubagentType ? startEvent.payload.subagent_type : 'Investigation Session');
         agentType = classifyAgentType(agentName, events);
       }
     }

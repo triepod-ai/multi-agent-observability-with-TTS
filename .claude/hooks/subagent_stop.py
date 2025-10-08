@@ -187,7 +187,7 @@ def extract_subagent_info(input_data: Dict[str, Any]) -> Dict[str, Any]:
     """Extract comprehensive information about the subagent execution."""
     info = {
         "agent_id": None,
-        "agent_name": "unknown agent",
+        "agent_name": "investigation session",
         "agent_type": "generic",
         "task_description": "",
         "duration": None,

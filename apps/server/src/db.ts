@@ -249,7 +249,7 @@ function ensureSessionExists(event: HookEvent, timestamp: number): void {
 function handleSubagentStart(event: HookEvent, timestamp: number): void {
   // Extract agent info from payload
   const payload = event.payload || {};
-  let agentName = payload.agent_name || payload.subagent_type || 'Unknown Agent';
+  let agentName = payload.agent_name || payload.subagent_type || 'Investigation Session';
   
   // Map delegation types to valid schema values
   let delegationType = payload.delegation_type || 'sequential';
@@ -531,7 +531,7 @@ function getSessionPath(sessionId: string): string | null {
 }
 
 // Helper functions for agent name enhancement
-function classifyAgentType(agentName: string, payload: any): string {
+export function classifyAgentType(agentName: string, payload: any): string {
   const lowerName = agentName.toLowerCase();
   
   // Specialized agent types based on name patterns

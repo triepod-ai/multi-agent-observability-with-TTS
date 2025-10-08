@@ -146,7 +146,7 @@ export function buildSessionTree(rootSessionId: string, maxDepth: number = 5): S
   }
 
   // Extract agent name from session metadata
-  let agentName = 'Unknown Agent';
+  let agentName = 'Investigation Session';
   if (session.session_metadata) {
     try {
       const metadata = JSON.parse(session.session_metadata);

@@ -1,4 +1,4 @@
-import { initDatabase, insertEvent, getFilterOptions, getRecentEvents, getDatabase } from './db';
+import { initDatabase, insertEvent, getFilterOptions, getRecentEvents, getDatabase, classifyAgentType } from './db';
 import type { HookEvent, SessionRelationship, SpawnContext } from './types';
 import {
   insertSessionRelationship,
@@ -100,9 +100,10 @@ async function processEventMetrics(event: HookEvent, savedEvent: any): Promise<v
  */
 async function processSubagentStartEvent(event: HookEvent, savedEvent: any): Promise<void> {
   try {
+    const agentName = event.payload.agent_name || event.payload.subagent_type || 'unknown';
     const agentData = {
-      agent_name: event.payload.agent_name || event.payload.subagent_type || 'unknown',
-      agent_type: event.payload.agent_type || event.payload.subagent_type || 'subagent',
+      agent_name: agentName,
+      agent_type: classifyAgentType(agentName, event.payload),
       task_description: event.payload.task || event.payload.description || '',
       tools: event.payload.tools || [],
       session_id: event.session_id,
@@ -124,9 +125,10 @@ async function processSubagentStartEvent(event: HookEvent, savedEvent: any): Pro
     console.error('❌ Error processing SubagentStart event:', error);
     // Fallback to legacy system if unified service fails
     try {
+      const agentName = event.payload.agent_name || 'unknown';
       const agentId = await markAgentStarted({
-        agent_name: event.payload.agent_name || 'unknown',
-        agent_type: event.payload.agent_type || 'subagent',
+        agent_name: agentName,
+        agent_type: classifyAgentType(agentName, event.payload),
         session_id: event.session_id,
         source_app: event.source_app
       });
@@ -143,9 +145,10 @@ async function processSubagentStartEvent(event: HookEvent, savedEvent: any): Pro
  */
 async function processSubagentStopEvent(event: HookEvent, savedEvent: any): Promise<void> {
   try {
+    const agentName = event.payload.agent_name || 'unknown';
     const agentData = {
-      agent_name: event.payload.agent_name || 'unknown',
-      agent_type: event.payload.agent_type || 'subagent',
+      agent_name: agentName,
+      agent_type: classifyAgentType(agentName, event.payload),
       agent_id: event.payload.agent_id || `ag_${Date.now()}`,
       duration: event.payload.duration || 0,
       tokens: event.payload.tokens_used || 0,
@@ -176,9 +179,10 @@ async function processSubagentStopEvent(event: HookEvent, savedEvent: any): Prom
     console.error('❌ Error processing SubagentStop event:', error);
     // Fallback to legacy system if unified service fails
     try {
+      const agentName = event.payload.agent_name || 'unknown';
       const agentData = {
-        agent_name: event.payload.agent_name || 'unknown',
-        agent_type: event.payload.agent_type || 'subagent',
+        agent_name: agentName,
+        agent_type: classifyAgentType(agentName, event.payload),
         agent_id: event.payload.agent_id || `ag_${Date.now()}`,
         duration_ms: event.payload.duration || 0,
         status: event.payload.result ? 'success' : 'failed',

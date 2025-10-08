@@ -344,7 +344,7 @@ function analyzeAgentActivity(events: HookEvent[]) {
       const key = `${agentName || 'unknown'}_${agentType || 'unknown'}`;
       const existing = agentStats.get(key) || {
         id: key,
-        name: agentName || 'Unknown Agent',
+        name: agentName || 'Investigation Session',
         type: agentType || 'unknown',
         executions: 0,
         durations: [],

@@ -304,9 +304,9 @@ def analyze_conversation_with_fallback(text: str) -> Dict[str, Any]:
 ```python
 def extract_subagent_info(input_data: Dict[str, Any]) -> Dict[str, Any]:
     """Extract meaningful information about the subagent execution."""
-    
+
     info = {
-        "agent_name": "unknown agent",
+        "agent_name": "investigation session",
         "task_description": "",
         "duration": None,
         "result_summary": "",

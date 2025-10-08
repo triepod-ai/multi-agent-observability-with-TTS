@@ -103,7 +103,7 @@ function ensureSessionExists(event: HookEvent, timestamp: number): void {
 ```typescript
 function handleSubagentStart(event: HookEvent, timestamp: number): void {
   // Extract and enhance agent name
-  let agentName = payload.agent_name || payload.subagent_type || 'Unknown Agent';
+  let agentName = payload.agent_name || payload.subagent_type || 'Investigation Session';
   
   // Map delegation types to valid schema values
   let delegationType = payload.delegation_type || 'sequential';
@@ -217,7 +217,7 @@ export function buildSessionTree(rootSessionId: string, maxDepth: number = 5): S
   }
 
   // Extract agent name from metadata
-  let agentName = 'Unknown Agent';
+  let agentName = 'Investigation Session';
   if (session.session_metadata) {
     try {
       const metadata = JSON.parse(session.session_metadata);
@@ -475,7 +475,7 @@ function processEventForSessionManagement(event: HookEvent, timestamp: number): 
 
 ```typescript
 // Extract and enhance agent name from session metadata
-let agentName = 'Unknown Agent';
+let agentName = 'Investigation Session';
 if (session.session_metadata) {
   try {
     const metadata = JSON.parse(session.session_metadata);

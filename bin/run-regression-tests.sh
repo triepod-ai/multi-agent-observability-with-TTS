@@ -250,9 +250,46 @@ test_event_limits() {
     return 0
 }
 
+# Test 7: TTS System Tests
+test_tts_system() {
+    log ""
+    log "🔊 Test 7: TTS System Tests"
+    log "----------------------------"
+
+    # Run pytest for TTS tests
+    if command -v pytest &> /dev/null; then
+        log "  Running TTS unit tests..."
+
+        # Run tests in quiet mode and capture output
+        if python3 -m pytest "$PROJECT_ROOT/tests/tts" -v --tb=short > /tmp/tts_test_output.log 2>&1; then
+            local test_count=$(grep -c "PASSED" /tmp/tts_test_output.log || echo 0)
+            log "  ✅ TTS tests passed ($test_count tests)"
+
+            # Run hook tests
+            if python3 -m pytest "$PROJECT_ROOT/tests/hooks" -v --tb=short > /tmp/hooks_test_output.log 2>&1; then
+                local hook_test_count=$(grep -c "PASSED" /tmp/hooks_test_output.log || echo 0)
+                log "  ✅ Hook tests passed ($hook_test_count tests)"
+                return 0
+            else
+                log "  ❌ Hook tests failed"
+                log "  See /tmp/hooks_test_output.log for details"
+                return 1
+            fi
+        else
+            log "  ❌ TTS tests failed"
+            log "  See /tmp/tts_test_output.log for details"
+            return 1
+        fi
+    else
+        log "  ⚠️  pytest not installed, skipping TTS tests"
+        log "  Install with: pip install pytest"
+        return 0  # Don't fail if pytest is not installed
+    fi
+}
+
 # Main execution
 main() {
-    local total_tests=6
+    local total_tests=7
     local passed_tests=0
     local failed_tests=0
 
@@ -300,6 +337,12 @@ main() {
     fi
 
     if test_event_limits; then
+        ((passed_tests++))
+    else
+        ((failed_tests++))
+    fi
+
+    if test_tts_system; then
         ((passed_tests++))
     else
         ((failed_tests++))

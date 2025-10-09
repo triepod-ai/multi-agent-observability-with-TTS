@@ -321,14 +321,20 @@ export function useAgentMetrics(events: Ref<HookEvent[]>) {
   };
 
   // Agent session detection and analysis
-  function detectAndAnalyzeAgentSessions() {
+  function detectAndAnalyzeAgentSessions(useTimeFilter: boolean = true) {
     const sessionGroups = new Map<string, HookEvent[]>();
-    const cutoffTime = Date.now() - timeRangeConfig[selectedTimeRange.value].duration;
 
-    // Filter events by time range
-    const relevantEvents = events.value.filter(event => 
-      (event.timestamp || 0) >= cutoffTime
-    );
+    // Get events - either filtered by time range or last 1000 events (like agent cards)
+    let relevantEvents: HookEvent[];
+    if (useTimeFilter) {
+      const cutoffTime = Date.now() - timeRangeConfig[selectedTimeRange.value].duration;
+      relevantEvents = events.value.filter(event =>
+        (event.timestamp || 0) >= cutoffTime
+      );
+    } else {
+      // Use last 1000 events like agent cards do
+      relevantEvents = events.value.slice(-1000);
+    }
 
     // Group by session
     relevantEvents.forEach(event => {
@@ -339,7 +345,7 @@ export function useAgentMetrics(events: Ref<HookEvent[]>) {
     });
 
     const agentSessions: any[] = [];
-    
+
     sessionGroups.forEach((sessionEvents, sessionId) => {
       if (isAgentSession(sessionEvents)) {
         const analysis = analyzeAgentSession(sessionId, sessionEvents);
@@ -610,7 +616,8 @@ export function useAgentMetrics(events: Ref<HookEvent[]>) {
 
   // Generate agent type distribution
   function generateAgentTypeDistribution() {
-    const agentSessions = detectAndAnalyzeAgentSessions();
+    // Use all recent events (no time filter) like agent cards do
+    const agentSessions = detectAndAnalyzeAgentSessions(false);
     const typeMap = new Map<string, {
       count: number;
       successes: number;
@@ -853,74 +860,14 @@ export function useAgentMetrics(events: Ref<HookEvent[]>) {
   }
 
   async function fetchAgentTypeDistribution(): Promise<void> {
-    const cacheKey = getCacheKey('agent-types');
-    
-    // Try cache first
-    const cached = getCache<AgentTypeDistribution[]>(cacheKey);
-    if (cached && !isDegradedMode.value) {
-      agentTypeDistribution.value = cached;
-      // Update metrics count
-      metrics.value.agentTypes = cached.length;
-      return;
-    }
-
+    // ALWAYS use local analysis (same as agent cards) instead of backend API
+    // This ensures agent types match what's displayed in the agent cards below
     loadingStates.value.agentTypes = true;
-    
+
     try {
-      await retryWithBackoff(async () => {
-        const controller = createTimeoutController();
-        const response = await fetch(
-          `${API_BASE}/api/agents/types/distribution?timeRange=${selectedTimeRange.value}`,
-          { signal: controller.signal }
-        );
-        
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        const data = await response.json();
-        
-        if (data.distribution && Array.isArray(data.distribution)) {
-          const agentIcons: Record<string, string> = {
-            'analyzer': '🔍',
-            'debugger': '🐛',
-            'reviewer': '👀',
-            'tester': '✅',
-            'writer': '📝',
-            'optimizer': '⚡',
-            'security': '🛡️',
-            'generator': '🎯',
-            'developer': '💻',
-            'system': '⚙️',
-            'generic': '🤖'
-          };
-          
-          const distributionData = data.distribution.map((item: any) => ({
-            type: item.type,
-            displayName: item.type.charAt(0).toUpperCase() + item.type.slice(1),
-            count: item.count,
-            successRate: Math.round((item.success_rate || 0) * 100),
-            avgDuration: Math.round((item.avg_duration_ms || 0) / 1000 * 100) / 100,
-            icon: agentIcons[item.type] || '🤖'
-          }));
-          
-          agentTypeDistribution.value = distributionData;
-          metrics.value.agentTypes = distributionData.length;
-          setCache(cacheKey, distributionData);
-        }
-      }, 'fetch agent type distribution');
-    } catch (error) {
-      // Try stale cache as fallback
-      const staleData = getStaleCache<AgentTypeDistribution[]>(cacheKey);
-      if (staleData) {
-        agentTypeDistribution.value = staleData;
-        metrics.value.agentTypes = staleData.length;
-        isDegradedMode.value = true;
-      } else {
-        // Final fallback to local analysis
-        console.warn('Falling back to local agent type analysis');
-        generateAgentTypeDistribution();
-      }
+      console.log('Using local agent type analysis (same source as agent cards)');
+      generateAgentTypeDistribution();
+      metrics.value.agentTypes = agentTypeDistribution.value.length;
     } finally {
       loadingStates.value.agentTypes = false;
     }

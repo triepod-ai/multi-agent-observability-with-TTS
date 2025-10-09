@@ -766,11 +766,11 @@ class FallbackStorageService {
       const oneHourAgo = Date.now() - (60 * 60 * 1000);
       cleanupStaleAgentsStmt.run('timeout', 'active', oneHourAgo);
 
-      // Get active agents count from agent executions (only recent ones)
+      // Get recent agents count from agent executions (within last hour, any status)
       const activeAgentsStmt = this.db!.prepare(
-        'SELECT COUNT(*) as count FROM agent_executions WHERE status = ? AND start_time >= ?'
+        'SELECT COUNT(*) as count FROM agent_executions WHERE start_time >= ?'
       );
-      const activeAgents = activeAgentsStmt.get('active', oneHourAgo) as any;
+      const activeAgents = activeAgentsStmt.get(oneHourAgo) as any;
 
       return {
         active_agents: activeAgents?.count || 0,

@@ -409,7 +409,7 @@ const metricsCardsData = computed(() => [
   },
   {
     key: 'active-agents',
-    title: 'Active Agents',
+    title: 'Recent Agents',
     value: agentMetrics.metrics.value.activeAgents,
     icon: '🔄',
     color: 'yellow',

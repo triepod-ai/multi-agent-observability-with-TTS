@@ -141,11 +141,49 @@ async function processSubagentStartEvent(event: HookEvent, savedEvent: any): Pro
 }
 
 /**
+ * Extract tools used from session events in the database
+ */
+function extractToolsFromSession(sessionId: string): string[] {
+  try {
+    const db = getDatabase();
+    if (!db) return [];
+
+    // Query for PreToolUse and PostToolUse events in this session
+    const stmt = db.prepare(`
+      SELECT DISTINCT json_extract(payload, '$.tool_name') as tool_name
+      FROM hook_events
+      WHERE session_id = ?
+      AND hook_event_type IN ('PreToolUse', 'PostToolUse')
+      AND json_extract(payload, '$.tool_name') IS NOT NULL
+    `);
+
+    const rows = stmt.all(sessionId) as any[];
+    const tools = rows
+      .map(row => row.tool_name)
+      .filter(tool => tool && typeof tool === 'string');
+
+    console.log(`🔍 Extracted ${tools.length} tools from session ${sessionId}: ${tools.join(', ')}`);
+    return tools;
+  } catch (error) {
+    console.error('Error extracting tools from session:', error);
+    return [];
+  }
+}
+
+/**
  * Process SubagentStop events
  */
 async function processSubagentStopEvent(event: HookEvent, savedEvent: any): Promise<void> {
   try {
     const agentName = event.payload.agent_name || 'unknown';
+
+    // Extract tools from payload, or fall back to extracting from session events
+    let toolsUsed = event.payload.tools_used || [];
+    if (!toolsUsed || toolsUsed.length === 0) {
+      toolsUsed = extractToolsFromSession(event.session_id);
+      console.log(`📦 Using extracted tools (${toolsUsed.length}) for agent: ${agentName}`);
+    }
+
     const agentData = {
       agent_name: agentName,
       agent_type: classifyAgentType(agentName, event.payload),
@@ -158,7 +196,7 @@ async function processSubagentStopEvent(event: HookEvent, savedEvent: any): Prom
         total_tokens: event.payload.tokens_used || 0,
         estimated_cost: Math.round((event.payload.tokens_used || 0) * 0.01) // in cents
       },
-      tools_used: event.payload.tools_used || [],
+      tools_used: toolsUsed,
       session_id: event.session_id,
       source_app: event.source_app,
       end_time: event.timestamp || Date.now()
@@ -180,6 +218,14 @@ async function processSubagentStopEvent(event: HookEvent, savedEvent: any): Prom
     // Fallback to legacy system if unified service fails
     try {
       const agentName = event.payload.agent_name || 'unknown';
+
+      // Extract tools from payload, or fall back to extracting from session events
+      let toolsUsed = event.payload.tools_used || [];
+      if (!toolsUsed || toolsUsed.length === 0) {
+        toolsUsed = extractToolsFromSession(event.session_id);
+        console.log(`📦 Fallback: Using extracted tools (${toolsUsed.length}) for agent: ${agentName}`);
+      }
+
       const agentData = {
         agent_name: agentName,
         agent_type: classifyAgentType(agentName, event.payload),
@@ -190,7 +236,7 @@ async function processSubagentStopEvent(event: HookEvent, savedEvent: any): Prom
           total_tokens: event.payload.tokens_used || 0,
           estimated_cost: Math.round((event.payload.tokens_used || 0) * 0.01)
         },
-        tools_used: event.payload.tools_used || [],
+        tools_used: toolsUsed,
         session_id: event.session_id,
         source_app: event.source_app
       };

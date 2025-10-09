@@ -392,14 +392,6 @@ const metricsCardsData = computed(() => [
     format: 'percentage' as const
   },
   {
-    key: 'avg-duration',
-    title: 'Avg Duration',
-    value: agentMetrics.metrics.value.avgDuration,
-    icon: '⏱️',
-    color: 'blue',
-    format: 'duration' as const
-  },
-  {
     key: 'agent-types',
     title: 'Agent Types',
     value: agentMetrics.metrics.value.agentTypes,
@@ -408,40 +400,33 @@ const metricsCardsData = computed(() => [
     format: 'number' as const
   },
   {
-    key: 'active-agents',
-    title: 'Recent Agents',
+    key: 'active-sessions',
+    title: 'Active Sessions',
     value: agentMetrics.metrics.value.activeAgents,
     icon: '🔄',
     color: 'yellow',
-    format: 'number' as const
-  },
-  {
-    key: 'tools-used',
-    title: 'Tools Used',
-    value: agentMetrics.metrics.value.toolsUsed,
-    icon: '🔧',
-    color: 'orange',
     format: 'number' as const
   }
 ]);
 
 // Simplified agent sessions for backward compatibility (limited to recent sessions)
 const agentSessions = computed((): AgentSessionData[] => {
-  // This is a simplified version that works with existing components
-  // The main analytics are now handled by the useAgentMetrics composable
-  const sessionGroups = new Map<string, HookEvent[]>();
-  
-  // Process more events for display (increased from 100 to 1000)
-  const recentEvents = props.events.slice(-1000); // Last 1000 events
+  try {
+    // This is a simplified version that works with existing components
+    // The main analytics are now handled by the useAgentMetrics composable
+    const sessionGroups = new Map<string, HookEvent[]>();
 
-  // DEBUG: Log some information
-  console.log('AgentDashboard Debug:', {
-    totalEvents: props.events.length,
-    recentEvents: recentEvents.length,
-    sessionGroups: 0, // Will be updated below
-    firstEvent: props.events[0],
-    lastEvent: props.events[props.events.length - 1]
-  });
+    // Process more events for display (increased from 100 to 1000)
+    const recentEvents = props.events.slice(-1000); // Last 1000 events
+
+    // DEBUG: Log some information
+    console.log('AgentDashboard Debug:', {
+      totalEvents: props.events.length,
+      recentEvents: recentEvents.length,
+      sessionGroups: 0, // Will be updated below
+      firstEvent: props.events[0],
+      lastEvent: props.events[props.events.length - 1]
+    });
   
   // Group events by base session ID (UUID part only)
   recentEvents.forEach(event => {
@@ -477,19 +462,34 @@ const agentSessions = computed((): AgentSessionData[] => {
     }
   });
 
-  console.log('Final agent sessions count:', agentSessions.length);
-  console.log('=== AGENT CARDS FIX VERIFICATION ===');
-  console.log('Total events received:', props.events.length);
-  console.log('Session groups found:', sessionGroups.size);
-  console.log('Agent sessions detected:', agentSessions.length);
-  console.log('Agent names:', agentSessions.map(s => s.agentName));
-  console.log('=====================================');
+    console.log('Final agent sessions count:', agentSessions.length);
+    console.log('=== AGENT CARDS FIX VERIFICATION ===');
+    console.log('Total events received:', props.events.length);
+    console.log('Session groups found:', sessionGroups.size);
+    console.log('Agent sessions detected:', agentSessions.length);
+    console.log('Agent names:', agentSessions.map(s => s.agentName));
+    console.log('=====================================');
 
-  return agentSessions.sort((a, b) => b.startTime - a.startTime).slice(0, 12); // Limit to 12 recent sessions
+    return agentSessions.sort((a, b) => b.startTime - a.startTime).slice(0, 12); // Limit to 12 recent sessions
+  } catch (error) {
+    console.error('Error in agentSessions computed:', error);
+    return []; // Return empty array on error to prevent crash
+  }
 });
 
 // Helper functions
 function detectAgentSession(events: HookEvent[]): boolean {
+  // SIMPLIFIED: For now, treat ANY session with tool usage as an agent session
+  // This is temporary to debug why agent cards aren't showing
+  const hasToolUsage = events.some(event =>
+    event.hook_event_type === 'PreToolUse' || event.hook_event_type === 'PostToolUse'
+  );
+
+  if (hasToolUsage) {
+    console.log('✅ Session detected as agent (has tool usage):', events.length, 'events');
+    return true;
+  }
+
   // Enhanced agent detection - multiple detection strategies:
 
   // Strategy 1: Direct SubagentStop events (highest confidence)
@@ -609,7 +609,12 @@ function analyzeAgentSession(sessionId: string, events: HookEvent[]): AgentSessi
     const stopEvent = subagentStopEvents[0];
     if (stopEvent.payload.agent_name && typeof stopEvent.payload.agent_name === 'string' && stopEvent.payload.agent_name.trim().length > 0) {
       agentName = stopEvent.payload.agent_name;
-      agentType = classifyAgentType(agentName, events);
+      // Use agent_type from SubagentStop if available, otherwise classify
+      if (stopEvent.payload.agent_type && stopEvent.payload.agent_type !== 'generic') {
+        agentType = stopEvent.payload.agent_type;
+      } else {
+        agentType = classifyAgentType(agentName, events);
+      }
     }
   }
   
@@ -682,30 +687,28 @@ function analyzeAgentSession(sessionId: string, events: HookEvent[]): AgentSessi
   // Enhanced status determination
   let status: 'running' | 'completed' | 'failed' = 'completed'; // Default to completed for investigation sessions
 
-  // Check for errors in PostToolUse events
-  const hasError = events.some(event =>
-    event.hook_event_type === 'PostToolUse' && (
-      event.payload.tool_output?.error ||
-      event.payload.error ||
-      event.error
-    )
-  );
-
   // Check if session has SubagentStop (indicates completion)
   const hasCompletion = subagentStopEvents.length > 0;
 
-  // Better status logic for investigation sessions
+  // Better status logic prioritizing SubagentStop events
   const lastEventAge = Date.now() - (lastEvent.timestamp || 0);
   const isRecentSession = lastEventAge < 5 * 60 * 1000; // Less than 5 minutes old
-  
-  if (hasError) {
-    status = 'failed';
-  } else if (hasCompletion) {
-    status = 'completed';
+
+  if (hasCompletion) {
+    // Use SubagentStop event to determine success/failure
+    const stopEvent = subagentStopEvents[0];
+    const success = stopEvent.payload.success !== false && !stopEvent.payload.error_occurred;
+    status = success ? 'completed' : 'failed';
   } else if (isRecentSession) {
     status = 'running';
   } else {
-    status = 'completed'; // Older sessions are considered completed
+    // For older sessions without SubagentStop, check for critical errors
+    const hasCriticalError = events.some(event =>
+      event.hook_event_type === 'PostToolUse' &&
+      event.payload.tool_output?.error &&
+      events.length < 3 // Only mark as failed if very few events (likely crashed early)
+    );
+    status = hasCriticalError ? 'failed' : 'completed';
   }
   
   // Extract comprehensive tool usage
@@ -728,8 +731,8 @@ function analyzeAgentSession(sessionId: string, events: HookEvent[]): AgentSessi
   
   // Generate error message if needed
   let errorMessage: string | undefined;
-  if (hasError) {
-    const errorEvent = events.find(event => 
+  if (status === 'failed') {
+    const errorEvent = events.find(event =>
       event.hook_event_type === 'PostToolUse' && (
         event.payload.tool_output?.error || event.payload.error || event.error
       )

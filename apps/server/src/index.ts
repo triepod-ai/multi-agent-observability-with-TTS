@@ -72,23 +72,26 @@ setWebSocketClientsForRelationships(wsClients);
 async function processEventMetrics(event: HookEvent, savedEvent: any): Promise<void> {
   try {
     console.log(`🔄 Processing metrics for ${event.hook_event_type} event (session: ${event.session_id})`);
-    
-    // Record basic metric for all events to the unified service
-    await unifiedMetricsService.recordMetric(event);
-    console.log(`✅ Basic metrics recorded for ${event.hook_event_type}`);
-    
+
+    // Only record agent metrics for actual agent lifecycle events
+    // Regular tool usage events should NOT create agent metrics
+    if (event.hook_event_type === 'SubagentStart' || event.hook_event_type === 'SubagentStop') {
+      await unifiedMetricsService.recordMetric(event);
+      console.log(`✅ Agent metrics recorded for ${event.hook_event_type}`);
+    }
+
     // Handle specialized agent lifecycle events
     if (event.hook_event_type === 'SubagentStart' && event.payload) {
       await processSubagentStartEvent(event, savedEvent);
     } else if (event.hook_event_type === 'SubagentStop' && event.payload) {
       await processSubagentStopEvent(event, savedEvent);
     }
-    
+
     // Extract and record tool usage from any event that contains tools
     if (event.payload && event.payload.tools_used && Array.isArray(event.payload.tools_used)) {
       console.log(`🔧 Recording tool usage: ${event.payload.tools_used.join(', ')}`);
     }
-    
+
   } catch (error) {
     console.error(`❌ Error processing metrics for ${event.hook_event_type}:`, error);
     // Don't throw - metrics recording shouldn't break event processing
@@ -151,7 +154,7 @@ function extractToolsFromSession(sessionId: string): string[] {
     // Query for PreToolUse and PostToolUse events in this session
     const stmt = db.prepare(`
       SELECT DISTINCT json_extract(payload, '$.tool_name') as tool_name
-      FROM hook_events
+      FROM events
       WHERE session_id = ?
       AND hook_event_type IN ('PreToolUse', 'PostToolUse')
       AND json_extract(payload, '$.tool_name') IS NOT NULL

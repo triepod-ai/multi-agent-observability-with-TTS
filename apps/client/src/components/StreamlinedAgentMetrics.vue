@@ -86,22 +86,14 @@
     </div>
 
     <!-- Quick Stats Row -->
-    <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
       <div class="bg-gray-800/50 border border-gray-700 rounded p-3 text-center">
-        <div class="text-lg font-bold text-cyan-400">{{ metrics.activeAgents }}</div>
-        <div class="text-xs text-gray-400">Active Agents</div>
+        <div class="text-lg font-bold text-cyan-400">{{ metrics.recentSessions }}</div>
+        <div class="text-xs text-gray-400">Recent Sessions</div>
       </div>
       <div class="bg-gray-800/50 border border-gray-700 rounded p-3 text-center">
         <div class="text-lg font-bold text-red-400">{{ metrics.errorRate }}%</div>
         <div class="text-xs text-gray-400">Error Rate</div>
-      </div>
-      <div class="bg-gray-800/50 border border-gray-700 rounded p-3 text-center">
-        <div class="text-lg font-bold text-yellow-400">{{ formatNumber(metrics.totalTokens) }}</div>
-        <div class="text-xs text-gray-400">Total Tokens</div>
-      </div>
-      <div class="bg-gray-800/50 border border-gray-700 rounded p-3 text-center">
-        <div class="text-lg font-bold text-pink-400">{{ formatNumber(metrics.avgTokens) }}</div>
-        <div class="text-xs text-gray-400">Avg Tokens</div>
       </div>
       <div class="bg-gray-800/50 border border-gray-700 rounded p-3 text-center">
         <div class="text-lg font-bold text-orange-400">{{ metrics.toolsUsed }}</div>
@@ -199,7 +191,7 @@
               <div class="text-center">
                 <div class="text-2xl mb-1">🔄</div>
                 <div class="text-sm text-purple-400 font-medium">Active</div>
-                <div class="text-xs text-gray-400">{{ metrics.activeAgents }} agents running</div>
+                <div class="text-xs text-gray-400">{{ metrics.recentSessions }} recent sessions</div>
               </div>
             </div>
           </div>
@@ -228,10 +220,8 @@ const metrics = computed(() => ({
   totalExecutions: 1247,
   successRate: 94.2,
   avgResponseTime: 245,
-  activeAgents: 8,
+  recentSessions: 8,
   errorRate: 2.3,
-  totalTokens: 45678,
-  avgTokens: 1234,
   toolsUsed: 12
 }));
 

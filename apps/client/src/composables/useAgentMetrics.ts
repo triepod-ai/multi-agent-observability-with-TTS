@@ -40,8 +40,6 @@ export function useAgentMetrics(events: Ref<HookEvent[]>) {
     avgDuration: 0,
     agentTypes: 0,
     activeAgents: 0,
-    totalTokensUsed: 0,
-    avgTokensPerAgent: 0,
     toolsUsed: 0
   });
 
@@ -553,28 +551,20 @@ export function useAgentMetrics(events: Ref<HookEvent[]>) {
     // Agent type metrics
     const agentTypes = new Set(agentSessions.map(s => s.agentType)).size;
     const activeAgents = agentSessions.filter(s => s.status === 'running').length;
-    
-    // Token metrics
-    const totalTokensUsed = agentSessions.reduce((sum, s) => sum + (s.tokenUsage || 0), 0);
-    const sessionsWithTokens = agentSessions.filter(s => s.tokenUsage && s.tokenUsage > 0);
-    const avgTokensPerAgent = sessionsWithTokens.length > 0 ? 
-      Math.round(totalTokensUsed / sessionsWithTokens.length) : 0;
-    
+
     // Tool metrics
     const allTools = new Set<string>();
     agentSessions.forEach(session => {
       session.toolsUsed.forEach((tool: string) => allTools.add(tool));
     });
     const toolsUsed = allTools.size;
-    
+
     metrics.value = {
       totalExecutions,
       successRate,
       avgDuration,
       agentTypes,
       activeAgents,
-      totalTokensUsed,
-      avgTokensPerAgent,
       toolsUsed
     };
     
@@ -603,18 +593,15 @@ export function useAgentMetrics(events: Ref<HookEvent[]>) {
       const failures = intervalSessions.filter(s => s.status === 'failed').length;
       
       const sessionsWithDuration = intervalSessions.filter(s => s.duration > 0);
-      const avgDuration = sessionsWithDuration.length > 0 ? 
+      const avgDuration = sessionsWithDuration.length > 0 ?
         sessionsWithDuration.reduce((sum, s) => sum + s.duration, 0) / sessionsWithDuration.length : 0;
-      
-      const tokens = intervalSessions.reduce((sum, s) => sum + (s.tokenUsage || 0), 0);
-      
+
       timeline.push({
         timestamp: startTime,
         executions,
         successes,
         failures,
-        avgDuration: Math.round(avgDuration * 100) / 100,
-        tokens
+        avgDuration: Math.round(avgDuration * 100) / 100
       });
     }
     
@@ -629,24 +616,21 @@ export function useAgentMetrics(events: Ref<HookEvent[]>) {
       successes: number;
       totalDuration: number;
       durationsCount: number;
-      totalTokens: number;
     }>();
-    
+
     agentSessions.forEach(session => {
       const existing = typeMap.get(session.agentType) || {
         count: 0,
         successes: 0,
         totalDuration: 0,
-        durationsCount: 0,
-        totalTokens: 0
+        durationsCount: 0
       };
-      
+
       typeMap.set(session.agentType, {
         count: existing.count + 1,
         successes: existing.successes + (session.status === 'completed' ? 1 : 0),
         totalDuration: existing.totalDuration + (session.duration || 0),
-        durationsCount: existing.durationsCount + (session.duration > 0 ? 1 : 0),
-        totalTokens: existing.totalTokens + (session.tokenUsage || 0)
+        durationsCount: existing.durationsCount + (session.duration > 0 ? 1 : 0)
       });
     });
     
@@ -670,9 +654,8 @@ export function useAgentMetrics(events: Ref<HookEvent[]>) {
         displayName: type.charAt(0).toUpperCase() + type.slice(1),
         count: stats.count,
         successRate: stats.count > 0 ? Math.round((stats.successes / stats.count) * 100) : 0,
-        avgDuration: stats.durationsCount > 0 ? 
+        avgDuration: stats.durationsCount > 0 ?
           Math.round((stats.totalDuration / stats.durationsCount) * 100) / 100 : 0,
-        totalTokens: stats.totalTokens,
         icon: agentIcons[type] || '🤖'
       }))
       .sort((a, b) => b.count - a.count);
@@ -782,8 +765,6 @@ export function useAgentMetrics(events: Ref<HookEvent[]>) {
           avgDuration: Math.round((data.avg_duration_ms || 0) / 1000 * 100) / 100,
           agentTypes: 0, // Will be updated by fetchAgentTypeDistribution
           activeAgents: data.active_agents || 0,
-          totalTokensUsed: data.tokens_used_today || 0,
-          avgTokensPerAgent: data.executions_today > 0 ? Math.round(data.tokens_used_today / data.executions_today) : 0,
           toolsUsed: 0 // Will be updated by fetchToolUsage
         };
 
@@ -848,8 +829,7 @@ export function useAgentMetrics(events: Ref<HookEvent[]>) {
             executions: item.executions || 0,
             successes: Math.round(item.executions * (item.success_rate || 0)),
             failures: item.executions - Math.round(item.executions * (item.success_rate || 0)),
-            avgDuration: Math.round((item.avg_duration_ms || 0) / 1000 * 100) / 100,
-            tokens: 0
+            avgDuration: Math.round((item.avg_duration_ms || 0) / 1000 * 100) / 100
           }));
           
           timelineData.value = timelineDataResult;
@@ -921,7 +901,6 @@ export function useAgentMetrics(events: Ref<HookEvent[]>) {
             count: item.count,
             successRate: Math.round((item.success_rate || 0) * 100),
             avgDuration: Math.round((item.avg_duration_ms || 0) / 1000 * 100) / 100,
-            totalTokens: 0,
             icon: agentIcons[item.type] || '🤖'
           }));
           

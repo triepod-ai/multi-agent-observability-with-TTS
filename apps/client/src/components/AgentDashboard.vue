@@ -416,22 +416,6 @@ const metricsCardsData = computed(() => [
     format: 'number' as const
   },
   {
-    key: 'total-tokens',
-    title: 'Total Tokens',
-    value: agentMetrics.metrics.value.totalTokensUsed,
-    icon: '🔤',
-    color: 'indigo',
-    format: 'number' as const
-  },
-  {
-    key: 'avg-tokens',
-    title: 'Avg Tokens',
-    value: agentMetrics.metrics.value.avgTokensPerAgent,
-    icon: '💬',
-    color: 'pink',
-    format: 'number' as const
-  },
-  {
     key: 'tools-used',
     title: 'Tools Used',
     value: agentMetrics.metrics.value.toolsUsed,

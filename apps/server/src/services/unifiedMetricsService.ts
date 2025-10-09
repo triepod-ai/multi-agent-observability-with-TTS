@@ -12,16 +12,12 @@ export interface AgentMetrics {
   executions_today: number;
   success_rate: number;
   avg_duration_ms: number;
-  tokens_used_today: number;
-  estimated_cost_today: number;
   agent_type_breakdown: Array<{
     type: string;
     executions: number;
     success_rate: number;
     avg_duration_ms: number;
     unique_agents: number;
-    total_tokens: number;
-    estimated_cost: number;
   }>;
 }
 
@@ -29,8 +25,6 @@ export interface AgentTimeline {
   timeline: Array<{
     timestamp: string;
     executions: number;
-    tokens: number;
-    cost: number;
     avg_duration_ms: number;
     agent_types_count: number;
     dominant_agent_type: string;
@@ -178,8 +172,6 @@ export class UnifiedMetricsService {
         executions_today: 0,
         success_rate: 0,
         avg_duration_ms: 0,
-        tokens_used_today: 0,
-        estimated_cost_today: 0,
         agent_type_breakdown: []
       };
     }

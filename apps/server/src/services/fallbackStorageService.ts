@@ -777,16 +777,12 @@ class FallbackStorageService {
         executions_today: totals.total_executions,
         success_rate: totals.total_executions > 0 ? totals.success_count / totals.total_executions : 0,
         avg_duration_ms: totals.total_executions > 0 ? Math.round(totals.total_duration_ms / totals.total_executions) : 0,
-        tokens_used_today: totals.total_tokens,
-        estimated_cost_today: totals.total_cost,
         agent_type_breakdown: metrics.map(m => ({
           type: m.agent_type,
           executions: m.total_executions,
           success_rate: m.total_executions > 0 ? m.success_count / m.total_executions : 0,
           avg_duration_ms: Math.round(m.avg_duration_ms || 0),
-          unique_agents: m.unique_agents,
-          total_tokens: m.total_tokens,
-          estimated_cost: m.total_cost_centi_cents / 10000
+          unique_agents: m.unique_agents
         }))
       };
     } catch (error) {
@@ -796,8 +792,6 @@ class FallbackStorageService {
         executions_today: 0,
         success_rate: 0,
         avg_duration_ms: 0,
-        tokens_used_today: 0,
-        estimated_cost_today: 0,
         agent_type_breakdown: []
       };
     }

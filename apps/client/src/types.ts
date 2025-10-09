@@ -124,8 +124,6 @@ export interface AgentMetrics {
   avgDuration: number;
   agentTypes: number;
   activeAgents: number;
-  totalTokensUsed: number;
-  avgTokensPerAgent: number;
   toolsUsed: number;
 }
 
@@ -135,7 +133,6 @@ export interface AgentTimelineDataPoint {
   successes: number;
   failures: number;
   avgDuration: number;
-  tokens: number;
 }
 
 export interface AgentTypeDistribution {
@@ -144,7 +141,6 @@ export interface AgentTypeDistribution {
   count: number;
   successRate: number;
   avgDuration: number;
-  totalTokens: number;
   icon: string;
 }
 

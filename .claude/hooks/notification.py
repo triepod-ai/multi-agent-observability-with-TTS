@@ -408,7 +408,7 @@ def generate_smart_tts_message(info: Dict[str, Any], analysis: Dict[str, Any]) -
             ai_input += f" (Tool: {tool_name})"
         
         # Use smart processor directly (following integration guide patterns)
-        smart_processor_path = "/home/bryan/bin/speak-app/tts/smart_processor.py"
+        smart_processor_path = "/home/bryan/speak-app/tts/smart_processor.py"
         if not os.path.exists(smart_processor_path):
             return None
         

@@ -339,7 +339,7 @@ export NOTIFICATION_VOICE_DEFAULT=nova
 **95% Cost Reduction Setup**:
 ```bash
 # Automated setup (recommended)
-cd /home/bryan/bin/speak-app
+cd /home/bryan/speak-app
 ./set_openai_default.py
 
 # Manual setup in ~/.bash_aliases
@@ -411,7 +411,7 @@ speak-batch messages.txt --voice onyx
 speak-costs
 
 # Usage tracking and reporting
-python3 /home/bryan/bin/speak-app/tts/usage_tracker.py --report
+python3 /home/bryan/speak-app/tts/usage_tracker.py --report
 ```
 
 ### 4. Hook System Integration

@@ -8,7 +8,7 @@ set -euo pipefail
 
 # Configuration
 SOURCE_DIR="/home/bryan/multi-agent-observability-system"
-SPEAK_COMMAND="/home/bryan/bin/speak-app/speak"
+SPEAK_COMMAND="/home/bryan/bin/speak"
 # Generate unique temp suffix to prevent race conditions
 TEMP_SUFFIX="$(date +%s)_$$_$RANDOM"
 LOG_FILE="/tmp/hook-installer-${TEMP_SUFFIX}.log"

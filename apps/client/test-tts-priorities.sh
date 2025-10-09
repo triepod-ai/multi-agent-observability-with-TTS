@@ -44,7 +44,7 @@ notify_tts() {
     if command -v speak &> /dev/null; then
         speak "$PERSONALIZED_MESSAGE" &
     else
-        echo "⚠️  'speak' command not found - install from /home/bryan/bin/speak-app/"
+        echo "⚠️  'speak' command not found - install from /home/bryan/speak-app/"
     fi
 }
 
@@ -57,7 +57,7 @@ echo ""
 # Check if speak command is available
 if ! command -v speak &> /dev/null; then
     echo "⚠️  WARNING: 'speak' command not found"
-    echo "   Install from: /home/bryan/bin/speak-app/"
+    echo "   Install from: /home/bryan/speak-app/"
     echo "   Tests will show messages but no audio"
     echo ""
 fi

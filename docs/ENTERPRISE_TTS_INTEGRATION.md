@@ -283,8 +283,8 @@ Performance Metrics Collection
 - **Phase 3.4.2 Implementation**: .claude/hooks/utils/tts/PHASE_3_4_2_IMPLEMENTATION_COMPLETE.md
 - **Performance Optimization**: .claude/hooks/utils/tts/PHASE_3_4_2_HEAP_OPTIMIZATION_DOCUMENTATION.md
 - **Speak Command Integration**: /home/bryan/.claude/SPEAK_COMMAND_INSTRUCTIONS.md
-- **TTS Queue Coordination**: /home/bryan/bin/speak-app/docs/TTS_QUEUE_COORDINATION.md
-- **Queue Coordinator API**: /home/bryan/bin/speak-app/tts/queue_coordinator.py
+- **Speak App Documentation**: /home/bryan/speak-app/docs/
+- **TTS Providers**: /home/bryan/speak-app/tts/
 
 ---
 

@@ -144,7 +144,7 @@ def trigger_ai_tts(rich_context: dict) -> bool:
     """Trigger AI-powered TTS using speak-ai-summary with rich context."""
     try:
         # Path to speak-ai-summary script
-        speak_ai_summary_path = "/home/bryan/bin/speak-app/speak-ai-summary"
+        speak_ai_summary_path = "/home/bryan/bin/speak-ai-summary"
         
         if not Path(speak_ai_summary_path).exists():
             return False

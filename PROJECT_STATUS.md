@@ -4,6 +4,78 @@ This document tracks the complete project timeline, session exports, and detaile
 
 ## Recent Session Exports
 
+### Session Export - 20251009_092957
+- **Date**: Thu Oct 09 2025
+- **Git**: Branch: main | 12 modified/new files | Last: a0a5bb0 docs: Update agent naming conventions in technical documentation
+- **Description**: **SESSIONEND HOOK RESTORATION & CRITICAL BUG FIXES**: Restored SessionEnd hook functionality after data loss caused session start hooks to load stale Redis handoffs from September 2025. Root cause: SessionEnd hook was never configured in settings.json, so sessions ended without creating new handoffs or updating PROJECT_STATUS.md. Fixed by creating complete session_end.py (207 lines) implementing dual-write to Redis and local fallback storage with automatic PROJECT_STATUS.md updates. Tested end-to-end with successful handoff creation using current timestamp (2025-10-09). Fixed 4 critical bugs in install-hooks.sh: (1) NO_SPEAK_CHECK unbound variable causing syntax errors, (2) Integer expression error from grep output containing newlines, (3) Installation size bloat reduced from 27MB to 1.6MB (94% reduction) via comprehensive rsync exclusions for test files/docs/logs, (4) UV validator pattern too strict causing false "missing UV header" warnings for 2 hooks - fixed by allowing any flags between "uv run" and "--script" (10/12 → 12/12 hooks now validate). Reorganized global commands by moving enable-observability.sh and disable-observability.sh from bin/ to scripts/, creating symlinks in ~/bin/, and adding ~/bin to PATH in ~/.bashrc for global access. Fixed enable-observability.sh default port from 3002 to 4056. Successfully tested complete observability system end-to-end: started server on 4056, enabled observability for inspector project, verified TTS notifications, SessionEnd hook execution, event streaming, and Redis/fallback storage all working correctly.
+- **Files Created**:
+  - .claude/hooks/session_end.py - SessionEnd hook implementation (207 lines) with Redis dual-write and PROJECT_STATUS.md updates
+  - .claude/settings.base.json - Base tier template with SessionEnd hook for minimal installations
+  - .claude/settings.observability.json - Observability tier template with dual SessionEnd hooks (session_end.py + send_event_async.py)
+  - docs/SESSIONEND_HOOK_RESTORATION.md - Complete documentation of SessionEnd restoration (284 lines) with root cause analysis, solution details, verification tests
+  - docs/GLOBAL_COMMANDS_REFERENCE.md - Comprehensive guide for global commands (436 lines) covering install-hooks, enable-observability, disable-observability with usage examples and troubleshooting
+  - scripts/enable-observability.sh - Moved from bin/ with port fix (3002→4056)
+  - scripts/disable-observability.sh - Moved from bin/ (no code changes)
+  - ~/bin/install-hooks - Symlink to /home/bryan/multi-agent-observability-system/bin/install-hooks.sh
+  - ~/bin/enable-observability - Symlink to /home/bryan/multi-agent-observability-system/scripts/enable-observability.sh
+  - ~/bin/disable-observability - Symlink to /home/bryan/multi-agent-observability-system/scripts/disable-observability.sh
+- **Files Modified**:
+  - .claude/settings.json - Added SessionEnd hook configuration with uv run --with redis dependency
+  - bin/install-hooks.sh - Fixed 4 bugs: NO_SPEAK_CHECK initialization (line 76), integer expression sanitization (line 493), comprehensive rsync exclusions (lines 317-333), UV validator pattern (line 643)
+  - docs/TWO_TIER_HOOK_SYSTEM.md - Updated script locations (bin/→scripts/) for observability scripts
+  - ~/.bashrc - Added export PATH="$HOME/bin:$PATH" for global command access
+- **Bug Fixes**:
+  - **Bug 1 (Line 823)**: NO_SPEAK_CHECK unbound variable - Added missing initialization to variable declaration section
+  - **Bug 2 (Line 493)**: Integer expression error from "0\n0" - Added sanitization: `remaining_source_paths=${remaining_source_paths//[^0-9]/}`
+  - **Bug 3 (rsync)**: Installation size bloat (27MB) - Added exclusions for *test*.py, *_test.py, *.md, *.json, logs/, exports/, archive/ reducing to 1.6MB (94% reduction)
+  - **Bug 4 (Line 643)**: UV validator false warnings - Changed pattern from `grep -q "uv run --script"` to `grep -q "uv run.*--script"` to allow flags like --quiet
+- **Testing & Verification**:
+  - SessionEnd hook: Created new Redis handoff with current timestamp (2025-10-09), verified fallback storage, PROJECT_STATUS.md auto-update working
+  - install-hooks.sh: All syntax errors resolved, installation reduced to 1.6MB, 12/12 hooks validating correctly (was 10/12)
+  - Observability system: Server running on 4056, inspector project enabled, TTS notifications working, event streaming functional, Redis storage confirmed
+  - Global commands: All three commands accessible from any directory via ~/bin symlinks
+- **Architecture Impact**:
+  - Session continuity restored: SessionEnd hook now captures final state and stores to Redis, SessionStart loads current handoffs instead of stale September data
+  - Cleaner installations: 94% size reduction eliminates unnecessary test files, docs, and logs from hook deployments
+  - Improved global access: Scripts properly organized in scripts/ directory with convenient symlinks for system-wide usage
+  - Enhanced reliability: All 12 hooks validate correctly, proper error handling throughout
+
+### Session Export - 20251009_085039
+- **Date**: Thu Oct 09 2025
+- **Git**: Branch: main | 10 modified files | 5 recent commits
+- **Description**: Session ended - work tracked via observability system
+
+
+### Session Export - 20251009_083755
+- **Date**: Thu Oct 09 2025
+- **Git**: Branch: main | 9 modified files | 5 recent commits
+- **Description**: Session ended - work tracked via observability system
+
+
+### Session Export - 20251009_082000
+- **Date**: Wed Oct 09 2025
+- **Git**: Branch: main | 6 files modified | Last: a0a5bb0 docs: Update agent naming conventions in technical documentation
+- **Description**: **TWO-TIER HOOK SYSTEM**: Implemented clean separation of concerns between Claude Code hooks and observability enhancements. Created dual-tier architecture where Tier 1 (base) provides minimal standalone hooks with no external dependencies, and Tier 2 (observability) adds optional TTS, events, Redis, and dashboard features. Refactored install-hooks.sh to support both modes with --with-observability flag. Created enable-observability.sh and disable-observability.sh scripts for seamless upgrade/downgrade. Hooks now work standalone without observability server, addressing original design coupling issue. Each tier uses separate settings templates (settings.base.json and settings.observability.json) with proper project name and path substitution.
+- **Files Created**:
+  - .claude/settings.base.json - Minimal hook template (1.9KB) with local logging only
+  - .claude/settings.observability.json - Enhanced hook template (6.4KB) with event streaming, TTS, Redis
+  - bin/enable-observability.sh - Upgrade script with server validation and automatic backup (6.5KB)
+  - bin/disable-observability.sh - Downgrade script reverting to minimal base (5.9KB)
+  - docs/TWO_TIER_HOOK_SYSTEM.md - Complete documentation with workflows and examples (9.8KB)
+- **Files Modified**:
+  - bin/install-hooks.sh - Added --with-observability flag, removed observability-specific validation, template-based configuration
+- **Architecture Changes**:
+  - **Tier 1 (Base)**: PreToolUse, PostToolUse, Notification, Stop, UserPromptSubmit - local logs only, no pipes to send_event_async.py
+  - **Tier 2 (Observability)**: All Tier 1 + SessionStart (3 matchers), SubagentStop, PreCompact, SessionEnd - full event streaming, TTS, Redis handoffs
+  - **Hook Files**: No code changes needed - hooks already have graceful degradation with OBSERVABILITY_AVAILABLE checks
+- **Installation Workflows**:
+  - Default: `install-hooks /project` → Minimal standalone hooks
+  - Enhanced: `install-hooks --with-observability /project` → Full observability from start
+  - Upgrade: `enable-observability /project` → Add enhancements to existing installation
+  - Downgrade: `disable-observability /project` → Remove enhancements, keep core hooks
+- **Benefits**: ✅ Hooks work without observability server ✅ Clear separation of concerns ✅ Easy switching with backups ✅ No breaking changes ✅ Resource efficient (enable only when needed)
+- **Impact**: Resolved original design issue where install-hooks coupled generic Claude Code functionality with observability-specific features. System now follows separation of concerns with base hooks working standalone while observability enhancements remain optional and toggleable.
+
 ### Session Export - 20251006_145000
 - **Date**: Mon Oct 06 2025
 - **Git**: Branch: main | 40 files modified | Last: d2c22e0 feat: Add correlation_id to HookEvent and database schema for enhanced event tracking

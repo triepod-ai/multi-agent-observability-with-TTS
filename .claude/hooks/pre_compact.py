@@ -40,6 +40,10 @@ from pathlib import Path
 import tempfile
 import re
 
+# Ensure logs directory exists
+log_dir = os.path.expanduser('~/.claude/logs')
+os.makedirs(log_dir, exist_ok=True)
+
 # Configure logging
 logging.basicConfig(
     level=logging.DEBUG,

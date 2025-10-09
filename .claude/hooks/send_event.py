@@ -47,11 +47,95 @@ def extract_project_name_from_cwd(cwd: str) -> str:
     return project_name
 
 
+def extract_tool_name(input_data: dict, event_type: str) -> str:
+    """
+    Extract tool name from input data with multiple fallback strategies.
+
+    Args:
+        input_data: The hook input data
+        event_type: The event type being processed
+
+    Returns:
+        str: The tool name (never returns 'Unknown' unless truly unavailable)
+    """
+    # Strategy 1: Direct tool_name field
+    if 'tool_name' in input_data and input_data['tool_name'] and input_data['tool_name'] != 'Unknown':
+        return input_data['tool_name']
+
+    # Strategy 2: Check tool field (alternative naming)
+    if 'tool' in input_data and input_data['tool']:
+        return input_data['tool']
+
+    # Strategy 3: Infer from tool_input structure
+    tool_input = input_data.get('tool_input', {})
+    if isinstance(tool_input, dict):
+        # Read operations
+        if 'file_path' in tool_input and 'offset' in tool_input:
+            return 'Read'
+        # Write operations
+        elif 'file_path' in tool_input and 'content' in tool_input:
+            return 'Write'
+        # Edit operations
+        elif 'file_path' in tool_input and 'old_string' in tool_input:
+            return 'Edit'
+        # Bash commands
+        elif 'command' in tool_input and 'description' in tool_input:
+            return 'Bash'
+        # Search operations
+        elif 'pattern' in tool_input and 'glob' in tool_input:
+            return 'Grep'
+        elif 'pattern' in tool_input and 'path' not in tool_input:
+            return 'Glob'
+        # Task delegation
+        elif 'subagent_type' in tool_input or 'description' in tool_input and 'prompt' in tool_input:
+            return 'Task'
+        # Web operations
+        elif 'url' in tool_input and 'prompt' in tool_input:
+            return 'WebFetch'
+        elif 'query' in tool_input and 'allowed_domains' in tool_input:
+            return 'WebSearch'
+
+    # Strategy 4: Infer from event_type
+    event_type_mapping = {
+        'SessionStart': 'SessionStart',
+        'Stop': 'SessionEnd',
+        'SubagentStop': 'SubagentComplete',
+        'PreToolUse': 'ToolExecution',
+        'PostToolUse': 'ToolComplete',
+    }
+    if event_type in event_type_mapping:
+        return event_type_mapping[event_type]
+
+    # Strategy 5: Check payload for tool information
+    payload = input_data.get('payload', {})
+    if isinstance(payload, dict):
+        if 'tool_name' in payload and payload['tool_name']:
+            return payload['tool_name']
+        if 'tool' in payload and payload['tool']:
+            return payload['tool']
+
+    # Strategy 6: Check for specific hook types
+    if 'hook_event_name' in input_data:
+        hook_name = input_data['hook_event_name']
+        if hook_name in ['user_prompt_submit', 'notification']:
+            return hook_name.replace('_', ' ').title()
+
+    # Strategy 7: Infer from presence of specific fields
+    if 'prompt' in input_data and 'session_id' in input_data:
+        return 'UserPrompt'
+
+    if 'message' in input_data and 'priority' in input_data:
+        return 'Notification'
+
+    # Last resort: return 'unknown' (lowercase to signal it's truly unknown)
+    return 'unknown'
+
+
 def create_rich_context_for_tts(input_data: dict, event_type: str) -> dict:
     """Create rich context for speak-ai-summary from hook input data."""
     try:
-        # Extract core information
-        tool_name = input_data.get('tool_name', 'Unknown')
+        # Extract core information with improved tool name detection
+        tool_name = extract_tool_name(input_data, event_type)
         cwd = input_data.get('cwd', '')
         project_name = extract_project_name_from_cwd(cwd)
         
@@ -132,11 +216,13 @@ def create_rich_context_for_tts(input_data: dict, event_type: str) -> dict:
         return rich_context
         
     except Exception as e:
-        # If rich context creation fails, return minimal context
+        # If rich context creation fails, return minimal context with best-effort tool extraction
+        tool_name = extract_tool_name(input_data, event_type)
+        project_name = extract_project_name_from_cwd(input_data.get('cwd', ''))
         return {
-            "tool_name": input_data.get('tool_name', 'Unknown'),
-            "summary": f"Operation completed in {extract_project_name_from_cwd(input_data.get('cwd', ''))}",
-            "project_context": {"name": extract_project_name_from_cwd(input_data.get('cwd', ''))}
+            "tool_name": tool_name,
+            "summary": f"{tool_name} completed in {project_name}" if tool_name != 'unknown' else f"Operation completed in {project_name}",
+            "project_context": {"name": project_name}
         }
 
 

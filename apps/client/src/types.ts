@@ -121,10 +121,8 @@ export interface ChartConfig {
 export interface AgentMetrics {
   totalExecutions: number;
   successRate: number;
-  avgDuration: number;
   agentTypes: number;
   activeAgents: number;
-  toolsUsed: number;
 }
 
 export interface AgentTimelineDataPoint {

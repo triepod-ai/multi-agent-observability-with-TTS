@@ -37,10 +37,8 @@ export function useAgentMetrics(events: Ref<HookEvent[]>) {
   const metrics = ref<AgentMetrics>({
     totalExecutions: 0,
     successRate: 0,
-    avgDuration: 0,
     agentTypes: 0,
-    activeAgents: 0,
-    toolsUsed: 0
+    activeAgents: 0
   });
 
   const timelineData = ref<AgentTimelineDataPoint[]>([]);
@@ -545,33 +543,18 @@ export function useAgentMetrics(events: Ref<HookEvent[]>) {
     // Basic metrics
     const totalExecutions = agentSessions.length;
     const completedSessions = agentSessions.filter(s => s.status === 'completed');
-    const successRate = totalExecutions > 0 ? 
+    const successRate = totalExecutions > 0 ?
       Math.round((completedSessions.length / totalExecutions) * 100) : 0;
-    
-    // Duration metrics
-    const sessionsWithDuration = agentSessions.filter(s => s.duration > 0);
-    const avgDuration = sessionsWithDuration.length > 0 ? 
-      Math.round((sessionsWithDuration.reduce((sum, s) => sum + s.duration, 0) / 
-                 sessionsWithDuration.length) * 100) / 100 : 0;
-    
+
     // Agent type metrics
     const agentTypes = new Set(agentSessions.map(s => s.agentType)).size;
     const activeAgents = agentSessions.filter(s => s.status === 'running').length;
 
-    // Tool metrics
-    const allTools = new Set<string>();
-    agentSessions.forEach(session => {
-      session.toolsUsed.forEach((tool: string) => allTools.add(tool));
-    });
-    const toolsUsed = allTools.size;
-
     metrics.value = {
       totalExecutions,
       successRate,
-      avgDuration,
       agentTypes,
-      activeAgents,
-      toolsUsed
+      activeAgents
     };
     
     return agentSessions;
@@ -769,10 +752,8 @@ export function useAgentMetrics(events: Ref<HookEvent[]>) {
         const metricsData: AgentMetrics = {
           totalExecutions: data.executions_today || 0,
           successRate: Math.round((data.success_rate || 0) * 100),
-          avgDuration: Math.round((data.avg_duration_ms || 0) / 1000 * 100) / 100,
           agentTypes: 0, // Will be updated by fetchAgentTypeDistribution
-          activeAgents: data.active_agents || 0,
-          toolsUsed: 0 // Will be updated by fetchToolUsage
+          activeAgents: data.active_agents || 0
         };
 
         console.log('[fetchCurrentMetrics] Mapped metrics:', metricsData);
@@ -927,9 +908,8 @@ export function useAgentMetrics(events: Ref<HookEvent[]>) {
             avgDuration: 0,
             icon: toolIcons[item.name] || '🔧'
           }));
-          
+
           toolUsage.value = toolData;
-          metrics.value.toolsUsed = toolData.length;
           setCache(cacheKey, toolData);
         }
       }, 'fetch tool usage');
@@ -938,7 +918,6 @@ export function useAgentMetrics(events: Ref<HookEvent[]>) {
       const staleData = getStaleCache<ToolUsageData[]>(cacheKey);
       if (staleData) {
         toolUsage.value = staleData;
-        metrics.value.toolsUsed = staleData.length;
         isDegradedMode.value = true;
       } else {
         // Final fallback to local analysis

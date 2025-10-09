@@ -6,10 +6,12 @@
         "hooks": [
           {
             "type": "command",
+            "comment": "Safety hook - blocks dangerous operations",
             "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/pre_tool_use_safety.py"
           },
           {
             "type": "command",
+            "comment": "Pre-tool tracking with observability events",
             "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/pre_tool_use_with_correlation.py | uv run /home/bryan/multi-agent-observability-system/.claude/hooks/send_event_async.py --source-app multi-agent-observability-system --event-type PreToolUse --summarize"
           }
         ]
@@ -21,6 +23,7 @@
         "hooks": [
           {
             "type": "command",
+            "comment": "Post-tool tracking with observability events",
             "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/post_tool_use_with_correlation.py | uv run /home/bryan/multi-agent-observability-system/.claude/hooks/send_event_async.py --source-app multi-agent-observability-system --event-type PostToolUse --summarize"
           }
         ]
@@ -32,6 +35,7 @@
         "hooks": [
           {
             "type": "command",
+            "comment": "Notification tracking with observability events",
             "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/send_event_async.py --source-app multi-agent-observability-system --event-type Notification --summarize"
           }
         ]
@@ -43,10 +47,12 @@
         "hooks": [
           {
             "type": "command",
+            "comment": "Session stop with local logging",
             "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/stop.py --chat"
           },
           {
             "type": "command",
+            "comment": "Session stop with observability events",
             "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/send_event_async.py --source-app multi-agent-observability-system --event-type Stop --summarize"
           }
         ]
@@ -58,10 +64,12 @@
         "hooks": [
           {
             "type": "command",
+            "comment": "Subagent stop tracking with observability",
             "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/subagent_stop.py"
           },
           {
             "type": "command",
+            "comment": "Subagent stop with observability events",
             "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/send_event_async.py --source-app multi-agent-observability-system --event-type SubagentStop --summarize"
           }
         ]
@@ -73,10 +81,12 @@
         "hooks": [
           {
             "type": "command",
+            "comment": "Pre-compact hook with observability",
             "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/pre_compact.py"
           },
           {
             "type": "command",
+            "comment": "Pre-compact with observability events",
             "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/send_event_async.py --source-app multi-agent-observability-system --event-type PreCompact --summarize"
           }
         ]
@@ -87,10 +97,12 @@
         "hooks": [
           {
             "type": "command",
+            "comment": "User prompt tracking (local logs)",
             "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/user_prompt_submit.py --log-only"
           },
           {
             "type": "command",
+            "comment": "User prompt with observability events",
             "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/send_event_async.py --source-app multi-agent-observability-system --event-type UserPromptSubmit --summarize"
           }
         ]
@@ -102,14 +114,17 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run --with redis /home/bryan/multi-agent-observability-system/.claude/hooks/session_context_loader.py"
-          },
-          {
-            "type": "command", 
-            "command": "uv run --with openai,pyttsx3 /home/bryan/multi-agent-observability-system/.claude/hooks/session_startup_notifier.py"
+            "comment": "Load session context from Redis/fallback",
+            "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/session_context_loader.py"
           },
           {
             "type": "command",
+            "comment": "TTS notification for new sessions",
+            "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/session_startup_notifier.py"
+          },
+          {
+            "type": "command",
+            "comment": "Track session start event",
             "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/session_event_tracker.py"
           }
         ]
@@ -119,14 +134,17 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run --with redis /home/bryan/multi-agent-observability-system/.claude/hooks/session_context_loader.py"
+            "comment": "Load session context from Redis/fallback",
+            "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/session_context_loader.py"
           },
           {
             "type": "command",
-            "command": "uv run --with openai,pyttsx3 /home/bryan/multi-agent-observability-system/.claude/hooks/session_resume_detector.py"
+            "comment": "TTS notification for resumed sessions",
+            "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/session_resume_detector.py"
           },
           {
             "type": "command",
+            "comment": "Track session resume event",
             "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/session_event_tracker.py"
           }
         ]
@@ -136,6 +154,7 @@
         "hooks": [
           {
             "type": "command",
+            "comment": "Track session clear event",
             "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/session_event_tracker.py"
           }
         ]
@@ -147,7 +166,13 @@
         "hooks": [
           {
             "type": "command",
+            "comment": "Session end handler (updates PROJECT_STATUS.md and Redis)",
             "command": "uv run --with redis /home/bryan/multi-agent-observability-system/.claude/hooks/session_end.py"
+          },
+          {
+            "type": "command",
+            "comment": "Session end with observability events",
+            "command": "uv run /home/bryan/multi-agent-observability-system/.claude/hooks/send_event_async.py --source-app multi-agent-observability-system --event-type SessionEnd --summarize"
           }
         ]
       }

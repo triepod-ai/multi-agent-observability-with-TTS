@@ -45,20 +45,21 @@ USAGE:
     install-hooks [OPTIONS] <target-project-path>
 
 OPTIONS:
-    --help              Show this help message
-    --force             Force installation, overwrite existing hooks
-    --no-speak-check    Skip speak command validation
-    --dry-run           Show what would be installed without making changes
-    --verbose           Show detailed installation progress
+    --help                  Show this help message
+    --force                 Force installation, overwrite existing hooks
+    --with-observability    Install with observability enhancements (TTS, events, Redis)
+    --dry-run               Show what would be installed without making changes
+    --verbose               Show detailed installation progress
 
 EXAMPLES:
     install-hooks /path/to/my-project
+    install-hooks --with-observability /path/to/my-project
     install-hooks --force --verbose /path/to/existing/project
     install-hooks --dry-run /path/to/test/project
 
 FEATURES:
-    ✅ Speak command validation and integration
-    ✅ Environment configuration setup
+    ✅ Minimal Claude Code hook installation (default)
+    ✅ Optional observability enhancements (--with-observability)
     ✅ Conflict detection and resolution
     ✅ Automatic conversion to absolute paths (prevents cd issues)
     ✅ Backup of existing configurations
@@ -69,9 +70,10 @@ EOF
 
 # Parse command line arguments
 FORCE=false
-NO_SPEAK_CHECK=false
 DRY_RUN=false
 VERBOSE=false
+WITH_OBSERVABILITY=false
+NO_SPEAK_CHECK=false
 TARGET_PROJECT=""
 
 while [[ $# -gt 0 ]]; do
@@ -84,8 +86,8 @@ while [[ $# -gt 0 ]]; do
             FORCE=true
             shift
             ;;
-        --no-speak-check)
-            NO_SPEAK_CHECK=true
+        --with-observability)
+            WITH_OBSERVABILITY=true
             shift
             ;;
         --dry-run)
@@ -293,44 +295,97 @@ create_backup() {
 install_hooks() {
     echo -e "${BLUE}🔧 Step 4: Installing hooks...${NC}"
     log_message "Installing observability hooks"
-    
+
     if [ "$DRY_RUN" = true ]; then
         echo -e "${BLUE}📋 DRY RUN - Would install:${NC}"
         echo "  - Copy hooks from: $SOURCE_DIR/.claude/hooks"
         echo "  - Update source-app references to: $PROJECT_NAME"
         echo "  - Configure settings.json for project"
+        echo "  - Exclude: .venv, __pycache__, test files, backups"
         echo -e "${BLUE}💡 Use without --dry-run to perform actual installation${NC}"
         return 0
     fi
-    
-    # Copy hooks directory
-    [ "$VERBOSE" = true ] && echo "  Copying hooks directory..."
-    cp -r "$SOURCE_DIR/.claude/hooks" "$TARGET_PROJECT/.claude/"
-    
+
+    # Create hooks directory
+    mkdir -p "$TARGET_PROJECT/.claude/hooks"
+
+    # Copy hooks selectively (exclude .venv, __pycache__, tests, backups)
+    [ "$VERBOSE" = true ] && echo "  Copying hooks directory (excluding .venv, cache, tests)..."
+
+    # Check if rsync is available
+    if command -v rsync >/dev/null 2>&1; then
+        rsync -av \
+            --exclude='.venv' \
+            --exclude='__pycache__' \
+            --exclude='*.pyc' \
+            --exclude='test_*.py' \
+            --exclude='*test*.py' \
+            --exclude='*_test.py' \
+            --exclude='*_backup.py' \
+            --exclude='*.bak' \
+            --exclude='*.backup' \
+            --exclude='*.md' \
+            --exclude='*.json' \
+            --exclude='logs/' \
+            --exclude='exports/' \
+            --exclude='archive/' \
+            --exclude='uv.lock' \
+            "$SOURCE_DIR/.claude/hooks/" \
+            "$TARGET_PROJECT/.claude/hooks/"
+    else
+        # Fallback to cp with manual cleanup
+        [ "$VERBOSE" = true ] && echo "  rsync not found, using cp with cleanup..."
+        cp -r "$SOURCE_DIR/.claude/hooks" "$TARGET_PROJECT/.claude/"
+        # Clean up unwanted files
+        rm -rf "$TARGET_PROJECT/.claude/hooks/.venv"
+        rm -rf "$TARGET_PROJECT/.claude/hooks/logs"
+        rm -rf "$TARGET_PROJECT/.claude/hooks/exports"
+        rm -rf "$TARGET_PROJECT/.claude/hooks/archive"
+        find "$TARGET_PROJECT/.claude/hooks" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+        find "$TARGET_PROJECT/.claude/hooks" -name "*.pyc" -delete 2>/dev/null || true
+        find "$TARGET_PROJECT/.claude/hooks" -name "test_*.py" -delete 2>/dev/null || true
+        find "$TARGET_PROJECT/.claude/hooks" -name "*test*.py" -delete 2>/dev/null || true
+        find "$TARGET_PROJECT/.claude/hooks" -name "*_test.py" -delete 2>/dev/null || true
+        find "$TARGET_PROJECT/.claude/hooks" -name "*_backup.py" -delete 2>/dev/null || true
+        find "$TARGET_PROJECT/.claude/hooks" -name "*.backup" -delete 2>/dev/null || true
+        find "$TARGET_PROJECT/.claude/hooks" -name "*.md" -delete 2>/dev/null || true
+        find "$TARGET_PROJECT/.claude/hooks" -name "*.json" -delete 2>/dev/null || true
+        find "$TARGET_PROJECT/.claude/hooks" -name "uv.lock" -delete 2>/dev/null || true
+    fi
+
     # Update source-app references in hook files
     [ "$VERBOSE" = true ] && echo "  Updating source-app references..."
     find "$TARGET_PROJECT/.claude/hooks" -name "*.py" -type f -exec \
         sed -i "s/--source-app multi-agent-observability-system/--source-app $PROJECT_NAME/g" {} \;
-    
+
     # Update project references in observability.py
     if [ -f "$TARGET_PROJECT/.claude/hooks/utils/tts/observability.py" ]; then
         sed -i "s/\"project\": \"multi-agent-observability-system\"/\"project\": \"$PROJECT_NAME\"/g" \
             "$TARGET_PROJECT/.claude/hooks/utils/tts/observability.py"
     fi
-    
-    echo -e "${GREEN}  ✅ Hooks installed and configured${NC}"
+
+    echo -e "${GREEN}  ✅ Hooks installed and configured (excluded .venv, tests, logs, and docs)${NC}"
 }
 
 # Step 5: Configure settings.json with intelligent merging
 configure_settings() {
     echo -e "${BLUE}🔧 Step 5: Configuring settings.json...${NC}"
     log_message "Configuring project settings"
-    
+
     local target_settings="$TARGET_PROJECT/.claude/settings.json"
-    local source_settings="$SOURCE_DIR/.claude/settings.json"
-    
+
+    # Choose template based on observability flag
+    local source_settings
+    if [ "$WITH_OBSERVABILITY" = true ]; then
+        source_settings="$SOURCE_DIR/.claude/settings.observability.json"
+        echo -e "${GREEN}  Using observability-enhanced settings template${NC}"
+    else
+        source_settings="$SOURCE_DIR/.claude/settings.base.json"
+        echo -e "${GREEN}  Using minimal base settings template${NC}"
+    fi
+
     if [ "$DRY_RUN" = true ]; then
-        echo -e "${BLUE}📋 DRY RUN - Would configure settings.json${NC}"
+        echo -e "${BLUE}📋 DRY RUN - Would configure settings.json from $(basename "$source_settings")${NC}"
         return 0
     fi
     
@@ -454,6 +509,7 @@ update_hook_paths() {
     
     # Verify no source paths remain
     local remaining_source_paths=$(grep -c "$SOURCE_DIR/.claude/hooks" "$target_settings" 2>/dev/null || echo "0")
+    remaining_source_paths=${remaining_source_paths//[^0-9]/}  # Strip non-numeric chars
     if [ "$remaining_source_paths" -gt 0 ]; then
         echo -e "${RED}  ❌ Warning: $remaining_source_paths source paths still remain in settings.json${NC}"
         log_message "Warning: $remaining_source_paths source paths still remain"
@@ -551,39 +607,60 @@ EOF
 validate_uv_architecture() {
     echo -e "${BLUE}🧪 Step 5.6: Validating UV single-file architecture...${NC}"
     log_message "Validating UV single-file architecture"
-    
+
     if [ "$DRY_RUN" = true ]; then
         echo -e "${BLUE}📋 DRY RUN - Would validate UV single-file architecture${NC}"
         return 0
     fi
-    
+
     local hooks_dir="$TARGET_PROJECT/.claude/hooks"
     local valid_hooks=0
     local total_hooks=0
-    
-    # Check that hooks have UV single-file headers
+
+    # Define actual hook files that should have UV headers
+    local required_hooks=(
+        "notification.py"
+        "pre_tool_use.py"
+        "pre_tool_use_safety.py"
+        "post_tool_use.py"
+        "session_context_loader.py"
+        "session_event_tracker.py"
+        "session_resume_detector.py"
+        "session_startup_notifier.py"
+        "subagent_stop.py"
+        "stop.py"
+        "user_prompt_submit.py"
+        "send_event.py"
+    )
+
     [ "$VERBOSE" = true ] && echo "  Checking UV single-file headers..."
-    
-    for hook_file in "$hooks_dir"/*.py; do
+
+    for hook_name in "${required_hooks[@]}"; do
+        local hook_file="$hooks_dir/$hook_name"
         if [ -f "$hook_file" ]; then
             total_hooks=$((total_hooks + 1))
-            # Check if file has UV script header
-            if head -n 5 "$hook_file" | grep -q "uv run --script"; then
+            # Check if file has UV script header (allows flags like --quiet)
+            if head -n 5 "$hook_file" | grep -q "uv run.*--script"; then
                 valid_hooks=$((valid_hooks + 1))
-                [ "$VERBOSE" = true ] && echo -e "${GREEN}    ✅ $(basename "$hook_file")${NC}"
+                echo -e "${GREEN}    ✅ $hook_name${NC}"
             else
-                echo -e "${YELLOW}    ⚠️  $(basename "$hook_file") missing UV header${NC}"
+                echo -e "${YELLOW}    ⚠️  $hook_name missing UV header${NC}"
             fi
+        else
+            [ "$VERBOSE" = true ] && echo -e "${BLUE}    ℹ️  $hook_name not found (optional)${NC}"
         fi
     done
-    
-    echo -e "${GREEN}  ✅ $valid_hooks/$total_hooks hooks have UV single-file architecture${NC}"
+
+    echo -e "${GREEN}  ✅ $valid_hooks/$total_hooks required hooks have UV single-file architecture${NC}"
     log_message "UV validation: $valid_hooks/$total_hooks hooks valid"
-    
+
     if [ "$valid_hooks" -eq "$total_hooks" ]; then
-        echo -e "${GREEN}  ✅ All hooks are UV single-file compatible${NC}"
+        echo -e "${GREEN}  ✅ All required hooks are UV single-file compatible${NC}"
+    elif [ "$valid_hooks" -gt 0 ]; then
+        echo -e "${YELLOW}  ⚠️  $((total_hooks - valid_hooks)) hooks need UV headers${NC}"
     else
-        echo -e "${YELLOW}  ⚠️  Some hooks may need manual conversion${NC}"
+        echo -e "${RED}  ❌ No hooks have UV headers - installation may not work${NC}"
+        return 1
     fi
 }
 
@@ -781,18 +858,21 @@ validate_installation() {
 
 # Execute installation steps
 main() {
-    echo -e "${BLUE}📦 Multi-Agent Observability Hooks Installation${NC}"
-    echo -e "${BLUE}================================================${NC}"
-    
-    validate_speak_command || true  # Continue even if speak validation fails
+    echo -e "${BLUE}📦 Claude Code Hooks Installation${NC}"
+    echo -e "${BLUE}===================================${NC}"
+
+    if [ "$WITH_OBSERVABILITY" = true ]; then
+        echo -e "${YELLOW}Installing with observability enhancements...${NC}"
+    else
+        echo -e "${GREEN}Installing minimal hooks (use --with-observability for enhancements)${NC}"
+    fi
+
     detect_conflicts
     install_hooks
     configure_settings
-    update_hook_paths  # New: Update paths from source to target
+    update_hook_paths
     convert_paths_to_absolute
-    validate_uv_architecture  # New: Validate UV single-file architecture
-    validate_dependencies || true  # New: Validate but continue if fails
-    setup_environment
+    validate_uv_architecture
     validate_installation
     
     # Success summary
@@ -803,17 +883,29 @@ main() {
     echo -e "${GREEN}   ✅ Location: $TARGET_PROJECT/.claude/${NC}"
     echo -e "${GREEN}   ✅ Architecture: UV single-file (self-contained dependencies)${NC}"
     echo -e "${GREEN}   ✅ Paths: converted to absolute (directory-independent)${NC}"
-    echo -e "${GREEN}   ✅ Speak integration: $([ "$NO_SPEAK_CHECK" = false ] && echo "validated" || echo "skipped")${NC}"
-    echo -e "${GREEN}   ✅ Environment: configured${NC}"
-    echo ""
-    echo -e "${BLUE}💡 Next steps:${NC}"
-    echo -e "${BLUE}   1. Customize $TARGET_PROJECT/.env as needed${NC}"
-    echo -e "${BLUE}   2. Test hooks: Run Claude Code in the project directory${NC}"
-    echo -e "${BLUE}   3. Check log file: $LOG_FILE${NC}"
+
+    if [ "$WITH_OBSERVABILITY" = true ]; then
+        echo -e "${GREEN}   ✅ Mode: Observability-enhanced (TTS + events + Redis)${NC}"
+        echo ""
+        echo -e "${BLUE}💡 Next steps:${NC}"
+        echo -e "${BLUE}   1. Start observability server: $SOURCE_DIR/scripts/start-system.sh${NC}"
+        echo -e "${BLUE}   2. Test hooks with observability dashboard at http://localhost:3002${NC}"
+        echo -e "${BLUE}   3. Check log file: $LOG_FILE${NC}"
+    else
+        echo -e "${GREEN}   ✅ Mode: Minimal (standalone, no external dependencies)${NC}"
+        echo ""
+        echo -e "${BLUE}💡 Next steps:${NC}"
+        echo -e "${BLUE}   1. Test hooks: Run Claude Code in the project directory${NC}"
+        echo -e "${BLUE}   2. Enable observability: Run enable-observability $TARGET_PROJECT${NC}"
+        echo -e "${BLUE}   3. Check log file: $LOG_FILE${NC}"
+    fi
+
     echo ""
     echo -e "${BLUE}📚 Documentation:${NC}"
-    echo -e "${BLUE}   Hook Migration Guide: $SOURCE_DIR/docs/HOOK_MIGRATION_GUIDE.md${NC}"
-    echo -e "${BLUE}   Enterprise TTS Guide: $SOURCE_DIR/docs/ENTERPRISE_TTS_INTEGRATION.md${NC}"
+    echo -e "${BLUE}   Hook System: $SOURCE_DIR/docs/HOOKS_DOCUMENTATION.md${NC}"
+    if [ "$WITH_OBSERVABILITY" = true ]; then
+        echo -e "${BLUE}   Observability: $SOURCE_DIR/docs/UI_ENHANCEMENTS_GUIDE.md${NC}"
+    fi
     
     log_message "Installation completed successfully for project: $PROJECT_NAME"
 }

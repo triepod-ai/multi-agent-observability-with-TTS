@@ -26,7 +26,6 @@
                   </span>
                 </div>
                 <div class="text-xs text-gray-400 mt-1 flex items-center space-x-4">
-                  <span>{{ agentType.successRate }}% success</span>
                   <span v-if="agentType.avgDuration > 0">{{ agentType.avgDuration }}s avg</span>
                   <span v-if="agentType.totalTokens > 0">{{ formatTokens(agentType.totalTokens) }} tokens</span>
                 </div>
@@ -39,26 +38,14 @@
               <div class="flex items-center space-x-2">
                 <span class="text-xs text-gray-400 w-12 text-right">Usage</span>
                 <div class="w-20 h-2 bg-gray-700 rounded-full overflow-hidden">
-                  <div 
+                  <div
                     class="h-full bg-gradient-to-r from-purple-500 to-purple-400 rounded-full transition-all duration-500 group-hover:from-purple-400 group-hover:to-purple-300"
                     :style="{ width: `${(agentType.count / maxCount) * 100}%` }"
                   ></div>
                 </div>
                 <span class="text-xs text-white font-medium w-8">{{ agentType.count }}</span>
               </div>
-              
-              <!-- Success rate bar -->
-              <div class="flex items-center space-x-2">
-                <span class="text-xs text-gray-400 w-12 text-right">Success</span>
-                <div class="w-20 h-2 bg-gray-700 rounded-full overflow-hidden">
-                  <div 
-                    class="h-full bg-gradient-to-r from-green-500 to-green-400 rounded-full transition-all duration-500"
-                    :style="{ width: `${agentType.successRate}%` }"
-                  ></div>
-                </div>
-                <span class="text-xs text-green-400 font-medium w-8">{{ agentType.successRate }}%</span>
-              </div>
-              
+
               <!-- Performance indicator -->
               <div class="flex items-center space-x-2">
                 <span class="text-xs text-gray-400 w-12 text-right">Speed</span>
@@ -76,30 +63,7 @@
               </div>
             </div>
           </div>
-          
-          <!-- Detailed breakdown (shown on hover) -->
-          <div
-            class="overflow-hidden transition-all duration-300"
-            :class="hoveredType === agentType.type ? 'max-h-20 mt-3' : 'max-h-0'"
-          >
-            <div class="pt-3 border-t border-gray-700">
-              <div class="grid grid-cols-3 gap-4 text-center">
-                <div>
-                  <div class="text-lg font-bold text-purple-400">{{ agentType.count }}</div>
-                  <div class="text-xs text-gray-400">Executions</div>
-                </div>
-                <div>
-                  <div class="text-lg font-bold text-green-400">{{ Math.round((agentType.successRate / 100) * agentType.count) }}</div>
-                  <div class="text-xs text-gray-400">Successes</div>
-                </div>
-                <div>
-                  <div class="text-lg font-bold text-red-400">{{ agentType.count - Math.round((agentType.successRate / 100) * agentType.count) }}</div>
-                  <div class="text-xs text-gray-400">Failures</div>
-                </div>
-              </div>
-            </div>
-          </div>
-          
+
           <!-- Click indicator -->
           <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
             <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -124,7 +88,6 @@
       <div class="flex justify-between items-center text-xs text-gray-400">
         <span>{{ chartData.length }} agent types</span>
         <span>{{ totalExecutions }} total executions</span>
-        <span>{{ avgSuccessRate }}% avg success rate</span>
       </div>
     </div>
   </div>

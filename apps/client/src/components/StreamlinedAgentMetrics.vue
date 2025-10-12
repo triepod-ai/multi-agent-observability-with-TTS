@@ -25,8 +25,8 @@
       </div>
     </div>
 
-    <!-- Streamlined Metrics Grid (3x2 instead of 4x2) -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <!-- Streamlined Metrics Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <!-- Total Executions -->
       <div class="bg-gray-800 border border-gray-700 rounded-lg p-4 hover:border-gray-600 transition-colors">
         <div class="flex items-center justify-between mb-2">
@@ -44,25 +44,6 @@
         </div>
         <div class="text-2xl font-bold text-white mb-1">{{ formatNumber(metrics.totalExecutions) }}</div>
         <div class="text-xs text-gray-400">Total Executions</div>
-      </div>
-
-      <!-- Success Rate -->
-      <div class="bg-gray-800 border border-gray-700 rounded-lg p-4 hover:border-gray-600 transition-colors">
-        <div class="flex items-center justify-between mb-2">
-          <div class="text-green-400">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <div class="flex items-center text-xs">
-            <svg class="w-3 h-3 text-red-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-            </svg>
-            <span class="text-red-500 font-medium">-2.1%</span>
-          </div>
-        </div>
-        <div class="text-2xl font-bold text-white mb-1">{{ metrics.successRate }}%</div>
-        <div class="text-xs text-gray-400">Success Rate</div>
       </div>
 
       <!-- Average Response Time -->
@@ -123,53 +104,20 @@
       
       <Transition name="expand">
         <div v-show="showDetailedAnalytics" class="p-4 space-y-4">
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <!-- Performance Trends -->
-            <div>
-              <h4 class="text-sm font-medium text-white mb-3">Performance Trends</h4>
-              <div class="space-y-3">
-                <div>
-                  <div class="flex justify-between text-sm mb-1">
-                    <span class="text-gray-400">Success Rate</span>
-                    <span class="text-green-400">{{ metrics.successRate }}%</span>
-                  </div>
-                  <div class="w-full bg-gray-700 rounded-full h-2">
-                    <div 
-                      class="bg-green-500 h-2 rounded-full transition-all duration-500"
-                      :style="{ width: metrics.successRate + '%' }"
-                    ></div>
-                  </div>
+          <!-- Agent Type Distribution -->
+          <div>
+            <h4 class="text-sm font-medium text-white mb-3">Agent Types</h4>
+            <div class="space-y-2">
+              <div
+                v-for="type in agentTypes"
+                :key="type.name"
+                class="flex items-center justify-between p-2 bg-gray-900/50 rounded"
+              >
+                <div class="flex items-center space-x-2">
+                  <span class="text-sm">{{ type.icon }}</span>
+                  <span class="text-sm text-gray-300">{{ type.name }}</span>
                 </div>
-                <div>
-                  <div class="flex justify-between text-sm mb-1">
-                    <span class="text-gray-400">Response Time</span>
-                    <span class="text-blue-400">{{ metrics.avgResponseTime }}ms</span>
-                  </div>
-                  <div class="w-full bg-gray-700 rounded-full h-2">
-                    <div 
-                      class="bg-blue-500 h-2 rounded-full transition-all duration-500"
-                      :style="{ width: Math.min((1000 - metrics.avgResponseTime) / 10, 100) + '%' }"
-                    ></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Agent Type Distribution -->
-            <div>
-              <h4 class="text-sm font-medium text-white mb-3">Agent Types</h4>
-              <div class="space-y-2">
-                <div 
-                  v-for="type in agentTypes"
-                  :key="type.name"
-                  class="flex items-center justify-between p-2 bg-gray-900/50 rounded"
-                >
-                  <div class="flex items-center space-x-2">
-                    <span class="text-sm">{{ type.icon }}</span>
-                    <span class="text-sm text-gray-300">{{ type.name }}</span>
-                  </div>
-                  <div class="text-sm font-medium text-white">{{ type.count }}</div>
-                </div>
+                <div class="text-sm font-medium text-white">{{ type.count }}</div>
               </div>
             </div>
           </div>

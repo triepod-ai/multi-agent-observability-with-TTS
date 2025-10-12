@@ -31,21 +31,13 @@
     </div>
 
     <!-- Performance Metrics Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
       <div class="bg-gray-900/50 rounded-lg p-3 text-center">
         <div class="text-xl font-bold text-purple-400 mb-1">{{ totalAgentExecutions }}</div>
         <div class="text-xs text-gray-400">Total Executions</div>
         <div class="text-xs text-green-400 mt-1">{{ executionTrend }}% vs last period</div>
       </div>
-      
-      <div class="bg-gray-900/50 rounded-lg p-3 text-center">
-        <div class="text-xl font-bold text-green-400 mb-1">{{ overallSuccessRate }}%</div>
-        <div class="text-xs text-gray-400">Success Rate</div>
-        <div class="text-xs" :class="successRateTrend >= 0 ? 'text-green-400' : 'text-red-400'">
-          {{ successRateTrend >= 0 ? '+' : '' }}{{ successRateTrend }}% vs last period
-        </div>
-      </div>
-      
+
       <div class="bg-gray-900/50 rounded-lg p-3 text-center">
         <div class="text-xl font-bold text-blue-400 mb-1">{{ averageExecutionTime }}s</div>
         <div class="text-xs text-gray-400">Avg Duration</div>
@@ -53,7 +45,7 @@
           {{ executionTimeTrend >= 0 ? '+' : '' }}{{ executionTimeTrend }}s vs last period
         </div>
       </div>
-      
+
       <div class="bg-gray-900/50 rounded-lg p-3 text-center">
         <div class="text-xl font-bold text-orange-400 mb-1">{{ activeAgentTypes }}</div>
         <div class="text-xs text-gray-400">Agent Types</div>
@@ -86,8 +78,7 @@
               <!-- Tooltip -->
               <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
                 {{ dataPoint.time }}<br>
-                {{ dataPoint.executions }} executions<br>
-                {{ dataPoint.successRate }}% success
+                {{ dataPoint.executions }} executions
               </div>
             </div>
           </div>
@@ -120,17 +111,8 @@
                 <div class="text-xs text-gray-400">{{ agentType.executions }} executions</div>
               </div>
             </div>
-            
+
             <div class="flex items-center space-x-3">
-              <!-- Success Rate Bar -->
-              <div class="w-16 h-2 bg-gray-700 rounded-full overflow-hidden">
-                <div 
-                  class="h-full bg-gradient-to-r from-green-500 to-green-400 rounded-full transition-all duration-300"
-                  :style="{ width: `${agentType.successRate}%` }"
-                ></div>
-              </div>
-              <span class="text-xs font-medium text-green-400 w-8">{{ agentType.successRate }}%</span>
-              
               <!-- Average Duration -->
               <span class="text-xs text-blue-400 w-12">{{ agentType.avgDuration }}s</span>
             </div>

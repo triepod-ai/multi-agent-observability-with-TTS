@@ -144,7 +144,7 @@
           <!-- Scrollable Content Area -->
           <div class="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
             <!-- Application Metrics -->
-            <div class="grid grid-cols-4 gap-3 mb-4">
+            <div class="grid grid-cols-3 gap-3 mb-4">
             <div class="text-center p-2 bg-gray-900/50 rounded">
               <div class="text-lg font-bold text-purple-400">{{ getAppAgentCount(appEvents) }}</div>
               <div class="text-xs text-gray-400">Agents</div>
@@ -156,10 +156,6 @@
             <div class="text-center p-2 bg-gray-900/50 rounded">
               <div class="text-lg font-bold text-green-400">{{ getSuccessRate(appEvents) }}%</div>
               <div class="text-xs text-gray-400">Success</div>
-            </div>
-            <div class="text-center p-2 bg-gray-900/50 rounded">
-              <div class="text-lg font-bold text-blue-400">{{ getAvgResponseTime(appEvents) }}ms</div>
-              <div class="text-xs text-gray-400">Avg Time</div>
             </div>
           </div>
 
@@ -278,11 +274,39 @@
         Applications will be automatically detected from hook events
       </div>
     </div>
+
+    <!-- Recent Agent Executions -->
+    <div v-if="agentSessions.length > 0" class="mt-8">
+      <h3 class="text-lg font-semibold text-white mb-4">Recent Agent Executions</h3>
+      <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+        <TransitionGroup name="agent-card">
+          <AgentExecutionCard
+            v-for="agentSession in agentSessions"
+            :key="agentSession.sessionId"
+            :agent-session="agentSession"
+            :session-color="getSessionColor(agentSession.sessionId)"
+            :app-color="getAppColor(agentSession.sourceApp)"
+            @view-details="handleViewDetails"
+          />
+        </TransitionGroup>
+      </div>
+    </div>
+
+    <!-- Agent Execution Detail Modal -->
+    <AgentDetailModal
+      v-if="selectedAgentSession"
+      :is-open="showAgentDetail"
+      :agent-session="selectedAgentSession"
+      :session-color="getSessionColor(selectedAgentSession.sessionId)"
+      @close="showAgentDetail = false"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
+import AgentExecutionCard from './AgentExecutionCard.vue';
+import AgentDetailModal from './AgentDetailModal.vue';
 import type { HookEvent } from '../types';
 
 interface Props {
@@ -397,13 +421,6 @@ const getSuccessRate = (events: HookEvent[]): number => {
   if (events.length === 0) return 0;
   const successEvents = events.filter(e => !e.error && !e.hook_event_type.includes('error'));
   return Math.round((successEvents.length / events.length) * 100);
-};
-
-const getAvgResponseTime = (events: HookEvent[]): number => {
-  const eventsWithDuration = events.filter(e => e.duration);
-  if (eventsWithDuration.length === 0) return 0;
-  const totalDuration = eventsWithDuration.reduce((sum, e) => sum + (e.duration || 0), 0);
-  return Math.round(totalDuration / eventsWithDuration.length);
 };
 
 const getSessionEventCount = (events: HookEvent[], sessionId: string): number => {
@@ -610,29 +627,23 @@ const totalAgentExecutions = computed(() => {
   return agentCount;
 });
 
-// Agent detection logic (same as AgentDashboard)
+// Agent detection logic - simplified to catch any tool usage
 const detectAgentSession = (events: HookEvent[]): boolean => {
-  const hasTaskTool = events.some(event => 
-    event.hook_event_type === 'PreToolUse' && 
-    event.payload.tool_name === 'Task'
+  // Treat ANY session with tool usage as an agent session
+  const hasToolUsage = events.some(event =>
+    event.hook_event_type === 'PreToolUse' || event.hook_event_type === 'PostToolUse'
   );
-  
-  const hasMultipleTools = new Set(
-    events
-      .filter(event => event.hook_event_type === 'PreToolUse')
-      .map(event => event.payload.tool_name)
-  ).size >= 2;
-  
-  const hasAgentKeywords = events.some(event => {
-    const content = JSON.stringify(event.payload).toLowerCase();
-    return content.includes('agent') || 
-           content.includes('subagent') || 
-           content.includes('spawn') ||
-           content.includes('claude/agents') ||
-           event.payload.metadata?.agent_type;
-  });
-  
-  return hasTaskTool || (hasMultipleTools && hasAgentKeywords);
+
+  if (hasToolUsage) {
+    return true;
+  }
+
+  // Also check for explicit SubagentStart/Stop events
+  const hasSubagentEvents = events.some(event =>
+    event.hook_event_type === 'SubagentStop' || event.hook_event_type === 'SubagentStart'
+  );
+
+  return hasSubagentEvents;
 };
 
 const extractAgentName = (description: string): string => {
@@ -796,6 +807,103 @@ const clearSessionFilter = () => {
 const clearAllFilters = () => {
   emit('clearAllFilters');
 };
+
+// Agent session data structure
+interface AgentSessionData {
+  sessionId: string;
+  sourceApp: string;
+  agentName?: string;
+  agentType?: string;
+  startTime: number;
+  endTime?: number;
+  duration?: number;
+  status: 'running' | 'completed' | 'failed';
+  toolsUsed: string[];
+  tokenUsage?: number;
+  returnData?: any;
+  events: HookEvent[];
+  errorMessage?: string;
+}
+
+// State for agent detail modal
+const showAgentDetail = ref(false);
+const selectedAgentSession = ref<AgentSessionData | null>(null);
+
+// Simplified agent sessions computed (reuses existing agent detection logic)
+const agentSessions = computed((): AgentSessionData[] => {
+  // Reuse the existing getAppAgents logic but return full session data
+  const sessionGroups = new Map<string, HookEvent[]>();
+
+  // Group by session ID
+  props.events.forEach(event => {
+    if (!sessionGroups.has(event.session_id)) {
+      sessionGroups.set(event.session_id, []);
+    }
+    sessionGroups.get(event.session_id)!.push(event);
+  });
+
+  const sessions: AgentSessionData[] = [];
+
+  sessionGroups.forEach((sessionEvents, sessionId) => {
+    if (detectAgentSession(sessionEvents)) {
+      sessionEvents.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+
+      const firstEvent = sessionEvents[0];
+      const lastEvent = sessionEvents[sessionEvents.length - 1];
+
+      // Extract agent name from events
+      let agentName = 'Agent Session';
+      const taskEvents = sessionEvents.filter(e =>
+        e.hook_event_type === 'PreToolUse' && e.payload?.tool_name === 'Task'
+      );
+      if (taskEvents.length > 0 && taskEvents[0].payload.tool_input?.description) {
+        agentName = extractAgentName(taskEvents[0].payload.tool_input.description);
+      }
+
+      // Get agent type from metadata
+      let agentType = 'generic';
+      const agentMetadata = sessionEvents.find(e => e.payload?.metadata?.agent_type);
+      if (agentMetadata) {
+        agentType = agentMetadata.payload.metadata.agent_type;
+      }
+
+      // Collect tools used
+      const toolsUsed = sessionEvents
+        .filter(e => e.hook_event_type === 'PreToolUse')
+        .map(e => e.payload?.tool_name)
+        .filter((t): t is string => !!t);
+
+      // Determine status
+      const hasError = sessionEvents.some(e =>
+        e.hook_event_type === 'PostToolUse' && e.payload.tool_output?.error
+      );
+      const status = hasError ? 'failed' : 'completed';
+
+      sessions.push({
+        sessionId,
+        sourceApp: firstEvent.source_app || 'Unknown',
+        agentName,
+        agentType,
+        startTime: firstEvent.timestamp || 0,
+        endTime: lastEvent.timestamp,
+        duration: lastEvent.timestamp && firstEvent.timestamp
+          ? (lastEvent.timestamp - firstEvent.timestamp) / 1000
+          : undefined,
+        status,
+        toolsUsed,
+        events: sessionEvents,
+      });
+    }
+  });
+
+  return sessions.sort((a, b) => b.startTime - a.startTime).slice(0, 12);
+});
+
+// Event handlers for agent cards
+function handleViewDetails(agentSession: AgentSessionData) {
+  selectedAgentSession.value = agentSession;
+  showAgentDetail.value = true;
+}
 </script>
 
 <style scoped>
@@ -832,6 +940,21 @@ const clearAllFilters = () => {
 }
 
 .application-card-leave-to {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+.agent-card-enter-active,
+.agent-card-leave-active {
+  transition: all 0.3s ease;
+}
+
+.agent-card-enter-from {
+  opacity: 0;
+  transform: scale(0.95) translateY(20px);
+}
+
+.agent-card-leave-to {
   opacity: 0;
   transform: scale(0.95);
 }

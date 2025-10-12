@@ -216,18 +216,7 @@
           @clear-filter="handleClearFilter"
           @clear-all-filters="clearAllFilters"
         />
-        
-        <!-- Agents View (Agent-centric monitoring) -->
-        <AgentDashboard
-          v-else-if="currentViewMode === 'agents'"
-          key="agents"
-          :events="finalFilteredEvents"
-          :get-session-color="getHexColorForSession"
-          :get-app-color="getHexColorForApp"
-          @session-select="handleSessionSelect"
-          @event-click="openEventDetail"
-        />
-        
+
         <!-- Legacy Timeline View (Original) -->
         <div v-else key="legacy" class="h-full">
           <EventTimeline
@@ -288,7 +277,6 @@ import ActivityDashboard from './components/ActivityDashboard.vue';
 import EventDetailModal from './components/EventDetailModal.vue';
 import TimelineView from './components/TimelineView.vue';
 import ApplicationsOverview from './components/ApplicationsOverview.vue';
-import AgentDashboard from './components/AgentDashboard.vue';
 import FilterNotificationBar from './components/FilterNotificationBar.vue';
 import HookStatusGrid from './components/HookStatusGrid.vue';
 import EducationalDashboard from './components/EducationalDashboard.vue';
@@ -310,11 +298,10 @@ const { isEducationalMode, toggleEducationalMode } = useEducationalMode();
 const viewModes = [
   { id: 'timeline', label: 'Timeline', icon: '⏰' },
   { id: 'applications', label: 'Applications', icon: '📱' },
-  { id: 'agents', label: 'Agents', icon: '🤖' },
   { id: 'legacy', label: 'Classic', icon: '📜' }
 ];
 
-const currentViewMode = ref<'timeline' | 'applications' | 'agents' | 'legacy'>('timeline');
+const currentViewMode = ref<'timeline' | 'applications' | 'legacy'>('timeline');
 
 // Filters
 const filters = ref<FilterState>({

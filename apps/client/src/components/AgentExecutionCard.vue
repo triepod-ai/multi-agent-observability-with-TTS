@@ -61,27 +61,13 @@
         </div>
         
         <!-- Action Buttons -->
-        <div class="flex items-center space-x-1">
-          <button
-            @click="$emit('expand-tools', agentSession)"
-            class="p-1.5 rounded hover:bg-gray-700 transition-colors"
-            title="View all events"
-          >
-            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-            </svg>
-          </button>
-          <button
-            @click="$emit('view-details', agentSession)"
-            class="p-1.5 rounded hover:bg-gray-700 transition-colors"
-            title="View details"
-          >
-            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        </div>
+        <button
+          @click="$emit('view-details', agentSession)"
+          class="px-2 py-1 rounded hover:bg-gray-700 transition-colors text-xs text-gray-400 hover:text-white"
+          title="View details"
+        >
+          Details →
+        </button>
       </div>
     </div>
     
@@ -181,7 +167,6 @@ const props = defineProps<Props>();
 // Emits
 defineEmits<{
   'view-details': [agentSession: AgentSessionData];
-  'expand-tools': [agentSession: AgentSessionData];
 }>();
 
 // Computed

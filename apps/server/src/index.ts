@@ -187,14 +187,20 @@ async function processSubagentStopEvent(event: HookEvent, savedEvent: any): Prom
       console.log(`📦 Using extracted tools (${toolsUsed.length}) for agent: ${agentName}`);
     }
 
+    // FIX: Handle both duration_ms and duration_seconds from hooks
+    const durationMs = event.payload.duration_ms || 
+                      (event.payload.duration_seconds ? event.payload.duration_seconds * 1000 : 0) ||
+                      event.payload.duration || 0;
+
     const agentData = {
       agent_name: agentName,
       agent_type: classifyAgentType(agentName, event.payload),
       agent_id: event.payload.agent_id || `ag_${Date.now()}`,
-      duration: event.payload.duration || 0,
+      duration: durationMs,
+      duration_ms: durationMs,
       tokens: event.payload.tokens_used || 0,
-      success: event.payload.result !== false && !event.payload.error,
-      status: event.payload.result ? 'success' : (event.payload.error ? 'failed' : 'unknown'),
+      success: event.payload.success !== false && !event.payload.error_occurred,
+      status: event.payload.success ? 'success' : (event.payload.error_occurred ? 'failed' : 'success'),
       token_usage: {
         total_tokens: event.payload.tokens_used || 0,
         estimated_cost: Math.round((event.payload.tokens_used || 0) * 0.01) // in cents

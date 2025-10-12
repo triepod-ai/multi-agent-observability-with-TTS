@@ -789,11 +789,11 @@ def main():
                         "agent_id": agent_info.get('agent_id', 'unknown'),
                         "agent_name": agent_info.get('agent_name', 'unknown'),
                         "agent_type": agent_info.get('agent_type', 'generic'),
-                        "success": agent_info.get('success', True),
+                        "success": not agent_info.get('error_occurred', False),
                         "error_occurred": agent_info.get('error_occurred', False),
-                        "duration_seconds": agent_info.get('duration_seconds', 0),
+                        "duration_seconds": agent_info.get('duration', 0),
                         "tools_used": agent_info.get('tools_used', []),
-                        "tokens_used": agent_info.get('tokens_used', 0),
+                        "tokens_used": agent_info.get('token_usage', {}).get('total_tokens', 0),
                         "metadata": {
                             "agent_type": agent_info.get('agent_type', 'generic'),
                             "stop_hook_active": stop_hook_active

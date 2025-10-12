@@ -1302,126 +1302,6 @@ export function useAgentMetrics(events: Ref<HookEvent[]>) {
     URL.revokeObjectURL(url);
   }
 
-  // Test agent runner
-  async function runTestAgent(): Promise<void> {
-    try {
-      const response = await fetch(`${API_BASE}/api/agents/test/run`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          type: 'demo',
-          duration: 5000, // 5 seconds
-          tools: ['Read', 'Write', 'Bash'],
-          scenario: 'performance-test'
-        })
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        console.log('Test agent executed successfully:', result);
-        
-        // Refresh data to show new execution
-        setTimeout(() => {
-          refreshData();
-        }, 1000);
-      } else {
-        console.error('Failed to run test agent:', response.statusText);
-      }
-    } catch (error) {
-      console.error('Error running test agent:', error);
-      
-      // Fallback: Create a mock agent session for demo purposes
-      console.log('Creating mock agent session for demo...');
-      createMockAgentEvents();
-      
-      // Simulate adding events to the system
-      setTimeout(() => {
-        refreshData();
-      }, 2000);
-    }
-  }
-  
-  // Create mock agent events for demo purposes
-  function createMockAgentEvents(): HookEvent[] {
-    const sessionId = `mock-agent-${Date.now()}`;
-    const now = Date.now();
-    
-    return [
-      {
-        source_app: 'claude-code',
-        session_id: sessionId,
-        hook_event_type: 'UserPromptSubmit',
-        payload: {
-          message: '@debugger analyze performance issues in the application',
-          metadata: {
-            user: 'demo-user',
-            agent_type: 'debugger'
-          }
-        },
-        timestamp: now
-      },
-      {
-        source_app: 'claude-code',
-        session_id: sessionId,
-        hook_event_type: 'PreToolUse',
-        payload: {
-          tool_name: 'Read',
-          tool_input: { file_path: '/app/src/performance.js' },
-          metadata: { agent_type: 'debugger' }
-        },
-        timestamp: now + 1000
-      },
-      {
-        source_app: 'claude-code',
-        session_id: sessionId,
-        hook_event_type: 'PostToolUse',
-        payload: {
-          tool_name: 'Read',
-          tool_output: { result: 'File contents analyzed' },
-          tokens: 150
-        },
-        timestamp: now + 1500
-      },
-      {
-        source_app: 'claude-code',
-        session_id: sessionId,
-        hook_event_type: 'PreToolUse',
-        payload: {
-          tool_name: 'Bash',
-          tool_input: { command: 'grep -r "performance" src/' },
-          metadata: { agent_type: 'debugger' }
-        },
-        timestamp: now + 2000
-      },
-      {
-        source_app: 'claude-code',
-        session_id: sessionId,
-        hook_event_type: 'PostToolUse',
-        payload: {
-          tool_name: 'Bash',
-          tool_output: { result: 'Performance issues found in 3 files' },
-          tokens: 85
-        },
-        timestamp: now + 3000
-      },
-      {
-        source_app: 'claude-code',
-        session_id: sessionId,
-        hook_event_type: 'SubagentStop',
-        payload: {
-          result: 'Analysis complete: 3 performance bottlenecks identified',
-          success: true,
-          tokens: 235,
-          duration: 4.5,
-          metadata: { agent_type: 'debugger' }
-        },
-        timestamp: now + 4500
-      }
-    ];
-  }
-
   // Watch for time range changes
   watch(selectedTimeRange, () => {
     refreshData();
@@ -1594,10 +1474,7 @@ export function useAgentMetrics(events: Ref<HookEvent[]>) {
     // Methods - Connection Management
     reconnectWebSocket,
     clearCache,
-    
-    // Methods - Testing
-    runTestAgent,
-    
+
     // Configuration
     timeRangeOptions: Object.entries(timeRangeConfig).map(([value, config]) => ({
       value: value as '1h' | '6h' | '24h' | '7d',

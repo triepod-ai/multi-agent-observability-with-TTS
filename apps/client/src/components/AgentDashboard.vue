@@ -126,51 +126,6 @@
       </div>
     </div>
 
-    <!-- Real-time Metrics Overview -->
-    <div class="mb-6">
-      <AgentMetricsChart
-        title="Performance Metrics"
-        subtitle="Key performance indicators with trends"
-        chart-type="metrics"
-        :metrics-data="metricsCardsData"
-        :is-loading="agentMetrics.isLoadingData.value"
-        @metric-click="handleMetricClick"
-      />
-    </div>
-
-    <!-- Interactive Visualizations Grid -->
-    <div class="mb-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- Execution Timeline Chart -->
-      <AgentMetricsChart
-        title="Execution Timeline"
-        subtitle="Agent execution patterns over time"
-        chart-type="timeline"
-        :timeline-data="agentMetrics.timelineData.value"
-        :selected-time-range="agentMetrics.selectedTimeRange.value"
-        :time-range-options="timeRangeOptions"
-        :is-loading="agentMetrics.isLoadingData.value"
-        show-time-range
-        show-export
-        @time-range-change="handleTimeRangeChange"
-        @point-hover="(data: any) => handleTimelineHover(data, 0)"
-        @point-click="(data: any) => handleTimelineClick(data, 0)"
-        @export="exportTimelineData"
-      />
-
-      <!-- Agent Types Distribution -->
-      <AgentMetricsChart
-        title="Agent Type Performance"
-        subtitle="Success rates and usage by agent type"
-        chart-type="agent-types"
-        :agent-type-data="agentMetrics.agentTypeDistribution.value"
-        :is-loading="agentMetrics.isLoadingData.value"
-        show-export
-        @type-filter="handleTypeFilter"
-        @type-hover="handleTypeHover"
-        @export="exportAgentTypeData"
-      />
-    </div>
-
     <!-- Tool Usage and Performance Analysis - DEPRECATED -->
     <!--
     <div class="mb-6">
@@ -213,106 +168,45 @@
     -->
 
 
-    <!-- Enhanced Empty State -->
-    <div v-if="agentMetrics.metrics.value.totalExecutions === 0 || (agentMetrics.metrics.value.totalExecutions > 0 && agentSessions.length === 0)" class="text-center py-16">
-      <div class="text-8xl mb-6">🤖</div>
-      <h3 class="text-xl font-semibold text-white mb-2">
-        <template v-if="agentMetrics.metrics.value.totalExecutions === 0">No Agent Activity</template>
-        <template v-else>Agent Display Temporarily Unavailable</template>
-      </h3>
+    <!-- Redirect Message -->
+    <div class="text-center py-16">
+      <div class="text-8xl mb-6">📱</div>
+      <h3 class="text-xl font-semibold text-white mb-2">Agent Executions Moved</h3>
       <p class="text-gray-400 mb-6">
-        <template v-if="agentMetrics.metrics.value.totalExecutions === 0">
-          Start monitoring your AI agents with realtime performance insights
-        </template>
-        <template v-else>
-          {{ agentMetrics.metrics.value.totalExecutions }} agent executions detected today. Session details are being processed...
-        </template>
+        Agent executions are now displayed in the Applications tab for a unified view of applications and agents.
       </p>
-      
-      <!-- Run Test Agent Button -->
-      <button
-        @click="handleRunTestAgent"
-        :disabled="agentMetrics.isLoadingData.value"
-        class="mb-6 px-6 py-3 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center space-x-2 mx-auto"
-      >
-        <svg 
-          v-if="!agentMetrics.isLoadingData.value"
-          class="w-5 h-5" 
-          fill="none" 
-          stroke="currentColor" 
-          viewBox="0 0 24 24"
-        >
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1.586a1 1 0 01.707.293l2.414 2.414a1 1 0 00.707.293H15M6 20l4-16 4 16H6z" />
-        </svg>
-        <svg 
-          v-else
-          class="w-5 h-5 animate-spin" 
-          fill="none" 
-          stroke="currentColor" 
-          viewBox="0 0 24 24"
-        >
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-        </svg>
-        <span>{{ agentMetrics.isLoadingData.value ? 'Running...' : 'Run Test Agent' }}</span>
-      </button>
-      
+
       <div class="bg-gray-800 rounded-lg p-6 max-w-2xl mx-auto">
-        <h4 class="text-sm font-medium text-white mb-4">What are Agent Operations?</h4>
+        <h4 class="text-sm font-medium text-white mb-4">View Agent Activity</h4>
+        <p class="text-sm text-gray-300 mb-4">
+          Switch to the <strong class="text-purple-400">Applications</strong> tab to see:
+        </p>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-300">
           <div class="text-center">
-            <div class="text-2xl mb-2">⚡</div>
-            <div class="font-medium text-white mb-1">Real-time Monitoring</div>
-            <div>Track agent executions, success rates, and performance metrics live</div>
+            <div class="text-2xl mb-2">📱</div>
+            <div class="font-medium text-white mb-1">Applications Overview</div>
+            <div>All your applications in one place</div>
           </div>
           <div class="text-center">
-            <div class="text-2xl mb-2">📊</div>
-            <div class="font-medium text-white mb-1">Interactive Analytics</div>
-            <div>Visualize execution timelines, tool usage, and agent type performance</div>
+            <div class="text-2xl mb-2">🤖</div>
+            <div class="font-medium text-white mb-1">Agent Executions</div>
+            <div>Recent agent activity and details</div>
           </div>
           <div class="text-center">
-            <div class="text-2xl mb-2">🎯</div>
-            <div class="font-medium text-white mb-1">Actionable Insights</div>
-            <div>Export data, filter by metrics, and optimize agent workflows</div>
+            <div class="text-2xl mb-2">🔄</div>
+            <div class="font-medium text-white mb-1">Unified View</div>
+            <div>Applications and agents together</div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Agent Session Cards (for backward compatibility) -->
-    <div v-if="agentSessions.length > 0" class="mb-6">
-      <h3 class="text-lg font-semibold text-white mb-4">Recent Agent Executions</h3>
-      <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-        <TransitionGroup name="agent-card">
-          <AgentExecutionCard
-            v-for="agentSession in agentSessions"
-            :key="agentSession.sessionId"
-            :agent-session="agentSession"
-            :session-color="getSessionColor(agentSession.sessionId)"
-            :app-color="getAppColor(agentSession.sourceApp)"
-            @view-details="handleViewDetails"
-            @expand-tools="handleExpandTools"
-          />
-        </TransitionGroup>
-      </div>
-    </div>
-
-    <!-- Agent Execution Detail Modal -->
-    <AgentDetailModal
-      v-if="selectedAgentSession"
-      :is-open="showAgentDetail"
-      :agent-session="selectedAgentSession"
-      :session-color="getSessionColor(selectedAgentSession.sessionId)"
-      @close="showAgentDetail = false"
-    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, toRef } from 'vue';
 import type { HookEvent } from '../types';
-import AgentExecutionCard from './AgentExecutionCard.vue';
-import AgentDetailModal from './AgentDetailModal.vue';
-import AgentMetricsChart from './AgentMetricsChart.vue';
 // DEPRECATED: Components removed from UI
 // import SessionTree from './SessionTree.vue';
 // import RelationshipStats from './RelationshipStats.vue';
@@ -370,44 +264,6 @@ const agentMetrics = useAgentMetrics(toRef(props, 'events'));
 
 // Time range options for the dashboard
 const timeRangeOptions = computed(() => agentMetrics.timeRangeOptions);
-
-// Metrics cards data for the performance overview
-const metricsCardsData = computed(() => [
-  {
-    key: 'total-executions',
-    title: 'Total Executions',
-    value: agentMetrics.metrics.value.totalExecutions,
-    trend: agentMetrics.executionTrend.value,
-    icon: '⚡',
-    color: 'purple',
-    format: 'number' as const
-  },
-  {
-    key: 'success-rate',
-    title: 'Success Rate',
-    value: agentMetrics.metrics.value.successRate,
-    trend: agentMetrics.successRateTrend.value,
-    icon: '✅',
-    color: 'green',
-    format: 'percentage' as const
-  },
-  {
-    key: 'agent-types',
-    title: 'Agent Types',
-    value: agentMetrics.metrics.value.agentTypes,
-    icon: '🤖',
-    color: 'cyan',
-    format: 'number' as const
-  },
-  {
-    key: 'active-sessions',
-    title: 'Active Sessions',
-    value: agentMetrics.metrics.value.activeAgents,
-    icon: '🔄',
-    color: 'yellow',
-    format: 'number' as const
-  }
-]);
 
 // Simplified agent sessions for backward compatibility (limited to recent sessions)
 const agentSessions = computed((): AgentSessionData[] => {
@@ -893,36 +749,6 @@ function formatLastUpdate(timestamp: number): string {
 }
 
 // Interactive event handlers
-function handleMetricClick(key: string) {
-  console.log('Metric clicked:', key);
-  // Could implement drill-down functionality
-}
-
-function handleTimeRangeChange(range: string) {
-  agentMetrics.selectedTimeRange.value = range as any;
-}
-
-function handleTimelineHover(data: any, index: number, type?: string) {
-  console.log('Timeline hover:', data, index, type);
-  // Could show detailed tooltip or highlight related data
-}
-
-function handleTimelineClick(data: any, index: number, type?: string) {
-  console.log('Timeline click:', data, index, type);
-  // Could filter data or show detailed view
-}
-
-function handleTypeFilter(type: string) {
-  console.log('Type filter:', type);
-  // Could implement filtering by agent type
-  emit('event-click', {} as HookEvent); // Placeholder for now
-}
-
-function handleTypeHover(type: string) {
-  console.log('Type hover:', type);
-  // Could highlight related data
-}
-
 function handleToolClick(tool: string) {
   console.log('Tool click:', tool);
   // Could filter by tool usage
@@ -934,41 +760,6 @@ function handleToolHover(tool: string) {
 }
 
 // Export functions
-function exportTimelineData() {
-  const data = {
-    timeline: agentMetrics.timelineData.value,
-    timeRange: agentMetrics.selectedTimeRange.value,
-    exportedAt: new Date().toISOString()
-  };
-  
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `agent-timeline-${Date.now()}.json`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-function exportAgentTypeData() {
-  const data = {
-    agentTypes: agentMetrics.agentTypeDistribution.value,
-    exportedAt: new Date().toISOString()
-  };
-  
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `agent-types-${Date.now()}.json`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
 function exportToolUsageData() {
   const data = {
     tools: agentMetrics.toolUsage.value,
@@ -1002,32 +793,6 @@ async function handleRefreshData() {
     console.error('Failed to refresh data:', error);
     errorMessage.value = 'Failed to refresh data. Please check your connection and try again.';
     
-    setTimeout(() => {
-      errorMessage.value = null;
-    }, 8000);
-  }
-}
-
-// Handler for test agent button
-async function handleRunTestAgent() {
-  try {
-    errorMessage.value = null;
-    successMessage.value = null;
-    
-    await agentMetrics.runTestAgent();
-    
-    successMessage.value = 'Test agent executed successfully! Data will refresh shortly.';
-    
-    // Auto-hide success message after 5 seconds
-    setTimeout(() => {
-      successMessage.value = null;
-    }, 5000);
-    
-  } catch (error) {
-    console.error('Failed to run test agent:', error);
-    errorMessage.value = 'Failed to run test agent. Please try again or check the console for details.';
-    
-    // Auto-hide error message after 8 seconds
     setTimeout(() => {
       errorMessage.value = null;
     }, 8000);
